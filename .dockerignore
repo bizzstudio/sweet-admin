@@ -1,0 +1,35 @@
+# תלויות ותוצרי build — מותקנים/נבנים בתוך התמונה
+node_modules
+dist
+build
+.pnp
+.pnp.js
+
+# קבצי סביבה — לא נכנסים לבנייה. הקונפיגורציה מגיעה כ-build-args.
+.env
+.env.*
+
+# git ו-CI
+.git
+.gitignore
+
+# Docker
+Dockerfile
+.dockerignore
+docker-compose.yml
+
+# בדיקות וכיסוי
+coverage
+
+# לוגים
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# קבצי עורך / מערכת הפעלה
+.vscode
+.idea
+.DS_Store
+
+# מטמון tailwind שנוצר
+src/assets/css/tailwind.output.css
