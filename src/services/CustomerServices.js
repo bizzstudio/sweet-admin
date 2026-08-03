@@ -5,8 +5,13 @@ const CustomerServices = {
     return requests.get(`/customer?searchText=${searchText}`);
   },
 
-  addAllCustomers: async (body) => {
-    return requests.post("/customer/add/all", body);
+  // בדיקה מקדימה לפני יבוא אקסל: {customerNumbers, emails, phones}
+  checkImportCustomers: async (body) => {
+    return requests.post("/customer/import/check", body);
+  },
+  // יבוא/עדכון לקוחות מאקסל לפי מספר לקוח: {rows, options}
+  importCustomers: async (body) => {
+    return requests.post("/customer/import", body);
   },
   // user create
   createCustomer: async (body) => {
@@ -19,6 +24,12 @@ const CustomerServices = {
 
   getCustomerById: async (id) => {
     return requests.get(`/customer/${id}`);
+  },
+
+  // כרטיס לקוח מלא לצפייה: כולל את נתוני ההנהח"ש (erp) שלא חוזרים
+  // מ-getCustomerById כי הם מוגדרים select:false במודל
+  getCustomerDetails: async (id) => {
+    return requests.get(`/customer/${id}/details`);
   },
 
   updateCustomer: async (id, body) => {

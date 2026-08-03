@@ -10,7 +10,7 @@ import {
   TableFooter,
   TableHeader,
 } from "@windmill/react-ui";
-import React from "react";
+import React, { useContext, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 // Internal import
@@ -22,26 +22,26 @@ import PageTitle from "@/components/Typography/PageTitle";
 import useAsync from "@/hooks/useAsync";
 import useFilter from "@/hooks/useFilter";
 import CustomerServices from "@/services/CustomerServices";
+import ImportCustomersExcelModal from "@/components/customer/ImportCustomersExcelModal";
+import { SidebarContext } from "@/context/SidebarContext";
 
 const Customers = () => {
   const { data, loading, error } = useAsync(CustomerServices.getAllCustomers);
+  const { setIsUpdate } = useContext(SidebarContext);
+  const [isExcelModalOpen, setIsExcelModalOpen] = useState(false);
 
   // console.log('customer',data)
 
+  // יבוא ה-JSON הוסר מהעמוד לטובת יבוא האקסל, ולכן אין צורך בשדות הקובץ מההוק
   const {
     userRef,
     dataTable,
     serviceData,
-    filename,
-    isDisabled,
     setSearchUser,
     totalResults,
     resultsPerPage,
     handleSubmitUser,
-    handleSelectFile,
     handleChangePage,
-    handleUploadMultiple,
-    handleRemoveSelectFile,
   } = useFilter(data);
 
   const { t } = useTranslation();
@@ -54,6 +54,12 @@ const Customers = () => {
     <>
       <PageTitle>{t("CustomersPage")}</PageTitle>
 
+      <ImportCustomersExcelModal
+        isOpen={isExcelModalOpen}
+        onClose={() => setIsExcelModalOpen(false)}
+        onImported={() => setIsUpdate(true)}
+      />
+
       <Card className="min-w-0 shadow-xs overflow-hidden bg-white dark:bg-gray-800 mb-5">
         <CardBody>
           <form
@@ -61,14 +67,12 @@ const Customers = () => {
             className="py-3 grid gap-4 lg:gap-6 xl:gap-6 md:flex xl:flex"
           >
             <div className="items-center">
+              {/* יבוא הלקוחות הוא מאקסל של ההנהח"ש (התאמה לפי מספר לקוח).
+                  onExcelImport מחליף את יבוא ה-JSON שמחק את כל הלקוחות */}
               <UploadManyTwo
                 title="Customers"
                 exportData={data}
-                filename={filename}
-                isDisabled={isDisabled}
-                handleSelectFile={handleSelectFile}
-                handleUploadMultiple={handleUploadMultiple}
-                handleRemoveSelectFile={handleRemoveSelectFile}
+                onExcelImport={() => setIsExcelModalOpen(true)}
               />
             </div>
           </form>

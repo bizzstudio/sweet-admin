@@ -13,6 +13,27 @@ import ProductServices from "@/services/ProductServices";
 import { notifyError, notifySuccess } from "@/utils/toast";
 // import useTranslationValue from "./useTranslationValue";
 import useUtilsFunction from "./useUtilsFunction";
+import { parseTag } from "@/utils/productFormat";
+import useProductDetails from "./useProductDetails";
+
+// מיפוי בין שמות השדות בטופס לשמות השדות ב-erp. מוחזק במקום אחד כדי
+// שהטעינה לטופס והבנייה של גוף הבקשה לא ייצאו מסנכרון.
+// groupName לא נכלל בכוונה: הוא אותו נתון כמו קטגוריית המוצר, שנערכת
+// בטופס בנפרד, ואין טעם לערוך אותו פעמיים
+const ERP_FORM_FIELDS = {
+  erpBarcode: "barcode",
+  erpBarcode2: "barcode2",
+  erpExternalSku: "externalSku",
+  erpSupplierSku: "supplierSku",
+  erpUnit: "unit",
+  erpSupplierName: "supplierName",
+  erpSupplierNumber: "supplierNumber",
+  erpGroupCode: "groupCode",
+  erpDepartmentCode: "departmentCode",
+  erpCost: "cost",
+  erpCurrency: "currency",
+  erpNotes: "notes",
+};
 
 const useProductSubmit = (id) => {
   const location = useLocation();
@@ -20,6 +41,13 @@ const useProductSubmit = (id) => {
     useContext(SidebarContext);
 
   const { data: attribue } = useAsync(AttributeServices.getShowingAttributes);
+
+  // נתוני ההנהח"ש נטענים בנפרד: erp מוגדר select:false ולכן אינו חוזר
+  // מ-getProductById. מותנה ב-isDrawerOpen כי הטופס רלוונטי רק כשהמגירה פתוחה
+  const { product: erpProduct, error: erpError } = useProductDetails(
+    id,
+    isDrawerOpen
+  );
 
   // react ref
   const resetRef = useRef([]);
@@ -189,6 +217,18 @@ const useProductSubmit = (id) => {
         weight: data.weight || "",
       };
 
+      // נתוני ההנהח"ש נשלחים רק כשהם נטענו עבור המוצר הזה. בלי הבדיקה, טעינה
+      // שנכשלה או מוצר חדש היו שולחים שדות ריקים ומוחקים את נתוני האקסל
+      if (erpProduct && String(erpProduct._id) === String(updatedId)) {
+        productData.erp = Object.entries(ERP_FORM_FIELDS).reduce(
+          (acc, [formField, erpField]) => {
+            acc[erpField] = data[formField] ?? "";
+            return acc;
+          },
+          {}
+        );
+      }
+
       console.log("productData :>>", productData);
 
       if (updatedId) {
@@ -226,7 +266,7 @@ const useProductSubmit = (id) => {
           setValue("stock", res.stock <= 900000 ? res.stock : 0);
           setValue("storePrice", res?.prices?.storePrice);
           setValue("purchaseLimit", res.purchaseLimit);
-          setTag(JSON.parse(res.tag));
+          setTag(parseTag(res.tag));
           setImageUrl(res.image);
           setVariants(res.variants);
           setValue("productId", res.productId);
@@ -279,6 +319,16 @@ const useProductSubmit = (id) => {
       notifyError(err?.response?.data?.message || err?.message);
     }
   };
+
+  // טעינת שדות ההנהח"ש לטופס. נפרד מהאפקט הראשי כי הם מגיעים מבקשה אחרת
+  useEffect(() => {
+    if (!isDrawerOpen) return;
+
+    Object.entries(ERP_FORM_FIELDS).forEach(([formField, erpField]) => {
+      const value = erpProduct?.erp?.[erpField];
+      setValue(formField, value === null || value === undefined ? "" : value);
+    });
+  }, [erpProduct, isDrawerOpen, setValue]);
 
   useEffect(() => {
     if (!isDrawerOpen) {
@@ -398,7 +448,7 @@ const useProductSubmit = (id) => {
 
             setSelectedCategory(res.categories);
             setDefaultCategory([res?.category]);
-            setTag(JSON.parse(res.tag));
+            setTag(parseTag(res.tag));
             setImageUrl(res.image);
             setVariants(res.variants);
             setIsCombination(res.isCombination);
@@ -757,6 +807,7 @@ const useProductSubmit = (id) => {
     onCloseModal,
     isBulkUpdate,
     isSubmitting,
+    erpError,
     tapValue,
     setTapValue,
     resetRefTwo,

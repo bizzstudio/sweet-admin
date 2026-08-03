@@ -1,7 +1,7 @@
 {
-  "name": "תמרים בתומר-admin",
+  "name": "המתוקים של בני-admin",
   "version": "0.1.0",
-  "description": "this is תמרים בתומר-admin built with react.js and tailwindcss",
+  "description": "this is המתוקים של בני-admin built with react.js and tailwindcss",
   "private": true,
   "type": "module",
   "dependencies": {

@@ -29,10 +29,13 @@ import InvoiceForDownload from "@/components/invoice/InvoiceForDownload";
 import AddressFormat from "@/components/AddressFormat";
 import StatusHistoryCard from "@/components/invoice/StatusHistoryCard";
 import CollapsibleSection from "@/components/common/CollapsibleSection";
+import IngestionErrorBanner from "@/components/order/IngestionErrorBanner";
+import { SidebarContext } from "@/context/SidebarContext";
 
 const OrderInvoice = () => {
   const { t } = useTranslation();
   const { mode } = useContext(WindmillContext);
+  const { setIsUpdate } = useContext(SidebarContext);
   const { id } = useParams();
   const printRef = useRef();
 
@@ -60,6 +63,12 @@ const OrderInvoice = () => {
   return (
     <>
       <PageTitle> {t("InvoicePageTittle")} </PageTitle>
+
+      {/* הזמנה שנקלטה מהמייל/ווצאפ ולא נקראה במלואה — בראש המסך בכוונה,
+          זה הדבר הראשון שהעובד צריך לראות */}
+      {!loading && data?.ingestionError?.code && (
+        <IngestionErrorBanner order={data} onChanged={() => setIsUpdate(true)} />
+      )}
 
       <div
         className="bg-white dark:bg-gray-800 mb-4 p-6 lg:p-8 rounded-xl shadow-sm overflow-hidden"
@@ -196,9 +205,9 @@ const OrderInvoice = () => {
               <div className="lg:text-right text-right">
                 <h2 className="lg:flex lg:justify-end text-lg font-serif font-semibold mt-4 lg:mt-0 lg:ml-0 md:mt-0">
                   {mode === "dark" ? (
-                    <img src={storeCustomizationSetting?.footer?.block4_logo} alt="תמרים בתומר" width="110" />
+                    <img src={storeCustomizationSetting?.footer?.block4_logo} alt="המתוקים של בני" width="110" />
                   ) : (
-                    <img src={storeCustomizationSetting?.footer?.block4_logo} alt="תמרים בתומר" width="110" />
+                    <img src={storeCustomizationSetting?.footer?.block4_logo} alt="המתוקים של בני" width="110" />
                   )}
                 </h2>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">

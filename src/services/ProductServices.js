@@ -14,11 +14,22 @@ const ProductServices = {
   getProductById: async (id) => {
     return requests.post(`/products/${id}`);
   },
+
+  // כרטיס מוצר מלא לצפייה: כולל את נתוני ההנהח"ש (erp) שלא חוזרים
+  // מ-getProductById כי הם מוגדרים select:false במודל
+  getProductDetails: async (id) => {
+    return requests.get(`/products/${id}/details`);
+  },
   addProduct: async (body) => {
     return requests.post("/products/add", body);
   },
-  addAllProducts: async (body) => {
-    return requests.post("/products/all", body);
+  // בדיקה מקדימה לפני יבוא אקסל: {skus, groups} -> מה קיים ואילו קטגוריות חסרות
+  checkImportProducts: async (body) => {
+    return requests.post("/products/import/check", body);
+  },
+  // יבוא/עדכון מוצרים מאקסל לפי מק"ט: {rows, options}
+  importProducts: async (body) => {
+    return requests.post("/products/import", body);
   },
   updateProduct: async (id, body) => {
     // console.log('body: ', body)

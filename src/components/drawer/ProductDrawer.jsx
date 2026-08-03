@@ -29,6 +29,7 @@ import LabelArea from "@/components/form/selectOption/LabelArea";
 import DrawerButton from "@/components/form/button/DrawerButton";
 import InputValue from "@/components/form/input/InputValue";
 import useProductSubmit from "@/hooks/useProductSubmit";
+import ProductErpFields from "@/components/product/ProductErpFields";
 import ActiveButton from "@/components/form/button/ActiveButton";
 import InputValueFive from "@/components/form/input/InputValueFive";
 import Uploader from "@/components/image-uploader/Uploader";
@@ -68,6 +69,7 @@ const ProductDrawer = ({ id }) => {
     isBulkUpdate,
     globalSetting,
     isSubmitting,
+    erpError,
     tapValue,
     setTapValue,
     resetRefTwo,
@@ -103,6 +105,7 @@ const ProductDrawer = ({ id }) => {
     isStockManagement,
     setIsStockManagement,
   } = useProductSubmit(id);
+
 
   const { currency, showingTranslateValue } = useUtilsFunction();
 
@@ -248,8 +251,8 @@ const ProductDrawer = ({ id }) => {
                   </div>
                 </div>
 
-                {/* מספר סידורי */}
-                <div className="flex flex-col gap-1 md:col-span-6 col-span-12">
+                {/* מספר סידורי - מוסתר זמנית (השדה נשאר רשום כדי לא לאפס את הערך בשמירה) */}
+                <div className="hidden flex-col gap-1 md:col-span-6 col-span-12">
                   <LabelArea label={t("ProductSerialOrder")} />
                   <div className="col-span-6">
                     <InputArea
@@ -518,6 +521,10 @@ const ProductDrawer = ({ id }) => {
                     />
                   </div>
                 </div>
+
+                {/* מק"טים, ספק ועלות. מוצגים רק בעריכת מוצר קיים: למוצר
+                    חדש עוד אין נתונים מקבילים בקובץ ההנהח"ש */}
+                {id && <ProductErpFields register={register} error={erpError} />}
               </div>
             )}
 

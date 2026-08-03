@@ -14,9 +14,7 @@ import OfferServices from "@/services/OfferServices";
 import CategoryServices from "@/services/CategoryServices";
 import CouponServices from "@/services/CouponServices";
 import CurrencyServices from "@/services/CurrencyServices";
-import CustomerServices from "@/services/CustomerServices";
 import LanguageServices from "@/services/LanguageServices";
-import ProductServices from "@/services/ProductServices";
 import SettingServices from "@/services/SettingServices";
 import { notifyError, notifySuccess } from "@/utils/toast";
 import useAsync from "@/hooks/useAsync";
@@ -71,15 +69,6 @@ const couponSchema = {
   },
   required: ["title", "couponCode", "endTime", "status"],
 };
-const customerSchema = {
-  type: "object",
-  properties: {
-    name: { type: "string" },
-    email: { type: "string" },
-  },
-  required: ["name", "email"],
-};
-
 const useFilter = (data) => {
   const ajv = new Ajv({ allErrors: true });
 
@@ -112,7 +101,6 @@ const useFilter = (data) => {
   const [filename, setFileName] = useState("");
   const [isDisabled, setIsDisable] = useState(false);
   const [shipping, setShipping] = useState("");
-  const [newProducts] = useState([]);
   const currencyRef = useRef("");
   const searchRef = useRef("");
   const userRef = useRef("");
@@ -468,24 +456,6 @@ const useFilter = (data) => {
     setDelivery(deliveryRef.current.value);
   };
   // table form submit function for search end
-  // handle submit multiple product data with csv format
-  const handleOnDrop = (data) => {
-    for (let i = 0; i < data.length; i++) {
-      newProducts.push(data[i].data);
-    }
-  };
-  const handleUploadProducts = () => {
-    if (newProducts.length < 1) {
-      notifyError("Please upload/select csv file first!");
-    } else {
-      // return notifyError("This option disabled for this option!");
-      ProductServices.addAllProducts(newProducts)
-        .then((res) => {
-          notifySuccess(res.message);
-        })
-        .catch((err) => notifyError(err.message));
-    }
-  };
   const handleSelectFile = (e) => {
     e.preventDefault();
     // return notifyError("This option disabled for this option!");
@@ -784,33 +754,6 @@ const useFilter = (data) => {
           notifyError("Please enter valid data!");
         }
       }
-      if (location.pathname === "/customers") {
-        setLoading(true);
-        let customerDataValidation = selectedFile.map((value) =>
-          ajv.validate(customerSchema, value)
-        );
-
-        const isBelowThreshold = (currentValue) => currentValue === true;
-        const validationData = customerDataValidation.every(isBelowThreshold);
-
-        // console.log(validationData);
-        // console.log(customerDataValidation);
-
-        if (validationData) {
-          CustomerServices.addAllCustomers(selectedFile)
-            .then((res) => {
-              setLoading(false);
-              setIsUpdate(true);
-              notifySuccess(res.message);
-            })
-            .catch((err) => {
-              setLoading(false);
-              notifyError(err ? err.response.data.message : err.message);
-            });
-        } else {
-          notifyError("Please enter valid data!");
-        }
-      }
       if (location.pathname === "/coupons") {
         setLoading(true);
         let attributeDataValidation = selectedFile.map((value) =>
@@ -968,7 +911,6 @@ const useFilter = (data) => {
     handleChangePage,
     totalResults,
     resultsPerPage,
-    handleOnDrop,
     setSearchCoupon,
     setAttributeTitle,
     setOfferTitle,
@@ -980,7 +922,6 @@ const useFilter = (data) => {
     handleSubmitCategory,
     handleSubmitAttribute,
     handleSubmitOffer,
-    handleUploadProducts,
     handleSubmitCountry,
     handleSubmitCurrency,
     handleSubmitShipping,

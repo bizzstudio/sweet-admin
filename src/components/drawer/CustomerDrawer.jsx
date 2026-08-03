@@ -10,11 +10,18 @@ import LabelArea from "@/components/form/selectOption/LabelArea";
 import useCustomerSubmit from "@/hooks/useCustomerSubmit";
 import DrawerButton from "@/components/form/button/DrawerButton";
 
+// שדה טופס בפריסה הקבועה של המגירה (תווית משמאל, קלט מימין)
+const FormRow = ({ label, children }) => (
+  <div className="grid grid-cols-6 gap-3 md:gap-5 xl:gap-6 lg:gap-6 mb-6">
+    <LabelArea label={label} />
+    <div className="col-span-8 sm:col-span-4">{children}</div>
+  </div>
+);
+
 const CustomerDrawer = ({ id }) => {
   const { register, handleSubmit, onSubmit, errors, isSubmitting } =
     useCustomerSubmit(id);
 
-  // console.log('##CustomerDrawer',)
   return (
     <>
       <div className="w-full relative p-6 border-b border-gray-100 bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300">
@@ -34,77 +41,132 @@ const CustomerDrawer = ({ id }) => {
       <Scrollbars className="w-full md:w-7/12 lg:w-8/12 xl:w-8/12 relative dark:bg-gray-700 dark:text-gray-200">
         <form onSubmit={handleSubmit(onSubmit)}>
           <div className="px-6 pt-8 flex-grow scrollbar-hide w-full max-h-full pb-40">
-            <div className="grid grid-cols-6 gap-3 md:gap-5 xl:gap-6 lg:gap-6 mb-6">
-              <LabelArea label={"Name"} />
-              <div className="col-span-8 sm:col-span-4">
-                <InputArea
-                  register={register}
-                  label="Name"
-                  name="name"
-                  type="text"
-                  placeholder={"Name"}
-                />
-                <Error errorName={errors.name} />
-              </div>
+            <FormRow label={"Name"}>
+              <InputArea
+                register={register}
+                label="Name"
+                name="name"
+                type="text"
+                placeholder={"Name"}
+              />
+              <Error errorName={errors.name} />
+            </FormRow>
+
+            <FormRow label={"Last Name"}>
+              <InputArea
+                register={register}
+                label="Last Name"
+                name="lastName"
+                type="text"
+                placeholder={"Last Name"}
+              />
+              <Error errorName={errors.lastName} />
+            </FormRow>
+
+            <FormRow label={"Email"}>
+              <InputArea
+                register={register}
+                label="Email"
+                name="email"
+                type="email"
+                placeholder={"Email"}
+              />
+              <Error errorName={errors.email} />
+            </FormRow>
+
+            <FormRow label={"Phone"}>
+              <InputArea
+                required
+                register={register}
+                label="Phone"
+                name="phone"
+                type="text"
+                placeholder={"Phone"}
+              />
+              <Error errorName={errors.phone} />
+            </FormRow>
+
+            {/* העיר אינה מופיעה כאן: היא נשמרת כרשומה מלאה מנתוני הלמ"ס
+                (city_code וכו') שעליה מסתמכים מחיר המשלוח וימי החלוקה, ושדה
+                טקסט חופשי היה מייצר עיר בלי קוד ושובר אותם. השמירה מעבירה את
+                אובייקט העיר הקיים כמו שהוא, והוא מוצג בעמוד "צפייה בלקוח" */}
+            <div className="mb-4 border-t border-gray-100 pt-6 dark:border-gray-600">
+              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200">
+                כתובת
+              </h3>
             </div>
 
-            <div className="grid grid-cols-6 gap-3 md:gap-5 xl:gap-6 lg:gap-6 mb-6">
-              <LabelArea label={"Last Name"} />
-              <div className="col-span-8 sm:col-span-4">
-                <InputArea
-                  register={register}
-                  label="Last Name"
-                  name="lastName"
-                  type="text"
-                  placeholder={"Last Name"}
-                />
-                <Error errorName={errors.lastName} />
-              </div>
-            </div>
+            <FormRow label={"רחוב"}>
+              <InputArea
+                required
+                register={register}
+                label="Street"
+                name="street"
+                type="text"
+                placeholder={"רחוב"}
+              />
+              <Error errorName={errors.street} />
+            </FormRow>
 
-            <div className="grid grid-cols-6 gap-3 md:gap-5 xl:gap-6 lg:gap-6 mb-6">
-              <LabelArea label={"Email"} />
-              <div className="col-span-8 sm:col-span-4">
-                <InputArea
-                  register={register}
-                  label="Email"
-                  name="email"
-                  type="email"
-                  placeholder={"Email"}
-                />
-                <Error errorName={errors.email} />
-              </div>
-            </div>
+            <FormRow label={"מספר בית"}>
+              <InputArea
+                required
+                register={register}
+                label="House Number"
+                name="houseNumber"
+                type="text"
+                placeholder={"מספר בית"}
+              />
+              <Error errorName={errors.houseNumber} />
+            </FormRow>
 
-            <div className="grid grid-cols-6 gap-3 md:gap-5 xl:gap-6 lg:gap-6 mb-6">
-              <LabelArea label={"Phone"} />
-              <div className="col-span-8 sm:col-span-4">
-                <InputArea
-                  required
-                  register={register}
-                  label="Phone"
-                  name="phone"
-                  type="text"
-                  placeholder={"Phone"}
-                />
-                <Error errorName={errors.phone} />
-              </div>
-            </div>
+            <FormRow label={"דירה"}>
+              <InputArea
+                required
+                register={register}
+                label="Apartment"
+                name="apartmentNumber"
+                type="text"
+                placeholder={"דירה"}
+              />
+              <Error errorName={errors.apartmentNumber} />
+            </FormRow>
 
-            {/* <div className="grid grid-cols-6 gap-3 md:gap-5 xl:gap-6 lg:gap-6 mb-6">
-              <LabelArea label={"Address"} />
-              <div className="col-span-8 sm:col-span-4">
-                <InputArea
-                  required
-                  register={register}
-                  label="Address"
-                  name="address"
-                  type="text"
-                  placeholder={"Address"}
-                />
-                <Error errorName={errors.address} />
-              </div>
-            </div> */}
+            <FormRow label={"קומה"}>
+              <InputArea
+                required
+                register={register}
+                label="Floor"
+                name="floor"
+                type="text"
+                placeholder={"קומה"}
+              />
+              <Error errorName={errors.floor} />
+            </FormRow>
+
+            <FormRow label={"קוד כניסה"}>
+              <InputArea
+                required
+                register={register}
+                label="Entry Code"
+                name="entryCode"
+                type="text"
+                placeholder={"קוד כניסה"}
+              />
+              <Error errorName={errors.entryCode} />
+            </FormRow>
+
+            <FormRow label={"מיקוד"}>
+              <InputArea
+                required
+                register={register}
+                label="Postal Code"
+                name="postalCode"
+                type="text"
+                placeholder={"מיקוד"}
+              />
+              <Error errorName={errors.postalCode} />
+            </FormRow>
           </div>
 
           <DrawerButton id={id} title="Customer" isSubmitting={isSubmitting} />

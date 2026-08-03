@@ -18,6 +18,9 @@ import useProductSubmit from "@/hooks/useProductSubmit";
 import useToggleDrawer from "@/hooks/useToggleDrawer";
 import ProductServices from "@/services/ProductServices";
 import useUtilsFunction from "@/hooks/useUtilsFunction";
+import ProductErpPanel from "@/components/product/ProductErpPanel";
+import ProductStorePanel from "@/components/product/ProductStorePanel";
+import { parseTag } from "@/utils/productFormat";
 import AttributeList from "@/components/attribute/AttributeList";
 import MainDrawer from "@/components/drawer/MainDrawer";
 import ProductDrawer from "@/components/drawer/ProductDrawer";
@@ -33,26 +36,38 @@ const ProductDetails = () => {
   const [variantTitle, setVariantTitle] = useState([]);
   const { lang } = useContext(SidebarContext);
 
-  const { data, loading } = useAsync(() => ProductServices.getProductById(id));
+  // getProductDetails ולא getProductById: רק הוא מחזיר את erp (מוגדר
+  // select:false במודל). מקור נתונים אחד לכל הדף - כך יש בקשה אחת במקום
+  // שתיים, וגם הפאנלים מתרעננים אחרי שמירה במגירת העריכה (useAsync טוען
+  // מחדש כש-isUpdate משתנה)
+  const { data, loading, error } = useAsync(() =>
+    ProductServices.getProductDetails(id)
+  );
+
+  // useAsync מאתחל ל-[] ומחזיר [] גם בשגיאה. בלי הבדיקה הזו השורה
+  // data?.image[0] למטה קורסת על undefined
+  const product = data && data._id ? data : null;
 
   const { currency, showingTranslateValue, getNumberTwo } = useUtilsFunction();
 
   const { handleChangePage, totalResults, resultsPerPage, dataTable } =
-    useFilter(data?.variants);
+    useFilter(product?.variants);
   // console.log('data',data)
 
   useEffect(() => {
-    if (!loading) {
-      const res = Object.keys(Object.assign({}, ...data?.variants));
+    // בלי הבדיקה על variants, פריסה של undefined (מוצר שלא נטען או שגיאה)
+    // זורקת TypeError ומפילה את כל הדף
+    if (loading || !product?.variants) return;
 
-      const varTitle = attribue?.filter((att) =>
-        // res.includes(att.title.replace(/[^a-zA-Z0-9]/g, ''))
-        res.includes(att._id)
-      );
+    const res = Object.keys(Object.assign({}, ...product.variants));
 
-      setVariantTitle(varTitle);
-    }
-  }, [attribue, data?.variants, loading, lang]);
+    const varTitle = attribue?.filter((att) =>
+      // res.includes(att.title.replace(/[^a-zA-Z0-9]/g, ''))
+      res.includes(att._id)
+    );
+
+    setVariantTitle(varTitle);
+  }, [attribue, product?.variants, loading, lang]);
 
   // console.log("product", data);
 
@@ -65,12 +80,19 @@ const ProductDetails = () => {
       <PageTitle>{t("ProductDetails")}</PageTitle>
       {loading ? (
         <Loading loading={loading} />
+      ) : !product ? (
+        <div className="w-full rounded-md bg-white p-8 text-center dark:bg-gray-800">
+          <h2 className="text-base font-medium text-gray-600 dark:text-gray-400">
+            {error ? "טעינת המוצר נכשלה" : "המוצר לא נמצא"}
+          </h2>
+          {error ? <p className="mt-2 text-sm text-gray-400">{error}</p> : null}
+        </div>
       ) : (
         <div className="inline-block overflow-y-auto h-full align-middle transition-all transform">
           <div className="flex flex-col lg:flex-row md:flex-row w-full overflow-hidden">
             <div className="flex-shrink-0 flex items-center justify-center h-auto">
-              {data?.image[0] ? (
-                <img src={data?.image[0]} alt="product" className="h-64 w-64" />
+              {product?.image?.[0] ? (
+                <img src={product?.image?.[0]} alt="product" className="h-64 w-64" />
               ) : (
                 <img
                   src="https://res.cloudinary.com/ahossain/image/upload/v1655097002/placeholder_kvepfp.png"
@@ -83,7 +105,7 @@ const ProductDetails = () => {
                 <div className="font-serif font-semibold py-1 text-sm">
                   <p className="text-sm text-gray-500">
                     {t("Status")}:{" "}
-                    {data.status === "show" ? (
+                    {product.status === "show" ? (
                       <span className="text-emerald-400">
                         {t("ThisProductShowing")}
                       </span>
@@ -95,30 +117,30 @@ const ProductDetails = () => {
                   </p>
                 </div>
                 <h2 className="text-heading text-lg md:text-xl lg:text-2xl font-semibold font-serif dark:text-gray-400">
-                  {showingTranslateValue(data?.title)}
+                  {showingTranslateValue(product?.title)}
                 </h2>
                 <p className="uppercase font-serif font-medium text-gray-500 dark:text-gray-400 text-sm">
                   {t("Sku")} :{" "}
                   <span className="font-bold text-gray-500 dark:text-gray-500">
-                    {/* {data?._id !== undefined && data?._id.substring(18, 24)} */}
-                    {data?.sku}
+                    {/* {product?._id !== undefined && product?._id.substring(18, 24)} */}
+                    {product?.sku}
                   </span>
                 </p>
               </div>
               <div className="font-serif product-price font-bold dark:text-gray-400">
                 <span className="inline-block text-2xl">
                   {currency}
-                  {getNumberTwo(data?.prices?.price)}
-                  {data?.prices?.discount >= 1 && (
+                  {getNumberTwo(product?.prices?.price)}
+                  {product?.prices?.discount >= 1 && (
                     <del className="text-gray-400 dark:text-gray-500 text-lg pl-2">
                       {currency}
-                      {getNumberTwo(data?.prices?.originalPrice)}
+                      {getNumberTwo(product?.prices?.originalPrice)}
                     </del>
                   )}
                 </span>
               </div>
               <div className="mb-3">
-                {data?.stock <= 0 ? (
+                {product?.stock <= 0 ? (
                   <Badge type="danger">
                     <span className="font-bold">{t("StockOut")}</span>{" "}
                   </Badge>
@@ -129,31 +151,31 @@ const ProductDetails = () => {
                   </Badge>
                 )}
                 <span className="text-sm text-gray-500 dark:text-gray-400 font-medium ps-2">
-                  {t("Quantity")}: {data?.stock}
+                  {t("Quantity")}: {product?.stock}
                 </span>
               </div>
-              {data?.purchaseLimit && (
+              {product?.purchaseLimit && (
                 <div className="mb-3">
                   <Badge type="warning">
                     <span className="font-bold">{t("PurchaseLimit")}</span>
                   </Badge>
                   <span className="text-sm text-gray-500 dark:text-gray-400 font-medium ps-2">
-                    {data?.purchaseLimit} {t("UnitsPerOrder")}
+                    {product?.purchaseLimit} {t("UnitsPerOrder")}
                   </span>
                 </div>
               )}
               <p className="text-sm leading-6 text-gray-500 dark:text-gray-400 md:leading-7">
-                {showingTranslateValue(data?.description)}
+                {showingTranslateValue(product?.description)}
               </p>
               <div className="flex flex-col mt-4">
                 <p className="font-serif font-semibold py-1 text-gray-500 text-sm">
                   <span className="text-gray-700 dark:text-gray-400">
                     {t("Category")}:{" "}
                   </span>{" "}
-                  {showingTranslateValue(data?.category?.name)}
+                  {showingTranslateValue(product?.category?.name)}
                 </p>
                 <div className="flex flex-row">
-                  {JSON.parse(data?.tag).map((t, i) => (
+                  {parseTag(product?.tag).map((t, i) => (
                     <span
                       key={i + 1}
                       className="bg-gray-200 ml-2 border-0 text-gray-500 rounded-full inline-flex items-center justify-center px-2 py-1 text-xs font-semibold font-serif mt-2 dark:bg-gray-700 dark:text-gray-300"
@@ -175,7 +197,18 @@ const ProductDetails = () => {
           </div>
         </div>
       )}
-      {data?.isCombination && variantTitle?.length > 0 && !loading && (
+      {!loading && product && (
+        <div className="mb-8 rounded-lg bg-white p-6 text-right dark:bg-gray-800">
+          <ProductStorePanel
+            product={product}
+            currency={currency}
+            showingTranslateValue={showingTranslateValue}
+          />
+          <ProductErpPanel product={product} />
+        </div>
+      )}
+
+      {product?.isCombination && variantTitle?.length > 0 && !loading && (
         <>
           <PageTitle>{t("ProductVariantList")}</PageTitle>
           <TableContainer className="mb-8 rounded-b-lg">

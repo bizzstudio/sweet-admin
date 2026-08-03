@@ -9,7 +9,7 @@ const useNotification = () => {
 
   useEffect(() => {
     setSocket(io(import.meta.env.VITE_APP_API_SOCKET_URL));
-    // setSocket(io("https://תמרים בתומר-backend-theta.vercel.app"));
+    // setSocket(io("https://המתוקים של בני-backend-theta.vercel.app"));
   }, []);
 
   useEffect(() => {

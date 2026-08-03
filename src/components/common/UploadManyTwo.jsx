@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { BsFileEarmarkCode, BsFileEarmarkMedical } from "react-icons/bs";
 import {
   FiDownload,
+  FiFileText,
   FiPlus,
   FiUpload,
   FiUploadCloud,
@@ -28,6 +29,9 @@ const UploadManyTwo = ({
   filename,
   handleRemoveSelectFile,
   handleUploadMultiple,
+  // כשמועברת פונקציה כאן, יבוא ה-JSON (שמוחק הכל לפני ההכנסה) מוחלף
+  // בכפתור שפותח את יבוא האקסל. שאר העמודים ממשיכים כרגיל.
+  onExcelImport,
 }) => {
   const location = useLocation();
   const dRef = useRef();
@@ -241,17 +245,31 @@ const UploadManyTwo = ({
         </div>
 
         <div className="lg:flex-1 md:flex-1 flex items-center justify-center">
-          <button
-            onClick={handleClick}
-            className="border flex justify-center items-center h-10 w-20 hover:text-yellow-400  border-gray-300 dark:text-gray-300 cursor-pointer  py-2 hover:border-yellow-400 rounded-md focus:outline-none"
-          >
-            <FiDownload className="ml-2" />
-            <span className="text-xs">Import</span>
-          </button>
+          {onExcelImport ? (
+            <button
+              type="button"
+              onClick={onExcelImport}
+              className="border flex justify-center items-center gap-2 h-10 px-3 border-gray-300 hover:border-customGreen hover:text-customGreen dark:text-gray-300 cursor-pointer rounded-md focus:outline-none"
+            >
+              <FiFileText />
+              <span className="text-xs whitespace-nowrap">
+                ייבוא מאקסל
+              </span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={handleClick}
+              className="border flex justify-center items-center h-10 w-20 hover:text-yellow-400  border-gray-300 dark:text-gray-300 cursor-pointer  py-2 hover:border-yellow-400 rounded-md focus:outline-none"
+            >
+              <FiDownload className="ml-2" />
+              <span className="text-xs">Import</span>
+            </button>
+          )}
         </div>
       </div>
 
-      {isImportBoxShown && (
+      {!onExcelImport && isImportBoxShown && (
         <>
           <div className="w-full my-2 lg:my-0 md:my-0 flex items-center gap-3">
             <div className="h-10 border border-dashed border-customGreen rounded-md">
@@ -301,7 +319,7 @@ const UploadManyTwo = ({
                   <span className="">
                     <FiPlus />
                   </span>
-                  <span className="text-sx w-20">{t("ImportNow")}</span>
+                  <span className="text-sx w-20">ייבוא</span>
                 </Button>
               )}
             </>

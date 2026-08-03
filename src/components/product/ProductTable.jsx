@@ -115,11 +115,12 @@ const ProductTable = ({
               />
             </TableCell>
 
-            {/* status */}
-            <TableCell className="text-center">
-              <ShowHideButton id={product._id} status={product.status} />
-              {/* {product.status} */}
-            </TableCell>
+            {/* status - מוסתר זמנית (עמודת "פורסם") */}
+            {false && (
+              <TableCell className="text-center">
+                <ShowHideButton id={product._id} status={product.status} />
+              </TableCell>
+            )}
 
             {/* image */}
             <TableCell className='text-center'>
@@ -184,12 +185,14 @@ const ProductTable = ({
               </span>
             </TableCell>
 
-            {/* serial order */}
-            <TableCell className='text-center'>
-              <span className="text-sm">
-                {product?.barcode || "-"}
-              </span>
-            </TableCell>
+            {/* serial order - מוסתר זמנית (עמודת "סדר הופעה בחנות") */}
+            {false && (
+              <TableCell className='text-center'>
+                <span className="text-sm">
+                  {product?.barcode || "-"}
+                </span>
+              </TableCell>
+            )}
 
             {/* stock - כמות שנשארה במלאי */}
             <TableCell className='text-center'>

@@ -17,9 +17,9 @@ const MultiSelectCity = ({ setValue, cities, selectedCitiesFromUser = [] }) => {
     });
   };
 
-  // const handleRemoveCity = (cityId) => {
-  //   setSelectedCities((prev) => prev.filter((city) => city._id !== cityId));
-  // };
+  const handleRemoveCity = (cityId) => {
+    setSelectedCities((prev) => prev.filter((city) => city._id !== cityId));
+  };
   useEffect(() => {
     if (selectedCities) {
       setValue(selectedCities)

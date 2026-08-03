@@ -18,7 +18,9 @@ const App = () => {
   return (
     <>
       <ToastContainer />
-      <Router>
+      {/* basename נגזר מ-base של Vite, כדי שהראוטר יתאים לתת-התיקייה שבה
+          האפליקציה מוגשת. כשה-base יחזור ל-"/" זה יתאפס אוטומטית. */}
+      <Router basename={import.meta.env.BASE_URL}>
         <AccessibleNavigationAnnouncer />
         <Switch>
           <Route path="/login" component={Login} />

@@ -75,17 +75,21 @@ const sidebar = [
         name: "CashierOrders",
       },
       {
+        path: "/incoming-orders",
+        name: "IncomingOrders",
+      },
+      {
         path: "/statuses",
         name: "Statuses",
       },
     ],
   },
 
-  {
-    path: "/lotteries",
-    icon: FiGift,
-    name: "Lotteries",
-  },
+  // {
+  //   path: "/lotteries",
+  //   icon: FiGift,
+  //   name: "Lotteries",
+  // },
 
   {
     path: "/our-staff",
@@ -114,49 +118,49 @@ const sidebar = [
   //   ],
   // },
 
-  {
-    icon: FaRoute,
-    name: "Shiping",
-    routes: [
-      {
-        path: "/deliveries",
-        name: "DeliveriesList",
-      },
-      {
-        path: "/deliveries/addresses-not-found",
-        name: "AddressesNotFound",
-      },
-    ],
-  },
+  // {
+  //   icon: FaRoute,
+  //   name: "Shiping",
+  //   routes: [
+  //     {
+  //       path: "/deliveries",
+  //       name: "DeliveriesList",
+  //     },
+  //     {
+  //       path: "/deliveries/addresses-not-found",
+  //       name: "AddressesNotFound",
+  //     },
+  //   ],
+  // },
 
-  {
-    icon: FiTarget,
-    name: "OnlineStore",
-    routes: [
-      {
-        name: "ViewStore",
-        path: "http://localhost:3000",
-        outside: "store",
-      },
-      // {
-      //   name: "ViewLikutApp",
-      //   path: "https://likut.meshek-kirshner.co.il/items",
-      //   outside: "likutApp",
-      // },
-      {
-        path: "/store/customization",
-        name: "StoreCustomization",
-      },
-      {
-        path: "/store/store-settings",
-        name: "StoreSetting",
-      },
-      {
-        path: "/store/scripts",
-        name: "Scripts",
-      },
-    ],
-  },
+  // {
+  //   icon: FiTarget,
+  //   name: "OnlineStore",
+  //   routes: [
+  //     {
+  //       name: "ViewStore",
+  //       path: "http://localhost:3000",
+  //       outside: "store",
+  //     },
+  //     // {
+  //     //   name: "ViewLikutApp",
+  //     //   path: "https://likut.meshek-kirshner.co.il/items",
+  //     //   outside: "likutApp",
+  //     // },
+  //     {
+  //       path: "/store/customization",
+  //       name: "StoreCustomization",
+  //     },
+  //     {
+  //       path: "/store/store-settings",
+  //       name: "StoreSetting",
+  //     },
+  //     {
+  //       path: "/store/scripts",
+  //       name: "Scripts",
+  //     },
+  //   ],
+  // },
 
   // {
   //   icon: FiSlack,
@@ -175,21 +179,21 @@ const sidebar = [
   //   ],
   // },
 
-  {
-    icon: FaRegWindowRestore,
-    name: "Popups",
-    path: "/popups",
-  },
+  // {
+  //   icon: FaRegWindowRestore,
+  //   name: "Popups",
+  //   path: "/popups",
+  // },
   // {
   //   icon: GoDependabot,
   //   name: "WhatsApp Bot",
   //   path: "/whatsappbot",
   // },
-  {
-    icon: IoNewspaperOutline,
-    name: "Blogs",
-    path: "/blogs",
-  },
+  // {
+  //   icon: IoNewspaperOutline,
+  //   name: "Blogs",
+  //   path: "/blogs",
+  // },
 ];
 
 export default sidebar;

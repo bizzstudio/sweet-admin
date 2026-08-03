@@ -8,8 +8,9 @@ import { IoOpenOutline } from "react-icons/io5";
 // Internal import
 import sidebar from "@/routes/sidebar";
 // import SidebarSubMenu from "SidebarSubMenu";
+// לוגו על רקע שקוף: אותיות כהות למצב בהיר, אותיות בהירות למצב כהה.
 import logoDark from "@/assets/img/logo/logo-color.png";
-import logoLight from "@/assets/img/logo/logo-dark.svg";
+import logoLight from "@/assets/img/logo/logo-dark.png";
 import { AdminContext } from "@/context/AdminContext";
 import SidebarSubMenu from "@/components/sidebar/SidebarSubMenu";
 
@@ -25,14 +26,14 @@ const SidebarContent = () => {
 
   return (
     <div className="py-4 text-gray-500 dark:text-gray-400">
-      {/* <a className=" text-gray-900 dark:text-gray-200" href="/dashboard">
-        {mode === "dark" ? (
-          <img src={logoLight} alt="תמרים בתומר" width="135" className="pl-6" />
-        ) : (
-          <img src={logoDark} alt="תמרים בתומר" width="135" className="pl-6" />
-        )}
-      </a> */}
-      <ul className="mt-8">
+      <a className="block px-6" href="/dashboard">
+        <img
+          src={mode === "dark" ? logoLight : logoDark}
+          alt="המתוקים של בני"
+          className="w-full max-w-[190px] h-auto mx-auto"
+        />
+      </a>
+      <ul className="mt-6">
         {sidebar.map((route) =>
           route.routes ? (
             <SidebarSubMenu route={route} key={route.name} />

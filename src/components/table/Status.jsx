@@ -12,6 +12,10 @@ const Status = ({ status }) => {
       return <Badge type="danger">{status.heName}</Badge>
     else if (status?.name === "Likut")
       return <Badge type="warning">{status.heName}</Badge>
+    // הזמנה שנקלטה מהמייל/ווצאפ ולא נקראה במלואה. חייבת להיראות כתקלה
+    // ברשימת ההזמנות — כל המטרה שלה היא שמישהו ישים לב אליה
+    else if (status?.name === "IngestionError")
+      return <Badge type="danger">{status.heName}</Badge>
     else{
       return <Badge type="primary">{status.heName}</Badge>
     }

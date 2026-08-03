@@ -70,7 +70,7 @@ const CashierOrderInvoice = () => {
                             </h1>
                             <div className="lg:text-right text-right">
                                 <h2 className="lg:flex lg:justify-end text-lg font-serif font-semibold mt-4 lg:mt-0 lg:ml-0 md:mt-0">
-                                    <img src={storeCustomizationSetting?.footer?.block4_logo} alt="תמרים בתומר" width="100" />
+                                    <img src={storeCustomizationSetting?.footer?.block4_logo} alt="המתוקים של בני" width="100" />
                                 </h2>
                                 <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
                                     {globalSetting?.address} <br />

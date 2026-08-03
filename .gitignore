@@ -10,15 +10,24 @@
 
 # production
 /build
+/dist
+
+# ---- קבצי סביבה ----
+# חוסמים כל וריאציה (.env.local, .env.backup-... וכו') כדי שגיבוי או קובץ
+# זמני עם סודות לא ייכנס ל-git בטעות. רק התבנית .env.example נכנסת.
 .env
-.env.local
+.env.*
+!.env.example
+
+# ---- קבצי נתונים מקומיים ----
+# גיליונות עבודה בשורש הפרויקט (רשימות לקוחות/מוצרים) מכילים נתונים
+# אמיתיים ואישיים — אין להעלות אותם ל-git.
+/*.xlsx
+/*.xls
+/*.csv
 
 # misc
 .DS_Store
-.env.development.local
-.env.test.local
-.env.production.local
-.env
 
 npm-debug.log*
 yarn-debug.log*

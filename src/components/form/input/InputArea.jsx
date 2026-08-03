@@ -9,6 +9,10 @@ const InputArea = ({
   name,
   label,
   type,
+  // ל-type="number" הדפדפן מאמת שהערך הוא כפולה של step, שברירת המחדל שלו 1.
+  // בלי step="any" שדה עם ערך עשרוני (12.75) נחשב לא תקין והדפדפן חוסם את
+  // שליחת הטופס. מועבר רק כשצריך, כדי לא לשנות אף שדה קיים
+  step,
   autoComplete,
   placeholder,
   className = '',
@@ -24,6 +28,7 @@ const InputArea = ({
         })}
         defaultValue={defaultValue}
         type={type}
+        step={step}
         placeholder={placeholder}
         name={name}
         autoComplete={autoComplete}

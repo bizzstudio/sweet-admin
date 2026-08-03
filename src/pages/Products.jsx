@@ -30,11 +30,11 @@ import ProductTable from "@/components/product/ProductTable";
 import MainDrawer from "@/components/drawer/MainDrawer";
 import ProductDrawer from "@/components/drawer/ProductDrawer";
 import CheckBox from "@/components/form/others/CheckBox";
-import useProductFilter from "@/hooks/useProductFilter";
 import DeleteModal from "@/components/modal/DeleteModal";
 import BulkActionDrawer from "@/components/drawer/BulkActionDrawer";
 import TableLoading from "@/components/preloader/TableLoading";
 import SelectCategory from "@/components/form/selectOption/SelectCategory";
+import ImportExcelModal from "@/components/product/ImportExcelModal";
 
 const Products = () => {
   const {
@@ -47,9 +47,11 @@ const Products = () => {
   } = useToggleDrawer();
 
   const { t } = useTranslation();
+  const [isExcelModalOpen, setIsExcelModalOpen] = useState(false);
   const {
     toggleDrawer,
     lang,
+    setIsUpdate,
     currentPage,
     handleChangePage,
     searchText,
@@ -92,16 +94,6 @@ const Products = () => {
     searchRef.current.value = "";
   };
 
-  // console.log('productss',products)
-  const {
-    serviceData,
-    filename,
-    isDisabled,
-    handleSelectFile,
-    handleUploadMultiple,
-    handleRemoveSelectFile,
-  } = useProductFilter(data?.products);
-
   return (
     <>
       <PageTitle>{t("ProductsPage")}</PageTitle>
@@ -116,6 +108,14 @@ const Products = () => {
         <ProductDrawer id={serviceId} />
       </MainDrawer>
 
+      <ImportExcelModal
+        isOpen={isExcelModalOpen}
+        onClose={() => setIsExcelModalOpen(false)}
+        onImported={() => setIsUpdate(true)}
+      />
+
+
+
       <Card className="min-w-0 shadow-xs overflow-hidden bg-white dark:bg-gray-800 mb-5">
         <CardBody className="">
           <form
@@ -123,14 +123,12 @@ const Products = () => {
             className="py-3 md:pb-0 grid gap-4 lg:gap-6 xl:gap-6 xl:flex"
           >
             <div className="flex-grow-0 sm:flex-grow md:flex-grow lg:flex-grow xl:flex-grow">
+              {/* יבוא המוצרים הוא מאקסל של ההנהח"ש (עדכון לפי מק"ט).
+                  onExcelImport מחליף את יבוא ה-JSON שמחק את כל המוצרים */}
               <UploadManyTwo
                 title="Products"
-                filename={filename}
-                isDisabled={isDisabled}
                 totalDoc={data?.totalDoc}
-                handleSelectFile={handleSelectFile}
-                handleUploadMultiple={handleUploadMultiple}
-                handleRemoveSelectFile={handleRemoveSelectFile}
+                onExcelImport={() => setIsExcelModalOpen(true)}
               />
             </div>
             <div className="flex flex-col sm:flex-row gap-4">
@@ -205,8 +203,13 @@ const Products = () => {
                 </option>
                 <option value="low">{t("LowtoHigh")}</option>
                 <option value="high">{t("HightoLow")}</option>
-                <option value="published">{t("Published")}</option>
-                <option value="unPublished">{t("Unpublished")}</option>
+                {/* מוסתר זמנית - סינון לפי "פורסם" */}
+                {false && (
+                  <>
+                    <option value="published">{t("Published")}</option>
+                    <option value="unPublished">{t("Unpublished")}</option>
+                  </>
+                )}
                 <option value="status-selling">{t("StatusSelling")}</option>
                 <option value="status-out-of-stock">{t("StatusStock")}</option>
                 <option value="date-added-asc">{t("DateAddedAsc")}</option>
@@ -243,7 +246,7 @@ const Products = () => {
         <TableLoading row={12} col={7} width={160} height={20} />
       ) : error ? (
         <span className="text-center mx-auto text-red-500">{error}</span>
-      ) : serviceData?.length !== 0 ? (
+      ) : data?.products?.length !== 0 ? (
         <TableContainer className="mb-8 rounded-b-lg">
           <Table>
             <TableHeader>
@@ -257,14 +260,20 @@ const Products = () => {
                     handleClick={handleSelectAll}
                   />
                 </TableCell>
-                <TableCell className="text-center">
-                  {t("PublishedTbl")}
-                </TableCell>
+                {/* מוסתר זמנית - עמודת "פורסם" */}
+                {false && (
+                  <TableCell className="text-center">
+                    {t("PublishedTbl")}
+                  </TableCell>
+                )}
                 <TableCell className='text-right'>{t("ProductNameTbl")}</TableCell>
                 <TableCell className='text-center'>{t("PriceTbl")}</TableCell>
                 <TableCell className='text-center'>{t("offer")}</TableCell>
                 <TableCell className='text-center'>{t("CategoryTbl")}</TableCell>
-                <TableCell className='text-center'>{t("ProductSerialOrder")}</TableCell>
+                {/* מוסתר זמנית - עמודת "סדר הופעה בחנות" */}
+                {false && (
+                  <TableCell className='text-center'>{t("ProductSerialOrder")}</TableCell>
+                )}
                 <TableCell className='text-center'>{t("StockTbl")}</TableCell>
                 {/* <TableCell className='text-center'>Sale Price</TableCell>
                 <TableCell className='text-center'>{t("StockTbl")}</TableCell>

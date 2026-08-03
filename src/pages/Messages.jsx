@@ -147,7 +147,7 @@ const Messages = () => {
       if (response.data.success) {
         setIsConnected(false); // עדכן את הסטטוס
         setQrCode(null); // אפס את קוד ה-QR
-        notifyApiResponse(response, true); // הצגת הודעה למשתמש
+        notifySuccess(response.data.message); // הצגת הודעה למשתמש
       } else {
         console.error("Failed to logout:", response.data.message);
       }
