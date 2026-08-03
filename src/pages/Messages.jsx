@@ -1,20 +1,8 @@
-import {
-  Button,
-  Card,
-  CardBody,
-} from "@windmill/react-ui";
+import { Card, CardBody } from "@windmill/react-ui";
 import { useContext, useState, useEffect } from "react";
-import { FiSettings } from "react-icons/fi";
 import { useTranslation } from "react-i18next";
-import ReactQuill from "react-quill-new";
-import 'react-quill-new/dist/quill.snow.css';
-import { FaWhatsapp } from "react-icons/fa";
-import { BsFileEarmarkBarGraphFill } from "react-icons/bs";
-import { TbTruckDelivery } from "react-icons/tb";
-import { LiaTruckPickupSolid } from "react-icons/lia";
 import { BsQrCode } from "react-icons/bs";
 import { io } from "socket.io-client";
-import Countdown from "react-countdown";
 import { QRCodeCanvas } from "qrcode.react";
 import axios from "axios";
 import Cookies from "js-cookie";
@@ -25,8 +13,6 @@ import useAsync from "@/hooks/useAsync";
 import PageTitle from "@/components/Typography/PageTitle";
 import MessageServices from "@/services/MessageServices";
 import { notifyError, notifySuccess } from "@/utils/toast";
-import PieChartSurvey from "@/components/chart/Pie/PieChartSurvey";  // ייבוא של PieChartSurvey
-import spinnerLoadingImage from "@/assets/img/spinner.gif";
 import Loading from "@/components/preloader/Loading";
 import Success from "@/components/success/Success";
 
@@ -301,7 +287,6 @@ const Messages = () => {
                       <h2 className="text-2xl font-bold mb-1 text-gray-900 dark:text-gray-100">
                         {t("ScanToConnect")}
                       </h2>
-                      <p className="text-mainColor-light mb-4">{t("AfterLoggingIn")}</p>
                       <ol className="text-gray-600 dark:text-gray-300 mb-6 text-lg">
                         <li>1. {t("OpenWhatsApp")}</li>
                         <li>2. {t("TapMenu")}</li>
@@ -327,144 +312,6 @@ const Messages = () => {
             ) : (
               <Success />
             )}
-          </div>
-
-          {/* תבניות הודעות */}
-          <div className="inline-flex md:text-lg text-base text-gray-800 font-semibold dark:text-gray-400 mb-3">
-            <FaWhatsapp size={20} className="mt-1 ml-2" />
-            {t("Messages")}
-          </div>
-          <hr className="md:mb-6 mb-3" />
-          <div className="flex-grow scrollbar-hide w-full max-h-full xl:px-10">
-            <div className="md:mb-6 mb-3">
-              <div className="inline-flex md:text-lg text-base text-gray-800 font-semibold dark:text-gray-400 mb-3">
-                <TbTruckDelivery className="mt-1 ml-2 w-5 h-5" />
-                {t("DeliveryMessage")}
-              </div>
-              <hr className="md:mb-3 mb-2" />
-              <div className="sm:col-span-4">
-                <ReactQuill
-                  value={deliveryMessage}
-                  onChange={setDeliveryMessage}
-                  modules={modules}
-                  theme="snow"
-                  className="dark:text-white"
-                />
-              </div>
-              <div className="flex justify-end mt-3">
-                <Button
-                  onClick={() => handleUpdateMessage("delivery", deliveryMessage)}
-                  disabled={isSubmitting && submittingId === "delivery"}
-                  className="h-10 px-6"
-                >
-                  {isSubmitting && submittingId === "delivery" ? (
-                    <img
-                      src={spinnerLoadingImage}
-                      alt="Loading"
-                      width={20}
-                      height={10}
-                    />
-                  ) : (
-                    t("UpdateBtn")
-                  )}
-                </Button>
-              </div>
-            </div>
-
-            <div className="md:mb-6 mb-3">
-              <div className="inline-flex md:text-lg text-base text-gray-800 font-semibold dark:text-gray-400 mb-3">
-                <LiaTruckPickupSolid className="mt-1 ml-2 w-5 h-5" />
-                {t("PickupMessage")}
-              </div>
-              <hr className="md:mb-3 mb-2" />
-              <div className="sm:col-span-4">
-                <ReactQuill
-                  value={pickupMessage}
-                  onChange={setPickupMessage}
-                  modules={modules}
-                  theme="snow"
-                  className="dark:text-white"
-                />
-              </div>
-              <div className="flex justify-end mt-3">
-                <Button
-                  onClick={() => handleUpdateMessage("pickup", pickupMessage)}
-                  disabled={isSubmitting && submittingId === "pickup"}
-                  className="h-10 px-6"
-                >
-                  {isSubmitting && submittingId === "pickup" ? (
-                    <img
-                      src={spinnerLoadingImage}
-                      alt="Loading"
-                      width={20}
-                      height={10}
-                    />
-                  ) : (
-                    t("UpdateBtn")
-                  )}
-                </Button>
-              </div>
-            </div>
-
-            <div className="md:mb-6 mb-3">
-              <div className="inline-flex md:text-lg text-base text-gray-800 font-semibold dark:text-gray-400 mb-3">
-                <BsFileEarmarkBarGraphFill className="mt-1 ml-2" />
-                {t("SurveyMessage")}
-              </div>
-              <hr className="md:mb-3 mb-2" />
-              <div className="sm:col-span-4">
-                <ReactQuill
-                  value={surveyMessage}
-                  onChange={setSurveyMessage}
-                  modules={modules}
-                  theme="snow"
-                  className="dark:text-white"
-                />
-              </div>
-              <div className="flex justify-end mt-3">
-                <Button
-                  onClick={() => handleUpdateMessage("survey", surveyMessage)}
-                  disabled={isSubmitting && submittingId === "survey"}
-                  className="h-10 px-6"
-                >
-                  {isSubmitting && submittingId === "survey" ? (
-                    <img
-                      src={spinnerLoadingImage}
-                      alt="Loading"
-                      width={20}
-                      height={10}
-                    />
-                  ) : (
-                    t("UpdateBtn")
-                  )}
-                </Button>
-              </div>
-            </div>
-          </div>
-
-          {/* נתוני הסקר */}
-          <div className="inline-flex md:text-lg text-base text-gray-800 font-semibold dark:text-gray-400 mb-3">
-            <BsFileEarmarkBarGraphFill className="mt-1 ml-2" />
-            {t("Survey Data")}
-          </div>
-          <hr className="md:mb-6 mb-3" />
-          <div className="grid gap-4 md:grid-cols-2">
-            <div>
-              <h2 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-3">
-                {t("SatisfactionLevelThisMonth")}
-              </h2>
-              <PieChartSurvey
-                data={surveyData?.thisMonth}
-                loading={loadingSurveyData} />
-            </div>
-            <div>
-              <h2 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-3">
-                {t("SatisfactionLevelAllTime")}
-              </h2>
-              <PieChartSurvey
-                data={surveyData?.allTime}
-                loading={loadingSurveyData} />
-            </div>
           </div>
         </CardBody>
       </Card>
