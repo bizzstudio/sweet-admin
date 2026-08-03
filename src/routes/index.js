@@ -3,8 +3,9 @@ import { lazy } from "react";
 // use lazy for better code splitting
 const StatusInvoice = lazy(()=>import("@/pages/StatusInvoice"));
 const Dashboard = lazy(() => import("@/pages/Dashboard"));
-const Attributes = lazy(() => import("@/pages/Attributes"));
-const ChildAttributes = lazy(() => import("@/pages/ChildAttributes"));
+// ⛔ תכונות כבויות (הקוד נשמר) - להחזרה: להסיר את ההערה כאן ובמסלולים למטה
+// const Attributes = lazy(() => import("@/pages/Attributes"));
+// const ChildAttributes = lazy(() => import("@/pages/ChildAttributes"));
 const Products = lazy(() => import("@/pages/Products"));
 const ProductDetails = lazy(() => import("@/pages/ProductDetails"));
 const Category = lazy(() => import("@/pages/Category"));
@@ -16,7 +17,8 @@ const Customers = lazy(() => import("@/pages/Customers"));
 const CustomerOrder = lazy(() => import("@/pages/CustomerOrder"));
 const CustomerDetails = lazy(() => import("@/pages/CustomerDetails"));
 const Orders = lazy(() => import("@/pages/Orders"));
-const CashierOrders = lazy(() => import("@/pages/CashierOrders"));
+// ⛔ הזמנות קופה כבויות (הקוד נשמר) - להחזרה: להסיר את ההערה כאן ובמסלול למטה
+// const CashierOrders = lazy(() => import("@/pages/CashierOrders"));
 const IncomingOrders = lazy(() => import("@/pages/IncomingOrders"));
 const CashierOrderInvoice = lazy(() => import("@/pages/CashierOrderInvoice"));
 const Statuses = lazy(() => import("@/pages/Statuses"));
@@ -74,14 +76,15 @@ const routes = [
     path: "/deliveries/:id",
     component: DeliveryEdit,
   },
-  {
-    path: "/attributes",
-    component: Attributes,
-  },
-  {
-    path: "/attributes/:id",
-    component: ChildAttributes,
-  },
+  // ⛔ תכונות כבויות (לא נמחקו) - להחזרה: להסיר את ההערה
+  // {
+  //   path: "/attributes",
+  //   component: Attributes,
+  // },
+  // {
+  //   path: "/attributes/:id",
+  //   component: ChildAttributes,
+  // },
   {
     path: "/product/:id",
     component: ProductDetails,
@@ -128,10 +131,12 @@ const routes = [
     path: "/orders",
     component: Orders,
   },
-  {
-    path: "/cashier-orders",
-    component: CashierOrders,
-  },
+  // ⛔ הזמנות קופה כבויות (לא נמחקו) - להחזרה: להסיר את ההערה.
+  //    מסלול החשבונית /cashier-order/:id נשאר פעיל בכוונה, כדי שלינקים ישירים לא ישברו.
+  // {
+  //   path: "/cashier-orders",
+  //   component: CashierOrders,
+  // },
   {
     path: "/cashier-order/:id",
     component: CashierOrderInvoice,

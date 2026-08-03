@@ -41,8 +41,6 @@ const Orders = () => {
     currentPage,
     searchText,
     searchRef,
-    method,
-    setMethod,
     setStartDate,
     setSearchText,
     handleChangePage,
@@ -56,7 +54,6 @@ const Orders = () => {
   const { data, loading, error } = useAsync(() =>
     OrderServices.getAllOrders({
       day: time,
-      method: method,
       page: currentPage,
       endDate: endDate,
       startDate: startDate,
@@ -78,7 +75,6 @@ const Orders = () => {
       const res = await OrderServices.getAllOrders({
         page: 1,
         day: time,
-        method: method,
         endDate: endDate,
         download: true,
         startDate: startDate,
@@ -115,7 +111,6 @@ const Orders = () => {
   // handle reset field
   const handleResetField = () => {
     setTime("");
-    setMethod("");
     setEndDate("");
     setStartDate("");
     setSearchText("");

@@ -41,11 +41,11 @@ const sidebar = [
         path: "/categories",
         name: "Categories",
       },
-      {
-        path: "/attributes",
-        name: "Attributes",
-      },
-      // ⛔ מבצעים וקופונים כבויים (לא נמחקו) - להחזרה: להסיר את ההערה
+      // ⛔ תכונות, קופונים ומבצעים כבויים (לא נמחקו) - להחזרה: להסיר את ההערה
+      // {
+      //   path: "/attributes",
+      //   name: "Attributes",
+      // },
       // {
       //   path: "/coupons",
       //   name: "Coupons",
@@ -71,10 +71,11 @@ const sidebar = [
         path: "/orders",
         name: "Orders",
       },
-      {
-        path: "/cashier-orders",
-        name: "CashierOrders",
-      },
+      // ⛔ הזמנות קופה כבויות (לא נמחקו) - להחזרה: להסיר את ההערה
+      // {
+      //   path: "/cashier-orders",
+      //   name: "CashierOrders",
+      // },
       {
         path: "/incoming-orders",
         name: "IncomingOrders",
@@ -185,11 +186,11 @@ const sidebar = [
   //   name: "Popups",
   //   path: "/popups",
   // },
-  // {
-  //   icon: GoDependabot,
-  //   name: "WhatsApp Bot",
-  //   path: "/whatsappbot",
-  // },
+  {
+    icon: GoDependabot,
+    name: "WhatsApp Bot",
+    path: "/whatsappbot",
+  },
   // {
   //   icon: IoNewspaperOutline,
   //   name: "Blogs",

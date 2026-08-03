@@ -391,10 +391,124 @@ const Dashboard = () => {
         />
       </div>
 
+      <h1 className="mt-6 mb-1 text-lg font-bold text-gray-700 dark:text-gray-300">{t("הזמנות היום")}</h1>
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4 ">
+        <CardItem
+          title={t("כל ההזמנות")}
+          Icon={FiCheck}
+          loading={loadingOrderCount}
+          quantity={getNumber(dashboardOrderCount?.today?.totalOrders?.count)}
+          className="text-customGreen-dark text-white dark:text-customBrown-light bbg-customGreen-dark"
+        />
+        <CardItem
+          title={t("הזמנות עם משלוח")}
+          Icon={FiTruck}
+          loading={loadingOrderCount}
+          quantity={dashboardOrderCount?.today?.totalShippingOrders?.count}
+          className="text-white dark:text-customBrown-light bbg-customGreen-dark"
+        />
+        <CardItem
+          title={t("איסוף עצמי")}
+          Icon={GiCardPickup}
+          loading={loadingOrderCount}
+          quantity={dashboardOrderCount?.today?.totalPickupOrders?.count}
+          className="text-white dark:text-customBrown-light bbg-customGreen-dark"
+        />
+        <CardItem
+          title={t("הזמנות ממתינות לתשלום")}
+          Icon={MdOutlineCancel}
+          loading={loadingOrderCount}
+          quantity={dashboardOrderCount?.today?.totalPendingOrders?.count}
+          className="text-customGreen-dark text-white dark:text-customBrown-light bbg-customGreen-dark"
+        />
+      </div>
+
+      <h1 className="mt-6 mb-1 text-lg font-bold text-gray-700 dark:text-gray-300">{t("הזמנות החודש")}</h1>
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <CardItem
+          title={t("כל ההזמנות")}
+          Icon={FiCheck}
+          loading={loadingOrderCount}
+          quantity={dashboardOrderCount?.thisMonth?.totalOrders?.count}
+          className="text-customGreen-dark text-white dark:text-customBrown-light bbg-customGreen-dark"
+        />
+        <CardItem
+          title={t("הזמנות עם משלוח")}
+          Icon={FiTruck}
+          loading={loadingOrderCount}
+          quantity={dashboardOrderCount?.thisMonth?.totalShippingOrders?.count}
+          className="text-white dark:text-customBrown-light bbg-customGreen-dark"
+        />
+        <CardItem
+          title={t("איסוף עצמי")}
+          Icon={GiCardPickup}
+          loading={loadingOrderCount}
+          quantity={dashboardOrderCount?.thisMonth?.totalPickupOrders?.count}
+          className="text-white dark:text-customBrown-light bbg-customGreen-dark"
+        />
+        <CardItem
+          title={t("הזמנות ממתינות לתשלום")}
+          Icon={MdOutlineCancel}
+          loading={loadingOrderCount}
+          quantity={dashboardOrderCount?.thisMonth?.totalPendingOrders?.count}
+          className="text-customGreen-dark text-white dark:text-customBrown-light bbg-customGreen-dark"
+        />
+      </div>
+
+      <h1 className="mt-6 mb-1 text-lg font-bold text-gray-700 dark:text-gray-300">{t("כל ההזמנות")}</h1>
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <CardItem
+          title={t("כל ההזמנות")}
+          Icon={FiCheck}
+          loading={loadingOrderCount}
+          quantity={dashboardOrderCount?.allTime?.totalOrders?.count}
+          className="text-customGreen-dark text-white dark:text-customBrown-light bbg-customGreen-dark"
+        />
+        <CardItem
+          title={t("הזמנות עם משלוח")}
+          Icon={FiTruck}
+          loading={loadingOrderCount}
+          quantity={dashboardOrderCount?.allTime?.totalShippingOrders?.count}
+          className="text-white dark:text-customBrown-light bbg-customGreen-dark"
+        />
+        <CardItem
+          title={t("איסוף עצמי")}
+          Icon={GiCardPickup}
+          loading={loadingOrderCount}
+          quantity={dashboardOrderCount?.allTime?.totalPickupOrders?.count}
+          className="text-white dark:text-customBrown-light bbg-customGreen-dark"
+        />
+        <CardItem
+          title={t("הזמנות ממתינות לתשלום")}
+          Icon={MdOutlineCancel}
+          loading={loadingOrderCount}
+          quantity={dashboardOrderCount?.allTime?.totalPendingOrders?.count}
+          className="text-customGreen-dark text-white dark:text-customBrown-light bbg-customGreen-dark"
+        />
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 my-8">
+        <ChartCard
+          mode={mode}
+          loading={loadingOrderAmount}
+          title={t("WeeklySales")}
+        >
+          <LineChart salesReport={salesReport} />
+        </ChartCard>
+
+        <ChartCard
+          mode={mode}
+          loading={loadingBestSellerProduct}
+          title={t("BestSellingProducts")}
+        >
+          <PieChart data={bestSellerProductChart} />
+        </ChartCard>
+      </div>
+
       {/*
-       * מכירות לפי מוצר לפי יום – מתחת לריבועים (כולל כפתורי היום ואתמול)
+       * מכירות לפי מוצר לפי יום – בתחתית העמוד (כולל כפתורי היום ואתמול)
        */}
-      <h1 className="mt-2 mb-2 text-lg font-bold text-gray-700 dark:text-gray-300">
+      <h1 className="mt-6 mb-2 text-lg font-bold text-gray-700 dark:text-gray-300">
         {t("DailySalesByProduct")}
       </h1>
       <Card className="min-w-0 shadow-xs bg-white dark:bg-gray-800 mb-6">
@@ -537,120 +651,6 @@ const Dashboard = () => {
           )}
         </CardBody>
       </Card>
-
-      <h1 className="mt-6 mb-1 text-lg font-bold text-gray-700 dark:text-gray-300">{t("הזמנות היום")}</h1>
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4 ">
-        <CardItem
-          title={t("כל ההזמנות")}
-          Icon={FiCheck}
-          loading={loadingOrderCount}
-          quantity={getNumber(dashboardOrderCount?.today?.totalOrders?.count)}
-          className="text-customGreen-dark text-white dark:text-customBrown-light bbg-customGreen-dark"
-        />
-        <CardItem
-          title={t("הזמנות עם משלוח")}
-          Icon={FiTruck}
-          loading={loadingOrderCount}
-          quantity={dashboardOrderCount?.today?.totalShippingOrders?.count}
-          className="text-white dark:text-customBrown-light bbg-customGreen-dark"
-        />
-        <CardItem
-          title={t("איסוף עצמי")}
-          Icon={GiCardPickup}
-          loading={loadingOrderCount}
-          quantity={dashboardOrderCount?.today?.totalPickupOrders?.count}
-          className="text-white dark:text-customBrown-light bbg-customGreen-dark"
-        />
-        <CardItem
-          title={t("הזמנות ממתינות לתשלום")}
-          Icon={MdOutlineCancel}
-          loading={loadingOrderCount}
-          quantity={dashboardOrderCount?.today?.totalPendingOrders?.count}
-          className="text-customGreen-dark text-white dark:text-customBrown-light bbg-customGreen-dark"
-        />
-      </div>
-
-      <h1 className="mt-6 mb-1 text-lg font-bold text-gray-700 dark:text-gray-300">{t("הזמנות החודש")}</h1>
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <CardItem
-          title={t("כל ההזמנות")}
-          Icon={FiCheck}
-          loading={loadingOrderCount}
-          quantity={dashboardOrderCount?.thisMonth?.totalOrders?.count}
-          className="text-customGreen-dark text-white dark:text-customBrown-light bbg-customGreen-dark"
-        />
-        <CardItem
-          title={t("הזמנות עם משלוח")}
-          Icon={FiTruck}
-          loading={loadingOrderCount}
-          quantity={dashboardOrderCount?.thisMonth?.totalShippingOrders?.count}
-          className="text-white dark:text-customBrown-light bbg-customGreen-dark"
-        />
-        <CardItem
-          title={t("איסוף עצמי")}
-          Icon={GiCardPickup}
-          loading={loadingOrderCount}
-          quantity={dashboardOrderCount?.thisMonth?.totalPickupOrders?.count}
-          className="text-white dark:text-customBrown-light bbg-customGreen-dark"
-        />
-        <CardItem
-          title={t("הזמנות ממתינות לתשלום")}
-          Icon={MdOutlineCancel}
-          loading={loadingOrderCount}
-          quantity={dashboardOrderCount?.thisMonth?.totalPendingOrders?.count}
-          className="text-customGreen-dark text-white dark:text-customBrown-light bbg-customGreen-dark"
-        />
-      </div>
-
-      <h1 className="mt-6 mb-1 text-lg font-bold text-gray-700 dark:text-gray-300">{t("כל ההזמנות")}</h1>
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <CardItem
-          title={t("כל ההזמנות")}
-          Icon={FiCheck}
-          loading={loadingOrderCount}
-          quantity={dashboardOrderCount?.allTime?.totalOrders?.count}
-          className="text-customGreen-dark text-white dark:text-customBrown-light bbg-customGreen-dark"
-        />
-        <CardItem
-          title={t("הזמנות עם משלוח")}
-          Icon={FiTruck}
-          loading={loadingOrderCount}
-          quantity={dashboardOrderCount?.allTime?.totalShippingOrders?.count}
-          className="text-white dark:text-customBrown-light bbg-customGreen-dark"
-        />
-        <CardItem
-          title={t("איסוף עצמי")}
-          Icon={GiCardPickup}
-          loading={loadingOrderCount}
-          quantity={dashboardOrderCount?.allTime?.totalPickupOrders?.count}
-          className="text-white dark:text-customBrown-light bbg-customGreen-dark"
-        />
-        <CardItem
-          title={t("הזמנות ממתינות לתשלום")}
-          Icon={MdOutlineCancel}
-          loading={loadingOrderCount}
-          quantity={dashboardOrderCount?.allTime?.totalPendingOrders?.count}
-          className="text-customGreen-dark text-white dark:text-customBrown-light bbg-customGreen-dark"
-        />
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-2 my-8">
-        <ChartCard
-          mode={mode}
-          loading={loadingOrderAmount}
-          title={t("WeeklySales")}
-        >
-          <LineChart salesReport={salesReport} />
-        </ChartCard>
-
-        <ChartCard
-          mode={mode}
-          loading={loadingBestSellerProduct}
-          title={t("BestSellingProducts")}
-        >
-          <PieChart data={bestSellerProductChart} />
-        </ChartCard>
-      </div>
 
       {/* <PageTitle>{t("RecentOrder")}</PageTitle>
       

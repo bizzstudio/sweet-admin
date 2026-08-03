@@ -20,14 +20,20 @@ const SelectStatus = ({ id, order }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [status, setStatus] = useState(""); // שמור את הערך הנוכחי של הסטטוס
   const [tempStatus, setTempStatus] = useState({}); // שמור את האובייקט החדש של הסטטוס לפני אישור
-  const [statusColor, setStatusColor] = useState(""); // שמירת צבע הרקע של הסטטוס
+  // ברירת מחדל אפורה: הטקסט בתיבה לבן, ובלי רקע הוא היה לבן-על-לבן ולא קריא
+  const DEFAULT_STATUS_COLOR = "#374151";
+  const [statusColor, setStatusColor] = useState(DEFAULT_STATUS_COLOR); // שמירת צבע הרקע של הסטטוס
 
   // Use useEffect to update the status when the data or order changes
   useEffect(() => {
     if (order && data) {
       const currentStatus = data.find((status) => status?.name === order?.status?.name);
-      setStatus(currentStatus ? currentStatus.name : "");
-      setStatusColor(currentStatus ? currentStatus.color : ""); // שמירת צבע הסטטוס
+      // סטטוס שכובה (isActive=false) לא חוזר מהשרת ברשימה, ולכן נופלים אחורה לסטטוס
+      // של ההזמנה עצמה - אחרת הזמנה בסטטוס כבוי הייתה מוצגת ריקה או עם סטטוס שגוי
+      setStatus(currentStatus?.name || order?.status?.name || "");
+      setStatusColor(
+        currentStatus?.color || order?.status?.color || DEFAULT_STATUS_COLOR
+      ); // שמירת צבע הסטטוס
     }
   }, [order, data]);
 
@@ -37,7 +43,7 @@ const SelectStatus = ({ id, order }) => {
       await OrderServices.updateOrder(id, { status: status?.name, password });
       notifySuccess(t("Status updated successfully"));
       setStatus(tempStatus?.name); // עדכן את הערך לאחר הצלחה
-      setStatusColor(tempStatus?.color); // עדכן את צבע הרקע של הסטטוס הנבחר
+      setStatusColor(tempStatus?.color || DEFAULT_STATUS_COLOR); // עדכן את צבע הרקע של הסטטוס הנבחר
       setIsUpdate(true);
       setIsModalOpen(false);
     } catch (err) {
@@ -75,6 +81,18 @@ const SelectStatus = ({ id, order }) => {
         <option value="status" defaultValue hidden className="text-gray-800 bg-white">
           {order?.status?.heName}
         </option>
+        {/* סטטוס כבוי של ההזמנה - מוצג כדי שהשם יופיע נכון, אך מוסתר מהרשימה
+            כדי שלא יהיה אפשר לבחור בו מחדש */}
+        {order?.status?.name &&
+          !data?.some((status) => status?.name === order?.status?.name) && (
+            <option
+              value={order.status.name}
+              hidden
+              className="text-gray-800 bg-white"
+            >
+              {order?.status?.heName}
+            </option>
+          )}
         {data &&
           data.map((status) => (
             <option

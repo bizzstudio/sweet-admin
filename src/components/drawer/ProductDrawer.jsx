@@ -16,7 +16,7 @@ import React from "react";
 import { MultiSelect } from "react-multi-select-component";
 import { Modal } from "react-responsive-modal";
 import "react-responsive-modal/styles.css";
-import { Link } from "react-router-dom";
+// ⛔ תכונות כבויות - להחזרה: import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { FiX } from "react-icons/fi";
 
@@ -548,9 +548,11 @@ const ProductDrawer = ({ id }) => {
                     <div>
                       <p className="text-sm">
                         {t("AddCombinationsDiscription")}{" "}
-                        <Link to="/attributes" className="font-bold">
+                        {/* ⛔ תכונות כבויות - הקישור הוחלף בטקסט כדי לא להוביל ל-404.
+                            להחזרה: <Link to="/attributes" className="font-bold"> ... </Link> */}
+                        <span className="font-bold">
                           {t("AttributesFeatures")}
-                        </Link>
+                        </span>
                         {t("AddCombinationsDiscriptionTwo")}
                       </p>
                     </div>

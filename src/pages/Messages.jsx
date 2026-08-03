@@ -17,6 +17,7 @@ import { io } from "socket.io-client";
 import Countdown from "react-countdown";
 import { QRCodeCanvas } from "qrcode.react";
 import axios from "axios";
+import Cookies from "js-cookie";
 
 // Internal import
 import { SidebarContext } from "@/context/SidebarContext";
@@ -48,12 +49,40 @@ const Messages = () => {
 
   // חיבור לוואטסאפ או שליפת קוד קיו-אר
   useEffect(() => {
-    const devMode = import.meta.env.VITE_APP_ENVIRONMENT === "dev";
-    const link = import.meta.env.VITE_APP_KIRSHNER_WHATSAPP_SOCKET_URL;
+    // כתובת שרת הווצאפ (sweet-whatsapp). בפיתוח: http://localhost:3009
+    const link = import.meta.env.VITE_APP_WHATSAPP_SOCKET_URL;
+
+    // קידומת הנתיב ב-nginx כשהשרת יושב מאחורי פרוקסי (למשל "/sweet-whatsapp").
+    // ריק בפיתוח, כשפונים ישירות לפורט של השרת.
+    const httpPrefix = import.meta.env.VITE_APP_WHATSAPP_PATH_PREFIX || "";
+
+    // ‏path של Socket.IO. ריק = ברירת המחדל "/socket.io" (פיתוח).
+    const socketPath = import.meta.env.VITE_APP_WHATSAPP_SOCKET_PATH || "";
+
+    if (!link) {
+      console.error(
+        "VITE_APP_WHATSAPP_SOCKET_URL אינו מוגדר — לא ניתן להתחבר לשרת הווצאפ"
+      );
+      return;
+    }
+
+    // ‏/status ו-/logout מוגנים בשרת הווצאפ. הדשבורד מזדהה עם טוקן האדמין
+    // שלו, כדי שה-API key של שרת-לשרת לא יישב ב-bundle של הדפדפן.
+    const authHeader = () => {
+      try {
+        const adminInfo = Cookies.get("adminInfo");
+        const token = adminInfo ? JSON.parse(adminInfo).token : null;
+        return token ? { Authorization: `Bearer ${token}` } : {};
+      } catch {
+        return {};
+      }
+    };
 
     const checkStatus = async () => {
       try {
-        const response = await axios.get(`${link}${devMode ? '' : '/tomer-whatsapp'}/status`);
+        const response = await axios.get(`${link}${httpPrefix}/status`, {
+          headers: authHeader(),
+        });
         if (response.data.connected) {
           setIsConnected(true); // עדכן את הסטטוס אם כבר מחובר
           setIsAuthenticating(false); // איפוס סטטוס האימות
@@ -67,20 +96,21 @@ const Messages = () => {
 
     checkStatus();
 
+    // ‏polling נשאר ראשון: מאחורי פרוקסי שאינו מעביר Upgrade, חיבור
+    // websocket-only נכשל בשקט ו-QR פשוט לא מגיע למסך.
     const socketOptions = {
-      transports: ["websocket"],
+      transports: ["polling", "websocket"],
     };
 
-    // אם לא במצב devMode, מוסיפים את הפרופרטי path
-    if (!devMode) {
-      socketOptions.path = "/tomer-whatsapp-socket";
-    };
+    if (socketPath) {
+      socketOptions.path = socketPath;
+    }
 
     // אתחול חיבור Socket.io
     const socket = io(link, socketOptions);
 
     socket.on('connect', () => {
-      console.log('Connected to tomer-whatsapp server');
+      console.log('Connected to sweet-whatsapp server');
       socket.emit("init-whatsapp");
     });
 
@@ -141,8 +171,21 @@ const Messages = () => {
     }
 
     try {
+      const link = import.meta.env.VITE_APP_WHATSAPP_SOCKET_URL;
+      const httpPrefix = import.meta.env.VITE_APP_WHATSAPP_PATH_PREFIX || "";
+
+      let token = null;
+      try {
+        const adminInfo = Cookies.get("adminInfo");
+        token = adminInfo ? JSON.parse(adminInfo).token : null;
+      } catch {
+        token = null;
+      }
+
       const response = await axios.post(
-        `${import.meta.env.VITE_APP_KIRSHNER_WHATSAPP_SOCKET_URL}${import.meta.env.VITE_APP_ENVIRONMENT === "dev" ? '' : '/tomer-whatsapp'}/logout`
+        `${link}${httpPrefix}/logout`,
+        {},
+        { headers: token ? { Authorization: `Bearer ${token}` } : {} }
       );
       if (response.data.success) {
         setIsConnected(false); // עדכן את הסטטוס
