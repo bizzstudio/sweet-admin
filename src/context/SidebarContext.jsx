@@ -7,6 +7,12 @@ import { useTranslation } from "react-i18next";
 
 export const SidebarContext = createContext();
 
+// ניווט דרך window.location הוא ניווט קשיח של הדפדפן — הוא עוקף את הראוטר
+// ולכן לא מקבל את ה-basename. כשהאדמין מוגש מתת-תיקייה, "/login" מוביל
+// לשורש הדומיין ומחזיר 404. BASE_URL מכיל את הקידומת ומסתיים ב-"/",
+// וכשהאדמין יושב על דומיין ייעודי הוא פשוט "/" והתוצאה זהה.
+const LOGIN_PATH = `${import.meta.env.BASE_URL}login`.replace(/\/{2,}/g, "/");
+
 export const SidebarProvider = ({ children }) => {
   const resultsPerPage = 20;
   const searchRef = useRef("");
@@ -118,28 +124,28 @@ export const SidebarProvider = ({ children }) => {
       try {
         const adminInfoCookie = Cookies.get("adminInfo");
         if (!adminInfoCookie) {
-          window.location.pathname = "/login";
+          window.location.pathname = LOGIN_PATH;
           return;
         }
 
         const adminInfo = JSON.parse(adminInfoCookie);
         if (!adminInfo.token) {
-          window.location.pathname = "/login";
+          window.location.pathname = LOGIN_PATH;
           return;
         }
 
         const data = await AdminServices.validateToken();
         if (data !== true) {
-          window.location.pathname = "/login";
+          window.location.pathname = LOGIN_PATH;
         }
       } catch (error) {
         console.error("Error validating token:", error);
-        window.location.pathname = "/login";
+        window.location.pathname = LOGIN_PATH;
       }
     }
 
     // רק אם לא נמצאים בעמוד לוגין
-    if (window.location.pathname !== "/login") {
+    if (window.location.pathname !== LOGIN_PATH) {
       validateToken();
     }
   }, []);
