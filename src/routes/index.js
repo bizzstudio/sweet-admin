@@ -8,7 +8,8 @@ const ChildAttributes = lazy(() => import("@/pages/ChildAttributes"));
 const Products = lazy(() => import("@/pages/Products"));
 const ProductDetails = lazy(() => import("@/pages/ProductDetails"));
 const Category = lazy(() => import("@/pages/Category"));
-const Offers = lazy(() => import("@/pages/Offers"));
+// ⛔ מבצעים כבויים (הקוד נשמר) - להחזרה: להסיר את ההערה כאן ובמסלול למטה
+// const Offers = lazy(() => import("@/pages/Offers"));
 const ChildCategory = lazy(() => import("@/pages/ChildCategory"));
 const Staff = lazy(() => import("@/pages/Staff"));
 const Customers = lazy(() => import("@/pages/Customers"));
@@ -20,7 +21,8 @@ const IncomingOrders = lazy(() => import("@/pages/IncomingOrders"));
 const CashierOrderInvoice = lazy(() => import("@/pages/CashierOrderInvoice"));
 const Statuses = lazy(() => import("@/pages/Statuses"));
 const OrderInvoice = lazy(() => import("@/pages/OrderInvoice"));
-const Coupons = lazy(() => import("@/pages/Coupons"));
+// ⛔ קופונים כבויים (הקוד נשמר) - להחזרה: להסיר את ההערה כאן ובמסלול למטה
+// const Coupons = lazy(() => import("@/pages/Coupons"));
 const Page404 = lazy(() => import("@/pages/404"));
 const ComingSoon = lazy(() => import("@/pages/ComingSoon"));
 const EditProfile = lazy(() => import("@/pages/EditProfile"));
@@ -88,10 +90,11 @@ const routes = [
     path: "/categories",
     component: Category,
   },
-  {
-    path: "/offers",
-    component: Offers,
-  },
+  // ⛔ מבצעים כבויים (לא נמחקו) - להחזרה: להסיר את ההערה
+  // {
+  //   path: "/offers",
+  //   component: Offers,
+  // },
   {
     path: "/languages",
     component: Languages,
@@ -153,10 +156,11 @@ const routes = [
     path: "/order/:id",
     component: OrderInvoice,
   },
-  {
-    path: "/coupons",
-    component: Coupons,
-  },
+  // ⛔ קופונים כבויים (לא נמחקו) - להחזרה: להסיר את ההערה
+  // {
+  //   path: "/coupons",
+  //   component: Coupons,
+  // },
   { path: "/settings", component: Setting },
   {
     path: "/store/customization",

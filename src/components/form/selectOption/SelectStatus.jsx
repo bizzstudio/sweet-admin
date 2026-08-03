@@ -69,14 +69,19 @@ const SelectStatus = ({ id, order }) => {
           setIsModalOpen(true);
         }}
         className="h-8 text-white"
-        style={{ backgroundColor: statusColor }} // הוספת צבע הרקע ל-Select
+        // רוחב לפי התוכן + מינימום, כדי שהסטטוס יישאר קריא גם במסך צר
+        style={{ backgroundColor: statusColor, width: "auto", minWidth: "7.5rem" }}
       >
-        <option value="status" defaultValue hidden>
+        <option value="status" defaultValue hidden className="text-gray-800 bg-white">
           {order?.status?.heName}
         </option>
         {data &&
           data.map((status) => (
-            <option key={status?._id} value={status?.name}>
+            <option
+              key={status?._id}
+              value={status?.name}
+              className="text-gray-800 bg-white"
+            >
               {status?.heName} {order?.actualMelaket?.heName && order?.status?.name == 'Likut' ?
                 `(${order.actualMelaket.heName})` : ''}
             </option>

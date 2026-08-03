@@ -313,9 +313,6 @@ const Category = () => {
                 <TableCell className="text-start">{t("CatTbName")}</TableCell>
                 <TableCell className="text-start">{t("CatTbDescription")}</TableCell>
                 <TableCell className="text-center">
-                  {t("catPublishedTbl")}
-                </TableCell>
-                <TableCell className="text-center">
                   {t("catActionsTbl")}
                 </TableCell>
               </tr>

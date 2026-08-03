@@ -45,14 +45,15 @@ const sidebar = [
         path: "/attributes",
         name: "Attributes",
       },
-      {
-        path: "/coupons",
-        name: "Coupons",
-      },
-      {
-        path: "/offers",
-        name: "Offers",
-      },
+      // ⛔ מבצעים וקופונים כבויים (לא נמחקו) - להחזרה: להסיר את ההערה
+      // {
+      //   path: "/coupons",
+      //   name: "Coupons",
+      // },
+      // {
+      //   path: "/offers",
+      //   name: "Offers",
+      // },
     ],
   },
 

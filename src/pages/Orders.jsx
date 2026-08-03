@@ -17,7 +17,6 @@ import { useContext, useState } from "react";
 import { IoCloudDownloadOutline } from "react-icons/io5";
 import { useTranslation } from "react-i18next";
 import exportFromJSON from "export-from-json";
-import Select, { components } from "react-select";
 
 // Internal import
 import { notifyError } from "@/utils/toast";
@@ -31,18 +30,12 @@ import OrderTable from "@/components/order/OrderTable";
 import TableLoading from "@/components/preloader/TableLoading";
 import spinnerLoadingImage from "@/assets/img/spinner.gif";
 import useUtilsFunction from "@/hooks/useUtilsFunction";
-import StatusServices from "@/services/StatusService";
-import DeliveryServices from "@/services/DeliveryServices";
-import CheckBox from "@/components/form/others/CheckBox";
-import SelectWithCheckbox from "@/components/form/SelectWithCheckbox";
 
 const Orders = () => {
   const {
     time,
     setTime,
-    statuses,
     endDate,
-    setStatuses,
     setEndDate,
     startDate,
     currentPage,
@@ -54,9 +47,6 @@ const Orders = () => {
     setSearchText,
     handleChangePage,
     handleSubmitForAll,
-    resultsPerPage,
-    setCities,
-    cities,
   } = useContext(SidebarContext);
 
   const { t } = useTranslation();
@@ -66,9 +56,7 @@ const Orders = () => {
   const { data, loading, error } = useAsync(() =>
     OrderServices.getAllOrders({
       day: time,
-      cities: cities,
       method: method,
-      statuses: statuses,
       page: currentPage,
       endDate: endDate,
       startDate: startDate,
@@ -78,11 +66,8 @@ const Orders = () => {
   );
   // console.log('Orders :>> ', data);
 
-  const { data: statusData } = useAsync(StatusServices.getAllStatuses);
-  const { data: cityData } = useAsync(DeliveryServices.getAllDeliveries);
-
-  const { currency, getNumber, getNumberTwo } = useUtilsFunction();
-  const { dataTable, serviceData } = useFilter(data?.orders);
+  const { getNumberTwo } = useUtilsFunction();
+  const { serviceData } = useFilter(data?.orders);
 
   const [startDateInput, setStartDateInput] = useState("");
   const [endDateInput, setEndDateInput] = useState("");
@@ -94,7 +79,6 @@ const Orders = () => {
         page: 1,
         day: time,
         method: method,
-        statuses: statuses,
         endDate: endDate,
         download: true,
         startDate: startDate,
@@ -132,14 +116,12 @@ const Orders = () => {
   const handleResetField = () => {
     setTime("");
     setMethod("");
-    setStatuses([]);
     setEndDate("");
     setStartDate("");
     setSearchText("");
     searchRef.current.value = "";
     setStartDateInput("");
     setEndDateInput("");
-    setCities([]);
   };
 
   // handle limit change
@@ -197,29 +179,6 @@ const Orders = () => {
     setEndDateInput(formatDateToLocal(endDate));
   };
 
-  const handleStatusChange = (selectedOptions) => {
-    const selectedStatuses = selectedOptions.map(option => option.value);
-    setStatuses(selectedStatuses);
-  };
-
-  const handleCityChange = (selectedOptions) => {
-    const selectedCities = selectedOptions.map(option => option.value);
-    setCities(selectedCities);
-  };
-
-  const statusOptions = statusData.map(status => ({
-    value: status.name,
-    label: status.heName,
-    isSelected: statuses.includes(status.name)
-  }));
-
-  const cityOptions = cityData.map(cityObj => ({
-    value: cityObj?.city?._id,
-    label: cityObj?.city?.city_name_he,
-    isSelected: cities.includes(cityObj?.city?._id)
-  }));
-
-
   return (
     <>
       <PageTitle>{t("Orders")}</PageTitle>
@@ -227,7 +186,7 @@ const Orders = () => {
       <Card className="min-w-0 shadow-xs bg-white dark:bg-gray-800 mb-5">
         <CardBody>
           <form onSubmit={handleSubmitForAll}>
-            <div className="grid gap-4 lg:gap-4 xl:gap-6 md:gap-2 md:grid-cols-6 py-2">
+            <div className="grid gap-4 lg:gap-4 xl:gap-6 md:gap-2 md:grid-cols-4 py-2">
               {/* חיפוש */}
               <div title={t("SearchOrder")} className="col-span-2">
                 <Input
@@ -235,23 +194,6 @@ const Orders = () => {
                   type="search"
                   name="search"
                   placeholder={t("SearchOrder")}
-                />
-              </div>
-
-              <div className="flex flex-col">
-                <SelectWithCheckbox
-                  placeholder={t("selectStatus")}
-                  options={statusOptions}
-                  onChange={handleStatusChange}
-                />
-              </div>
-
-              {/* סינון על פי ערים */}
-              <div className="flex flex-col">
-                <SelectWithCheckbox
-                  placeholder={t("Delivery Destination")}
-                  options={cityOptions}
-                  onChange={handleCityChange}
                 />
               </div>
 
@@ -349,62 +291,6 @@ const Orders = () => {
         </CardBody>
       </Card>
 
-      {/* נתוני הזמנות */}
-      {data && (
-        <Card className="min-w-0 shadow-xs overflow-hidden bg-white dark:bg-gray-800 rounded-t-lg rounded-0 mb-4">
-          <CardBody>
-            <div className="flex justify-evenly">
-
-              {/* סה"כ הזמנות */}
-              <div className="dark:text-gray-300">
-                <span className="font-medium"> {t("TotalOrder")}</span> :{" "}
-                <span className="font-semibold">{getNumber(data?.totalDoc)}</span>
-              </div>
-              <span className="w-0.5 h-6 bg-gray-800 dark:bg-gray-300" />
-
-              {/* סה"כ משלוחים */}
-              <div className="dark:text-gray-300">
-                <span className="font-medium"> {t("TotalShippingOrder")}</span> :{" "}
-                <span className="font-semibold">{getNumber(data?.totalShippingOrders)}</span>
-              </div>
-              <span className="w-0.5 h-6 bg-gray-800 dark:bg-gray-300" />
-
-              {/* סה"כ איסוף עצמי */}
-              <div className="dark:text-gray-300">
-                <span className="font-medium"> {t("TotalPickupOrder")}</span> :{" "}
-                <span className="font-semibold">{getNumber(data?.totalPickupOrders)}</span>
-              </div>
-              <span className="w-0.5 h-6 bg-gray-800 dark:bg-gray-300" />
-
-              {/* סה"כ בונוסים */}
-              <div className="dark:text-gray-300">
-                <span className="font-medium"> {t("TotalBonuses")}</span> :{" "}
-                <span className="font-semibold">{currency}{getNumberTwo(data?.totalBonuses)}</span>
-              </div>
-
-              {data?.methodTotals?.length > 0 &&
-                <>
-                  <span className="w-0.5 h-6 bg-gray-800 dark:bg-gray-300"></span>
-                  {/* סה"כ הכנסות */}
-                  {data?.methodTotals?.map((el, i) => (
-                    <div key={i + 1} className="dark:text-gray-300">
-                      {el?.method && (
-                        <>
-                          <span className="font-medium"> {t("TotalIncome")}</span> :{" "}
-                          <span className="font-semibold ml-2">
-                            {currency}
-                            {getNumberTwo(el.total)}
-                          </span>
-                        </>
-                      )}
-                    </div>
-                  ))}
-                </>}
-            </div>
-          </CardBody>
-        </Card>
-      )}
-
       {loading ? (
         <TableLoading row={12} col={7} width={160} height={20} />
       ) : error ? (
@@ -414,15 +300,13 @@ const Orders = () => {
           <Table>
             <TableHeader>
               <tr>
+                <TableCell className="text-center">{t("ActionTbl")}</TableCell>
                 <TableCell className="text-center">{t("InvoiceNo")}</TableCell>
                 <TableCell className="text-center">{t("orderCreation")}</TableCell>
                 <TableCell className="text-center">{t("orderUpdate")}</TableCell>
                 <TableCell className="text-center">{t("CustomerName")}</TableCell>
-                <TableCell className="text-center">{t("ShippingMethod")}</TableCell>
                 <TableCell className="text-center">{t("AmountTbl")}</TableCell>
                 <TableCell className="text-center">{t("OderStatusTbl")}</TableCell>
-                <TableCell className="text-center">{t("satisfaction&bonus")}</TableCell>
-                <TableCell className="text-center">{t("ActionTbl")}</TableCell>
                 {/* <TableCell className="text-right">{t("InvoiceTbl")}</TableCell> */}
               </tr>
             </TableHeader>

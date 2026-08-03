@@ -209,7 +209,6 @@ const ChildCategory = () => {
                 <TableCell>{t("catIconTbl")}</TableCell>
                 <TableCell>{t("Name")}</TableCell>
                 <TableCell>{t("Description")}</TableCell>
-                <TableCell className="text-center">{t("catPublishedTbl")}</TableCell>
                 <TableCell className="text-center">{t("catActionsTbl")}</TableCell>
               </tr>
             </TableHeader>

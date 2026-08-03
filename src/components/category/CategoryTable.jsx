@@ -6,7 +6,6 @@ import { IoRemoveSharp } from "react-icons/io5";
 // Internal import
 import CheckBox from "@/components/form/others/CheckBox";
 import DeleteModal from "@/components/modal/DeleteModal";
-import ShowHideButton from "@/components/table/ShowHideButton";
 import EditDeleteButton from "@/components/table/EditDeleteButton";
 import useUtilsFunction from "@/hooks/useUtilsFunction";
 
@@ -117,14 +116,6 @@ const CategoryTable = ({
 
             <TableCell title={showingTranslateValue(category?.description)} className="text-center text-sm max-w-[15vw] overflow-hidden truncate">
               {showingTranslateValue(category?.description)}
-            </TableCell>
-
-            <TableCell className="text-center text-sm max-w-[15vw] overflow-hidden truncate">
-              <ShowHideButton
-                id={category._id}
-                category
-                status={category.status}
-              />
             </TableCell>
 
             <TableCell>
