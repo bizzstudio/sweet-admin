@@ -37,11 +37,11 @@ const sidebar = [
         path: "/products",
         name: "Products",
       },
-      // ⛔ קטגוריות, תכונות, קופונים ומבצעים כבויים (לא נמחקו) - להחזרה: להסיר את ההערה
-      // {
-      //   path: "/categories",
-      //   name: "Categories",
-      // },
+      {
+        path: "/categories",
+        name: "Categories",
+      },
+      // ⛔ תכונות, קופונים ומבצעים כבויים (לא נמחקו) - להחזרה: להסיר את ההערה
       // {
       //   path: "/attributes",
       //   name: "Attributes",
@@ -100,11 +100,12 @@ const sidebar = [
     name: "OurStaff",
   },
 
-  {
-    path: "/settings?settingTab=common-settings",
-    icon: FiSettings,
-    name: "Settings",
-  },
+  // ⛔ הגדרות מוסתרות מהתפריט (הדף עצמו נשאר) - להחזרה: להסיר את ההערה
+  // {
+  //   path: "/settings?settingTab=common-settings",
+  //   icon: FiSettings,
+  //   name: "Settings",
+  // },
 
   // {
   //   icon: FiGlobe,
