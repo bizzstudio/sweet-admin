@@ -51,7 +51,7 @@
   "Invalid password": "Invalid password",
   "Enter password": "Enter password",
   "botConnected": "The bot's phone number is connected.",
-  "botConnectedDesc": "The bot will now send an order completion message to customers and a survey message every day at 8:00 PM.",
+  "botConnectedDesc": "Orders sent by WhatsApp to this number will now be picked up automatically and appear in the incoming orders screen.",
   "LogoutBot": "Disconnecting the bot",
   "ConnectingToWhatsApp": "Connecting the bot to WhatsApp",
   "Code will refresh in": "Code will refresh in",
