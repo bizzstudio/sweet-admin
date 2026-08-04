@@ -37,11 +37,11 @@ const sidebar = [
         path: "/products",
         name: "Products",
       },
-      {
-        path: "/categories",
-        name: "Categories",
-      },
-      // ⛔ תכונות, קופונים ומבצעים כבויים (לא נמחקו) - להחזרה: להסיר את ההערה
+      // ⛔ קטגוריות, תכונות, קופונים ומבצעים כבויים (לא נמחקו) - להחזרה: להסיר את ההערה
+      // {
+      //   path: "/categories",
+      //   name: "Categories",
+      // },
       // {
       //   path: "/attributes",
       //   name: "Attributes",

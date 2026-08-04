@@ -400,6 +400,7 @@
   "Order": "Order",
   "InvoiceStatus": "Status",
   "CustomerNote": "Customer Note",
+  "SystemNote": "System Note",
   "InvoiceDate": "DATE",
   "InvoiceTo": "INVOICE TO",
   "Sr": "SR.",

@@ -91,6 +91,15 @@ const InvoiceForPrint = forwardRef(({ data, globalSetting }, ref) => {
               </span>
             </div>}
 
+            {/* הערת המערכת מודפסת על תעודת הליקוט: המלקט חייב לראות אזהרת
+                כתובת חסרה או כמות שהמנוע הניח לפני שהוא יוצא לדרך. */}
+            {or.systemNote && <div className="mt-2">
+              <b>{t("SystemNote")}: </b>
+              <span>
+                {or.systemNote}
+              </span>
+            </div>}
+
             <TableContainer className="mt-2 mb-4 rounded-b-lg">
               <Table>
                 <TableHeader>
@@ -362,6 +371,14 @@ const InvoiceForPrint = forwardRef(({ data, globalSetting }, ref) => {
             <b>{t("CustomerNote")}: </b>
             <span>
               {data.customer_note}
+            </span>
+          </div>}
+
+          {/* ראה ההערה בתעודה שמעל — הערת המערכת מיועדת למלקט */}
+          {data.systemNote && <div className="mt-2">
+            <b>{t("SystemNote")}: </b>
+            <span>
+              {data.systemNote}
             </span>
           </div>}
 

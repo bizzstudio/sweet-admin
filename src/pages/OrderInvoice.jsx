@@ -195,10 +195,17 @@ const OrderInvoice = () => {
                     <Status status={data.status} />
                   </span>
                 </p>
-                {/* הערות הלקוח להזמנה */}
+                {/* הערות הלקוח להזמנה — רק מה שהלקוח עצמו כתב */}
                 {data?.customer_note && (
                   <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
                     {t("CustomerNote")} : <span className="font-normal">{data?.customer_note}</span>
+                  </p>
+                )}
+                {/* הערת המערכת — מקור הקליטה, אזהרות והנחות המנוע. מידע פנימי
+                    לצוות בלבד; אינו נשלח ללקוח ואינו חלק מהערת הלקוח. */}
+                {data?.systemNote && (
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                    {t("SystemNote")} : <span className="font-normal">{data?.systemNote}</span>
                   </p>
                 )}
               </h1>
