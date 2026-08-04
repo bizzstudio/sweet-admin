@@ -56,18 +56,29 @@ const STATUS_META = {
   unknown_sender: { label: "שולח לא מוכר", type: "warning" },
 };
 
-// תרגום קודי הכשל לשפה שאומרת לעובד מה לעשות
+// תרגום קודי הכשל לשפה שאומרת לעובד מה לעשות.
+// קצר בכוונה: הפירוט המלא של כל פריט כבר עומד לצידו בעמודת "מה זוהה", וטקסט
+// שחוזר על עצמו בשתי עמודות הוא בדיוק מה שהפך את השורה לבלתי קריאה.
 const ERROR_HINTS = {
   llm_failed: "שירות הניתוח לא הגיב — נסה שוב",
   no_items: "לא זוהו פריטים בהודעה",
-  items_unmatched: "פריט שהלקוח ביקש לא נמצא בקטלוג",
-  low_confidence: "הזיהוי לא היה בטוח מספיק",
+  items_unmatched: "יש פריט שלא נכנס להזמנה",
+  low_confidence: "הקריאה לא הייתה ודאית",
   customer_unresolved: "אין טלפון ואין מייל לזיהוי הלקוח",
-  address_unresolved: "כתובת המשלוח לא זוהתה או שהעיר אינה ביעדי החלוקה",
+  address_unresolved: "כתובת המשלוח לא זוהתה",
   below_minimum: "ההזמנה מתחת למינימום ליעד",
   out_of_stock: "אין מלאי מספיק",
   order_create_failed: "כשל טכני ביצירת ההזמנה",
 };
+
+// שורות שדולגו בצדק — אין טעם להציג אותן כ"פריט שלא נכנס".
+// הערכים זהים למחרוזות שמייצר lib/order-ingestion/tableParser.js.
+const IGNORABLE_SKIP_REASONS = new Set([
+  "טקסט פתיחה/סגירה",
+  "שורת כותרת",
+  "אין כמות מספרית — שורת כותרת",
+  "אין שם מוצר",
+]);
 
 const formatDate = (value) =>
   value
@@ -373,18 +384,23 @@ const IncomingOrders = () => {
                 const expanded = expandedId === row._id;
                 const unmatched = (row.matchedItems || []).filter((i) => !i.product);
                 const matched = (row.matchedItems || []).filter((i) => i.product);
+                // שורות כותרת ונימוסים ("תודה רבה", "לכבוד:") אינן פריט שאבד,
+                // והצגתן הייתה מציפה את התא ומסתירה את מה שכן חשוב.
+                const skipped = (row.parsed?.skippedRows || []).filter(
+                  (r) => !IGNORABLE_SKIP_REASONS.has(r.reason)
+                );
 
                 return (
                   <TableRow key={row._id}>
-                    <TableCell className="text-xs whitespace-nowrap">
+                    <TableCell className="text-xs align-top whitespace-nowrap">
                       {formatDate(row.receivedAt || row.createdAt)}
                     </TableCell>
 
-                    <TableCell className="text-xs whitespace-nowrap">
+                    <TableCell className="text-xs align-top whitespace-nowrap">
                       <ChannelIcon channel={row.channel} />
                     </TableCell>
 
-                    <TableCell className="text-xs">
+                    <TableCell className="text-xs align-top">
                       <div className="font-medium">
                         {row.resolved?.customer
                           ? `${row.resolved.customer.name || ""} ${row.resolved.customer.lastName || ""}`.trim()
@@ -395,96 +411,126 @@ const IncomingOrders = () => {
                       </div>
                     </TableCell>
 
-                    <TableCell className="text-xs max-w-xs">
-                      {row.subject && (
-                        <div className="font-medium truncate">{row.subject}</div>
-                      )}
-                      <button
-                        onClick={() => setExpandedId(expanded ? null : row._id)}
-                        className="text-right text-blue-600 hover:underline"
-                        title="הצג/הסתר את ההודעה המלאה"
-                      >
-                        {expanded ? "הסתר" : "הצג הודעה"}
-                      </button>
-                      {expanded && (
-                        <pre className="mt-2 p-2 text-xs whitespace-pre-wrap bg-gray-50 dark:bg-gray-900 rounded max-h-64 overflow-y-auto">
-                          {row.rawText}
-                        </pre>
-                      )}
-                      {expanded && row.attachments?.length > 0 && (
-                        <ul className="mt-2 space-y-0.5">
-                          {row.attachments.map((att, i) => (
-                            <li
-                              key={i}
-                              className={att.read ? "text-gray-600" : "text-orange-600"}
-                              title={att.mimeType || ""}
-                            >
-                              {att.read ? "✓" : "✕"} {att.filename}
-                              {att.error
-                                ? ` — ${att.error}`
-                                : att.read
-                                  ? ` — נקרא${att.note ? ` (${att.note})` : ""}`
-                                  : " — לא נקרא"}
-                            </li>
-                          ))}
-                        </ul>
-                      )}
+                    {/* טבלת Windmill היא whitespace-nowrap גורף, ו-max-width על תא
+                        אינו נאכף כשאין איפה לשבור שורה: הטקסט הארוך גלש מהתא
+                        ונדפס על גבי העמודה השכנה — כלומר הודעת השגיאה, שהיא כל
+                        מטרת המסך, הייתה בלתי קריאה. לכן כל תוכן ארוך יושב בתוך
+                        div ברוחב קבוע שמחזיר גלישת שורות. */}
+                    <TableCell className="text-xs align-top">
+                      <div className="w-56 whitespace-normal break-words">
+                        {row.subject && (
+                          <div className="font-medium truncate">{row.subject}</div>
+                        )}
+                        <button
+                          onClick={() => setExpandedId(expanded ? null : row._id)}
+                          className="text-right text-blue-600 hover:underline"
+                          title="הצג/הסתר את ההודעה המלאה"
+                        >
+                          {expanded ? "הסתר" : "הצג הודעה"}
+                        </button>
+                        {expanded && (
+                          <pre className="mt-2 p-2 text-xs whitespace-pre-wrap bg-gray-50 dark:bg-gray-900 rounded max-h-64 overflow-y-auto">
+                            {row.rawText}
+                          </pre>
+                        )}
+                        {expanded && row.attachments?.length > 0 && (
+                          <ul className="mt-2 space-y-0.5">
+                            {row.attachments.map((att, i) => (
+                              <li
+                                key={i}
+                                className={att.read ? "text-gray-600" : "text-orange-600"}
+                                title={att.mimeType || ""}
+                              >
+                                {att.read ? "✓" : "✕"} {att.filename}
+                                {att.error
+                                  ? ` — ${att.error}`
+                                  : att.read
+                                    ? ` — נקרא${att.note ? ` (${att.note})` : ""}`
+                                    : " — לא נקרא"}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
                     </TableCell>
 
-                    <TableCell className="text-xs max-w-xs">
-                      {matched.length > 0 && (
-                        <ul className="space-y-0.5">
-                          {matched.map((item, i) => (
-                            <li key={i}>
-                              <span className="font-medium">{item.quantity}×</span>{" "}
-                              {item.productTitle || item.rawName}
-                              {item.confidence < 0.9 && (
-                                <span className="text-orange-600">
-                                  {" "}
-                                  ({Math.round(item.confidence * 100)}%)
+                    <TableCell className="text-xs align-top">
+                      <div className="w-72 whitespace-normal break-words">
+                        {matched.length > 0 && (
+                          <ul className="space-y-0.5">
+                            {matched.map((item, i) => (
+                              <li key={i}>
+                                <span className="font-medium">{item.quantity}×</span>{" "}
+                                {item.productTitle || item.rawName}
+                                {item.quantityAssumed && (
+                                  <span className="text-gray-500"> (בלי כמות — נלקח 1)</span>
+                                )}
+                                {/* אחרי הסרת אחוזי הביטחון נשאר צורך אמיתי לסמן
+                                    התאמה שאינה ודאית: היא נכנסת להזמנה כרגיל,
+                                    ובלי סימון אין לעובד דרך לדעת שכדאי להציץ. */}
+                                {item.confidence < 0.9 && (
+                                  <span className="text-orange-600"> (לא ודאי)</span>
+                                )}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                        {unmatched.length > 0 && (
+                          <ul className="mt-1 space-y-1">
+                            {unmatched.map((item, i) => (
+                              <li key={i} className="text-red-600">
+                                <span className="font-medium">
+                                  {item.quantity}× «{item.rawName}»
                                 </span>
-                              )}
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                      {unmatched.length > 0 && (
-                        <ul className="mt-1 space-y-0.5">
-                          {unmatched.map((item, i) => (
-                            <li key={i} className="text-red-600">
-                              «{item.rawName}» — {item.failReason || "לא זוהה"}
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                      {!row.matchedItems?.length && "—"}
+                                <div>{item.failReason || "לא זוהה"}</div>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                        {/* שורות שלא הפכו לפריט נשמרו עד היום רק בתוך parsed ולא
+                            הוצגו בשום מקום. כך "מתקן סבון" נעלם מהזמנה בלי שאיש
+                            ידע שהלקוח ביקש אותו. הסיבה המדויקת יושבת ב-title
+                            ולא בשורה — היא נחוצה רק למי שבודק לעומק. */}
+                        {skipped.length > 0 && (
+                          <ul className="mt-1 space-y-0.5">
+                            {skipped.map((r, i) => (
+                              <li key={i} className="text-orange-600" title={r.reason}>
+                                «{r.raw}» — לא נכנס להזמנה
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                        {!row.matchedItems?.length && !skipped.length && "—"}
+                      </div>
                     </TableCell>
 
-                    <TableCell className="text-xs">
-                      <Badge type={meta.type}>{meta.label}</Badge>
-                      {row.invoice && (
-                        <div className="mt-1 font-medium">
-                          <Link
-                            to={`/order/${row.order}`}
-                            className="text-blue-600 hover:underline"
-                          >
-                            הזמנה {row.invoice}
-                          </Link>
-                        </div>
-                      )}
-                      {row.status === "failed" && (
-                        <div className="mt-1 text-red-600">
-                          {ERROR_HINTS[row.errorCode] || row.error}
-                        </div>
-                      )}
-                      {row.status === "not_an_order" && row.parsed?.notAnOrderReason && (
-                        <div className="mt-1 text-gray-500">
-                          {row.parsed.notAnOrderReason}
-                        </div>
-                      )}
+                    <TableCell className="text-xs align-top">
+                      <div className="w-44 whitespace-normal break-words">
+                        <Badge type={meta.type}>{meta.label}</Badge>
+                        {row.invoice && (
+                          <div className="mt-1 font-medium">
+                            <Link
+                              to={`/order/${row.order}`}
+                              className="text-blue-600 hover:underline"
+                            >
+                              הזמנה {row.invoice}
+                            </Link>
+                          </div>
+                        )}
+                        {row.status === "failed" && (
+                          <div className="mt-1 text-red-600">
+                            {ERROR_HINTS[row.errorCode] || row.error}
+                          </div>
+                        )}
+                        {row.status === "not_an_order" && row.parsed?.notAnOrderReason && (
+                          <div className="mt-1 text-gray-500">
+                            {row.parsed.notAnOrderReason}
+                          </div>
+                        )}
+                      </div>
                     </TableCell>
 
-                    <TableCell className="text-center whitespace-nowrap">
+                    <TableCell className="text-center align-top whitespace-nowrap">
                       {row.status === "unknown_sender" ? (
                         // שולח לא מוכר: הפעולה הרלוונטית היא לאשר אותו כלקוח,
                         // לא "לנסות שוב" — ניסיון חוזר יידחה מאותה סיבה בדיוק.

@@ -4,18 +4,25 @@
 // ואין להם טופס עריכה, ולכן הם מוצגים בעמוד "צפייה בלקוח" בלבד ולא במגירת
 // העריכה - שם מופיעים רק שדות שניתן לערוך.
 import React from "react";
+import { FiGift } from "react-icons/fi";
 
-import { Field, Section } from "@/components/common/ReadOnlyFields";
-import { formatBool, formatDateTime, text } from "@/utils/displayFormat";
+import { Field, Panel } from "@/components/common/ReadOnlyFields";
+import { formatBool, formatDateTime } from "@/utils/displayFormat";
 
 const CustomerAccountPanel = ({ customer }) => {
   if (!customer) return null;
 
   return (
-    <Section title="חשבון והטבות">
+    <Panel title="חשבון והטבות בחנות" icon={<FiGift />}>
       <Field label="רשום לאתר" value={formatBool(customer.isRegistered)} />
       <Field label="קופאי" value={formatBool(customer.isCashier)} />
-      <Field label="ברשימה שחורה" value={formatBool(customer.inBlackList)} />
+      {/* inBlackList חוסם רק את הודעת הסקר אחרי הזמנה
+          (orderController.js -> match: { inBlackList: { $ne: true } }),
+          ולכן התווית מבהירה שאין מדובר בחסימת לקוח */}
+      <Field
+        label="ברשימה שחורה (לא מקבל סקר)"
+        value={formatBool(customer.inBlackList)}
+      />
       <Field
         label="מתנת הצטרפות נוצלה"
         value={formatBool(customer?.welcomeGift?.isUsed)}
@@ -30,8 +37,7 @@ const CustomerAccountPanel = ({ customer }) => {
       />
       <Field label="נוצר במערכת" value={formatDateTime(customer.createdAt)} />
       <Field label="עודכן לאחרונה" value={formatDateTime(customer.updatedAt)} />
-      <Field label="מזהה במערכת" value={text(customer._id)} wide />
-    </Section>
+    </Panel>
   );
 };
 

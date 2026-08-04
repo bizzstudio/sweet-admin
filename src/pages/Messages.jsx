@@ -1,5 +1,5 @@
 import { Card, CardBody } from "@windmill/react-ui";
-import { useContext, useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { BsQrCode } from "react-icons/bs";
 import { io } from "socket.io-client";
@@ -8,30 +8,18 @@ import axios from "axios";
 import Cookies from "js-cookie";
 
 // Internal import
-import { SidebarContext } from "@/context/SidebarContext";
-import useAsync from "@/hooks/useAsync";
 import PageTitle from "@/components/Typography/PageTitle";
-import MessageServices from "@/services/MessageServices";
-import { notifyError, notifySuccess } from "@/utils/toast";
+import { notifySuccess } from "@/utils/toast";
 import Loading from "@/components/preloader/Loading";
 import Success from "@/components/success/Success";
 
 const Messages = () => {
   const { t } = useTranslation();
-  const { lang } = useContext(SidebarContext);
-  const { data, loading, error } = useAsync(MessageServices.getAllMessages);
-
-  const [deliveryMessage, setDeliveryMessage] = useState("");
-  const [pickupMessage, setPickupMessage] = useState("");
-  const [surveyMessage, setSurveyMessage] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submittingId, setSubmittingId] = useState(null);
 
   // סטייטים לחיבור לוואטסאפ
   const [isConnected, setIsConnected] = useState(false); // Connection state
   const [isAuthenticating, setIsAuthenticating] = useState(false); // Authenticating state
   const [qrCode, setQrCode] = useState(null); // QR code state
-  const [timerKey, setTimerKey] = useState(0);
 
   // חיבור לוואטסאפ או שליפת קוד קיו-אר
   useEffect(() => {
@@ -114,13 +102,6 @@ const Messages = () => {
       setQrCode(qr);
       setIsConnected(false); // Reset connection state if a new QR code is received
       setIsAuthenticating(false); // איפוס סטטוס האימות
-
-      if (qr !== localStorage.qrCode) {
-        localStorage.qrCode = qr;
-        localStorage.qrArrivalTime = Date.now();
-      };
-
-      setTimerKey((prevKey) => prevKey + 1);
     });
 
     // Listen for authentication status
@@ -183,74 +164,6 @@ const Messages = () => {
     } catch (error) {
       console.error("Error during logout:", error.message);
     }
-  };
-
-  const renderer = ({ seconds }) => (
-    <span className="text-[20px] dark:text-gray-200 mt-1">
-      {t("Code will refresh in")}:
-      <span className="text-mainColor-light font-bold"> {seconds} </span>
-      {t("seconds")}
-    </span>
-  );
-
-  const getRemainingTime = () => {
-    const arrivalTime = localStorage.qrArrivalTime;
-    const timeLimit = 20000; // 20 שניות
-    if (arrivalTime) {
-      const elapsedTime = Date.now() - parseInt(arrivalTime, 10);
-      const remainingTime = timeLimit - elapsedTime;
-      return remainingTime > 0 ? remainingTime : 0;
-    }
-    return 0;
-  };
-
-  const handleTimerComplete = () => {
-    setQrCode(null);
-    localStorage.removeItem("qrArrivalTime");
-    localStorage.removeItem("qrCode");
-  };
-
-  const {
-    data: surveyData,
-    loading: loadingSurveyData,
-    error: errorSurveyData,
-  } = useAsync(MessageServices.getSurveyData);
-
-  console.log('Messages :>> ', data);
-  console.log('Survey data :>> ', surveyData);
-
-  const handleUpdateMessage = async (role, message) => {
-    setIsSubmitting(true);
-    setSubmittingId(role);
-
-    try {
-      const messageId = data.find(msg => msg.role === role)._id;
-      const res = await MessageServices.updateMessage(messageId, { message });
-      setIsSubmitting(false);
-      setSubmittingId(null);
-      notifySuccess(res.message)
-    } catch (err) {
-      setIsSubmitting(false);
-      setSubmittingId(null);
-      notifyError(err?.response?.data?.message || err?.message);
-    }
-  };
-
-  useEffect(() => {
-    if (data) {
-      setDeliveryMessage(data.find(msg => msg.role === "delivery")?.message || "");
-      setPickupMessage(data.find(msg => msg.role === "pickup")?.message || "");
-      setSurveyMessage(data.find(msg => msg.role === "survey")?.message || "");
-    }
-  }, [data]);
-
-  const modules = {
-    toolbar: [
-      ['bold', 'italic', 'underline', 'strike'],
-      [{ 'list': 'ordered' }, { 'list': 'bullet' }],
-      [{ 'align': [] }],
-      [{ 'direction': 'rtl' }],
-    ],
   };
 
   return (

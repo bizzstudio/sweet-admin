@@ -2,7 +2,7 @@ import { TableBody, TableCell, TableRow } from "@windmill/react-ui";
 import dayjs from "dayjs";
 import { t } from "i18next";
 import React from "react";
-import { FiEye, FiZoomIn } from "react-icons/fi";
+import { FiZoomIn } from "react-icons/fi";
 import { Link } from "react-router-dom";
 
 // Internal import
@@ -30,10 +30,12 @@ const CustomerTable = ({ customers }) => {
         {customers?.map((user) => (
           <TableRow key={user._id}>
             <TableCell>
-              <span className="font-semibold uppercase text-xs">
-                {" "}
+              <Link
+                to={`/customer/${user._id}`}
+                className="font-semibold uppercase text-xs text-blue-600 dark:text-blue-400 hover:underline"
+              >
                 {user?._id?.substring(20, 24)}
-              </span>
+              </Link>
             </TableCell>
 
             <TableCell>
@@ -43,7 +45,12 @@ const CustomerTable = ({ customers }) => {
             </TableCell>
 
             <TableCell>
-              <span className="text-sm">{user.name} {user.lastName}</span>
+              <Link
+                to={`/customer/${user._id}`}
+                className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+              >
+                {user.name} {user.lastName}
+              </Link>
             </TableCell>
 
             <TableCell>
@@ -63,17 +70,6 @@ const CustomerTable = ({ customers }) => {
 
             <TableCell>
               <div className="flex justify-right text-right">
-                <div className="p-2 cursor-pointer text-gray-400 hover:text-customGreen-dark">
-                  <Link to={`/customer/${user._id}`} aria-label="צפייה בלקוח">
-                    <Tooltip
-                      id="view-customer"
-                      Icon={FiEye}
-                      title="צפייה בלקוח"
-                      bgColor="#3c6d16"
-                    />
-                  </Link>
-                </div>
-
                 <div className="p-2 cursor-pointer text-gray-400 hover:text-customGreen-dark">
                   {" "}
                   <Link to={`/customer-order/${user._id}`}>

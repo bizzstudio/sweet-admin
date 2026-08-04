@@ -1,37 +1,32 @@
 import { TableBody, TableCell, TableRow } from "@windmill/react-ui";
 
-import { useTranslation } from "react-i18next";
-import { FiZoomIn } from "react-icons/fi";
 import { Link } from "react-router-dom";
 
 // Internal import
 
-import Tooltip from "@/components/tooltip/Tooltip";
 import useUtilsFunction from "@/hooks/useUtilsFunction";
 import PrintReceipt from "@/components/form/others/PrintReceipt";
 import SelectStatus from "@/components/form/selectOption/SelectStatus";
 
 const OrderTable = ({ orders, isCashierOrders = false }) => {
   // console.log('globalSetting',globalSetting)
-  const { t } = useTranslation();
   const { showDateTimeFormat, currency, getNumberTwo } = useUtilsFunction();
+
+  // קישור לחשבונית ההזמנה - החליף את אייקון העין
+  const orderLink = (order) =>
+    isCashierOrders ? `/cashier-order/${order._id}` : `/order/${order._id}`;
+
+  // user_info אינו חובה במודל ההזמנה (הזמנות מיובאות), לכן נדרש ערך ברירת מחדל
+  // כדי שהלינק לא ייווצר ריק ובלתי ניתן ללחיצה
+  const customerName = (order) =>
+    `${order?.user_info?.name || ""} ${order?.user_info?.lastName || ""}`.trim() ||
+    "לא זמין";
 
   // תא הפעולות - מוצג בתחילת השורה בהזמנות רגילות ובסופה בהזמנות קופה
   const actionCell = (order) => (
     <TableCell className="text-center">
       <div className="flex justify-center items-center">
         <PrintReceipt orderId={order._id} isCashierOrder={isCashierOrders} />
-
-        <span className="p-2 cursor-pointer text-gray-400 hover:text-customGreen-dark">
-          <Link to={isCashierOrders ? `/cashier-order/${order._id}` : `/order/${order._id}`}>
-            <Tooltip
-              id="view"
-              Icon={FiZoomIn}
-              title={t("ViewInvoice")}
-              bgColor="#059669"
-            />
-          </Link>
-        </span>
       </div>
     </TableCell>
   );
@@ -44,9 +39,12 @@ const OrderTable = ({ orders, isCashierOrders = false }) => {
             {!isCashierOrders && actionCell(order)}
 
             <TableCell className="text-center">
-              <span className="font-semibold uppercase text-xs">
-                {order?.invoice}
-              </span>
+              <Link
+                to={orderLink(order)}
+                className="font-semibold uppercase text-xs text-blue-600 dark:text-blue-400 hover:underline"
+              >
+                {order?.invoice ?? "—"}
+              </Link>
             </TableCell>
 
             <TableCell className="text-center">
@@ -72,7 +70,12 @@ const OrderTable = ({ orders, isCashierOrders = false }) => {
                 {/* שם לקוח */}
                 <TableCell className="text-center max-w-[10vw] overflow-hidden truncate"
                   title={order?.user_info?.name || 'לא זמין'}>
-                  <span className="text-sm">{order?.user_info?.name || 'לא זמין'}</span>
+                  <Link
+                    to={orderLink(order)}
+                    className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                  >
+                    {order?.user_info?.name || 'לא זמין'}
+                  </Link>
                 </TableCell>
 
                 {/* טלפון לקוח */}
@@ -111,8 +114,13 @@ const OrderTable = ({ orders, isCashierOrders = false }) => {
             ) : (
               <>
                 <TableCell className="text-xs text-center max-w-[8vw] overflow-hidden truncate"
-                  title={`${order?.user_info?.name} ${order?.user_info?.lastName}`}>
-                  <span className="text-sm">{order?.user_info?.name} {order?.user_info?.lastName}</span>{" "}
+                  title={customerName(order)}>
+                  <Link
+                    to={orderLink(order)}
+                    className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                  >
+                    {customerName(order)}
+                  </Link>
                 </TableCell>
 
                 <TableCell className="text-center">

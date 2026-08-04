@@ -1,5 +1,5 @@
 import React, { useContext, useState } from "react";
-import { NavLink, Route } from "react-router-dom";
+import { Link, NavLink, Route } from "react-router-dom";
 import Cookies from "js-cookie";
 import { useTranslation } from "react-i18next";
 import { Button, WindmillContext } from "@windmill/react-ui";
@@ -26,13 +26,17 @@ const SidebarContent = () => {
 
   return (
     <div className="py-4 text-gray-500 dark:text-gray-400">
-      <a className="block px-6" href="/dashboard">
+      {/* ניווט דרך הראוטר ולא <a href="/dashboard"> — קישור מוחלט מתעלם
+          מה-basename ומפיל את המשתמש ל-404 כשהאדמין יושב בתת-תיקייה.
+          Link ולא NavLink: ללוגו אין מצב "פעיל", ו-NavLink היה מוסיף לו
+          aria-current="page" כפול לצד פריט "לוח בקרה" בתפריט. */}
+      <Link className="block px-6" to="/dashboard">
         <img
           src={mode === "dark" ? logoLight : logoDark}
           alt="המתוקים של בני"
           className="w-full max-w-[190px] h-auto mx-auto"
         />
-      </a>
+      </Link>
       <ul className="mt-6">
         {sidebar.map((route) =>
           route.routes ? (
