@@ -8,7 +8,6 @@ import {
   Input
 } from "@windmill/react-ui";
 import { t } from "i18next";
-import { FiZoomIn } from "react-icons/fi";
 import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 
@@ -17,7 +16,6 @@ import CheckBox from "@/components/form/others/CheckBox";
 import DeleteModal from "@/components/modal/DeleteModal";
 import EditDeleteButton from "@/components/table/EditDeleteButton";
 import ShowHideButton from "@/components/table/ShowHideButton";
-import Tooltip from "@/components/tooltip/Tooltip";
 import useUtilsFunction from "@/hooks/useUtilsFunction";
 import useAsync from "@/hooks/useAsync";
 import ProductServices from "@/services/ProductServices";
@@ -29,7 +27,7 @@ const ProductTable = ({
   products: initialProducts,
   isCheck,
   setIsCheck,
-  title, serviceId, handleModalOpen, handleUpdate 
+  title, serviceId, handleModalOpen
 }) => {
   const { currency, showingTranslateValue, getNumberTwo } = useUtilsFunction();
   const { data: offers, loading, error } = useAsync(() => OfferServices.getAllOffers());
@@ -138,12 +136,14 @@ const ProductTable = ({
                   />
                 )}
                 <div>
-                  <h2
-                    className={`text-sm font-medium ${product?.title.length > 30 ? "wrap-long-title" : ""
+                  {/* שם המוצר הוא הכניסה לעמוד המוצר - החליף את אייקון הצפייה */}
+                  <Link
+                    to={`/product/${product._id}`}
+                    className={`text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline ${product?.title?.length > 30 ? "wrap-long-title" : ""
                       }`}
                   >
-                    {showingTranslateValue(product?.title)?.substring(0, 28)}
-                  </h2>
+                    {showingTranslateValue(product?.title)?.substring(0, 28) || "—"}
+                  </Link>
                 </div>
               </div>
             </TableCell>
@@ -225,28 +225,13 @@ const ProductTable = ({
               )}
             </TableCell> */}
 
-            {/* zoom in */}
-            <TableCell className='text-center'>
-              <Link
-                to={`/product/${product._id}`}
-                className="flex justify-center text-gray-400 hover:text-customGreen-dark"
-              >
-                <Tooltip
-                  id="view"
-                  Icon={FiZoomIn}
-                  title={t("DetailsTbl")}
-                  bgColor="#10B981"
-                />
-              </Link>
-            </TableCell>
-
-            {/* edit & delete */}
+            {/* delete - העריכה עברה לעמוד המוצר (כניסה דרך שם המוצר) */}
             <TableCell className='text-center'>
               <EditDeleteButton
                 id={product._id}
                 product={product}
                 isCheck={isCheck}
-                handleUpdate={handleUpdate}
+                hideEdit
                 handleModalOpen={handleModalOpen}
                 title={showingTranslateValue(product?.title)}
               />

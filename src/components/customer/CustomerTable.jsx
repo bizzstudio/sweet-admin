@@ -7,35 +7,28 @@ import { Link } from "react-router-dom";
 
 // Internal import
 
-import MainDrawer from "@/components/drawer/MainDrawer";
 import DeleteModal from "@/components/modal/DeleteModal";
 import useToggleDrawer from "@/hooks/useToggleDrawer";
 import Tooltip from "@/components/tooltip/Tooltip";
-import CustomerDrawer from "@/components/drawer/CustomerDrawer";
 import EditDeleteButton from "@/components/table/EditDeleteButton";
 import CashierToggleButton from "@/components/table/CashierToggleButton";
 
 const CustomerTable = ({ customers }) => {
-  const { title, serviceId, handleModalOpen, handleUpdate } = useToggleDrawer();
+  const { title, serviceId, handleModalOpen } = useToggleDrawer();
 
+  // אין כאן מגירת עריכה: העריכה עברה לעמוד הלקוח (כניסה דרך שם הלקוח),
+  // ובעמוד הלקוחות אין כפתור "הוספת לקוח" שיפתח אותה
   return (
     <>
       <DeleteModal id={serviceId} title={title} />
-
-      <MainDrawer>
-        <CustomerDrawer id={serviceId} />
-      </MainDrawer>
 
       <TableBody>
         {customers?.map((user) => (
           <TableRow key={user._id}>
             <TableCell>
-              <Link
-                to={`/customer/${user._id}`}
-                className="font-semibold uppercase text-xs text-blue-600 dark:text-blue-400 hover:underline"
-              >
+              <span className="font-semibold uppercase text-xs">
                 {user?._id?.substring(20, 24)}
-              </Link>
+              </span>
             </TableCell>
 
             <TableCell>
@@ -85,7 +78,7 @@ const CustomerTable = ({ customers }) => {
                 <EditDeleteButton
                   title={user.name + " " + user.lastName}
                   id={user._id}
-                  handleUpdate={handleUpdate}
+                  hideEdit
                   handleModalOpen={handleModalOpen}
                 />
               </div>

@@ -41,9 +41,9 @@ const Products = () => {
     title,
     allId,
     serviceId,
+    setServiceId,
     handleDeleteMany,
     handleModalOpen,
-    handleUpdate,
   } = useToggleDrawer();
 
   const { t } = useTranslation();
@@ -158,8 +158,15 @@ const Products = () => {
                 </Button>
               </div>
               <div className="flex-grow-0 md:flex-grow lg:flex-grow xl:flex-grow">
+                {/* איפוס serviceId לפני פתיחת המגירה: לחיצה על פח המחיקה מציבה
+                    serviceId, ו-closeModal לא מאפס אותו. בלי האיפוס, הרצף
+                    "מחיקה -> ביטול -> הוספת מוצר" היה פותח את המגירה במצב עריכה
+                    ושמירה הייתה דורסת מוצר קיים במקום ליצור חדש */}
                 <Button
-                  onClick={toggleDrawer}
+                  onClick={() => {
+                    setServiceId();
+                    toggleDrawer();
+                  }}
                   className="w-full rounded-md h-12"
                 >
                   <span className="ml-2">
@@ -278,7 +285,6 @@ const Products = () => {
                 {/* <TableCell className='text-center'>Sale Price</TableCell>
                 <TableCell className='text-center'>{t("StockTbl")}</TableCell>
                 <TableCell className='text-center'>{t("StatusTbl")}</TableCell> */}
-                <TableCell className="text-center">{t("DetailsTbl")}</TableCell>
                 <TableCell className="text-center">{t("ActionsTbl")}</TableCell>
               </tr>
             </TableHeader>
@@ -290,7 +296,6 @@ const Products = () => {
               title={title}
               serviceId={serviceId}
               handleModalOpen={handleModalOpen}
-              handleUpdate={handleUpdate}
             />
           </Table>
           <TableFooter>

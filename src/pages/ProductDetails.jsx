@@ -9,6 +9,7 @@ import {
 } from "@windmill/react-ui";
 import React, { useContext, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { FiEdit } from "react-icons/fi";
 import { useParams } from "react-router";
 // Internal import
 
@@ -186,11 +187,14 @@ const ProductDetails = () => {
                 </div>
               </div>
               <div className="mt-6">
+                {/* mainColor ולא customGreen: הצבע customGreen אינו מוגדר
+                    ב-tailwind.config.js ולכן הכיתה לא מייצרת שום רקע, והכפתור
+                    יצא טקסט לבן על רקע לבן */}
                 <button
                   onClick={() => handleUpdate(id)}
-                  className="cursor-pointer leading-5 transition-colors duration-150 font-medium text-sm focus:outline-none px-5 py-2 rounded-md text-white bg-customGreen border border-transparent active:bg-customGreen-dark hover:bg-customGreen-dark "
+                  className="flex cursor-pointer items-center gap-2 rounded-md border border-transparent bg-mainColor px-5 py-2 text-sm font-medium leading-5 text-white transition-colors duration-150 hover:bg-mainColor-dark focus:outline-none active:bg-mainColor-dark"
                 >
-                  {t("EditProduct")}
+                  <FiEdit /> {t("EditProduct")}
                 </button>
               </div>
             </div>

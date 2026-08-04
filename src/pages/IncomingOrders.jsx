@@ -42,10 +42,14 @@ const STATUS_TABS = [
   // שולח שאינו לקוח במערכת. עלולה להיות כאן הזמנה אמיתית מלקוח חדש, ולכן
   // הלשונית בולטת ולא נבלעת ב"הכול".
   { key: "unknown_sender", label: "שולח לא מוכר" },
+  // הודעות ווצאפ שממתינות להמשך מהשולח. לשונית משלהן כי הן ההסבר לשאלה
+  // "שלחתי הזמנה, למה היא לא במערכת?" — ומשם אפשר לעבד אותן מיד.
+  { key: "collecting", label: "ממתין להודעות" },
   { key: "all", label: "הכול" },
 ];
 
 const STATUS_META = {
+  collecting: { label: "ממתין להודעות נוספות", type: "neutral" },
   received: { label: "בעיבוד", type: "warning" },
   order_created: { label: "נוצרה הזמנה", type: "success" },
   // "הזמנות שגויות" כאן פירושו שההזמנה נוצרה בסטטוס "שגיאה בקריאה" (או שלא נוצרה
@@ -92,6 +96,15 @@ const formatDate = (value) =>
       })
     : "—";
 
+const formatTime = (value) =>
+  value
+    ? new Date(value).toLocaleTimeString("he-IL", {
+        timeZone: "Asia/Jerusalem",
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : "";
+
 const ChannelIcon = ({ channel }) => {
   if (channel === "whatsapp") {
     return (
@@ -124,6 +137,10 @@ const IncomingOrders = () => {
     stuckCount: 0,
   });
   const [loading, setLoading] = useState(true);
+  // חתימת הסינון של הנתונים שמוצגים כרגע. משמשת להבחנה בין טעינה שמחליפה את
+  // תוכן הטבלה (סינון אחר — אין מה לשמר על המסך) לבין טעינה שרק מחליפה עמוד
+  // בתוך אותו סינון. ההבחנה קריטית: ראה showSkeleton למטה.
+  const [loadedKey, setLoadedKey] = useState(null);
   const [error, setError] = useState("");
   const [busyId, setBusyId] = useState(null);
   const [scanning, setScanning] = useState(false);
@@ -133,6 +150,9 @@ const IncomingOrders = () => {
   // שנשלחו. בלי המונה הזה תשובה איטית של הלשונית הקודמת הייתה דורסת את זו
   // הנוכחית — כלומר רשימה שאינה תואמת ללשונית המסומנת.
   const latestRequest = useRef(0);
+
+  // חתימת הסינון הנוכחי — כל שינוי בה מאפס את העימוד לעמוד 1
+  const filterKey = `${status}|${channel}|${search}`;
 
   const load = useCallback(async () => {
     const requestId = latestRequest.current + 1;
@@ -149,6 +169,9 @@ const IncomingOrders = () => {
       });
       if (requestId !== latestRequest.current) return;
       setData(res);
+      // רק הצלחה מעדכנת את החתימה: אחרי כישלון אין על המסך נתונים לשמר,
+      // והטעינה הבאה חייבת להציג שלד ולא רשימה ריקה
+      setLoadedKey(filterKey);
     } catch (err) {
       if (requestId !== latestRequest.current) return;
       setError(err?.response?.data?.message || err.message);
@@ -156,7 +179,7 @@ const IncomingOrders = () => {
       // בקשה שכבר אינה האחרונה לא מכבה את מחוון הטעינה — יש אחת חדשה בדרך
       if (requestId === latestRequest.current) setLoading(false);
     }
-  }, [status, channel, search, page]);
+  }, [status, channel, search, page, filterKey]);
 
   useEffect(() => {
     load();
@@ -209,6 +232,19 @@ const IncomingOrders = () => {
     }
   };
 
+  const handleProcessNow = async (id) => {
+    setBusyId(id);
+    try {
+      const res = await IncomingOrderServices.processCollectedNow(id);
+      notifySuccess(res.message);
+      await load();
+    } catch (err) {
+      notifyError(err?.response?.data?.message || err.message);
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   const handleIgnore = async (id) => {
     setBusyId(id);
     try {
@@ -238,7 +274,27 @@ const IncomingOrders = () => {
   const rows = data.incomingOrders || [];
   const failedCount = data.countByStatus?.failed || 0;
   const unknownSenderCount = data.countByStatus?.unknown_sender || 0;
+  const collectingCount = data.countByStatus?.collecting || 0;
   const stuckCount = data.stuckCount || 0;
+  // אורך חלון הצבירה מגיע מהשרת. 0 = הצבירה כבויה, ואז אין מה להסביר.
+  const collectWindowMinutes = data.collectWindowMinutes || 0;
+
+  // שלד הטעינה מחליף את כל הטבלה, ואיתה גם רכיב העימוד. ה-Pagination של Windmill
+  // מחזיק את העמוד הפעיל בסטייט פנימי ומדווח אותו ב-onChange גם בעת ההרכבה,
+  // ולכן כל הרכבה מחדש דיווחה "עמוד 1" ובעטה את המשתמש חזרה לתחילת הרשימה —
+  // כלומר מעבר עמוד לא עבד כלל. לכן השלד מוצג רק כשאין על המסך מה לשמר: טעינה
+  // ראשונה, כישלון קודם, או סינון אחר (הצגת שורות של לשונית אחרת, ולו מעומעמות,
+  // מטעה במסך שכל תכליתו מיון תקלות). מעבר עמוד בתוך אותו סינון רק מעמעם את
+  // הטבלה הקיימת — וכך רכיב העימוד נשאר חי ושומר על העמוד שנבחר.
+  const showSkeleton = loading && (loadedKey !== filterKey || rows.length === 0);
+  const refreshing = loading && !showSkeleton;
+
+  // עמוד שהתרוקן — למשל אחרי טיפול בהודעה האחרונה שנותרה בו — משאיר מסך ריק שאין
+  // בו רכיב עימוד לחזור איתו, כלומר מבוי סתום. החזרה היא לעמוד 1 דווקא, כי
+  // ה-Pagination נבנה מחדש תמיד על עמוד 1 ואי אפשר לכפות עליו ערך אחר מבחוץ.
+  useEffect(() => {
+    if (!loading && page > 1 && rows.length === 0) setPage(1);
+  }, [loading, page, rows.length]);
 
   // ל"בעיבוד" אין לשונית קבועה — במצב תקין הסטטוס חולף תוך שניות. אבל הודעה
   // נתקעת בו כשהשרת נופל באמצע העיבוד, ובלי שום לשונית היא הייתה בלתי נראית.
@@ -246,12 +302,15 @@ const IncomingOrders = () => {
   // כל עוד היא הלשונית הנבחרת — כדי שלא תיעלם מתחת לאצבע אחרי הטיפול האחרון.
   const tabs = useMemo(() => {
     const showStuck = stuckCount > 0 || status === "stuck";
-    return STATUS_TABS.flatMap((tab) =>
-      tab.key === "all" && showStuck
-        ? [{ key: "stuck", label: "תקוע בעיבוד", count: stuckCount }, tab]
-        : [tab]
+    // כשהצבירה כבויה אין רשומות בסטטוס הזה לעולם, ולשונית ריקה תמיד היא רעש
+    const showCollecting = collectWindowMinutes > 0 || status === "collecting";
+    return STATUS_TABS.filter((tab) => tab.key !== "collecting" || showCollecting).flatMap(
+      (tab) =>
+        tab.key === "all" && showStuck
+          ? [{ key: "stuck", label: "תקוע בעיבוד", count: stuckCount }, tab]
+          : [tab]
     );
-  }, [stuckCount, status]);
+  }, [stuckCount, status, collectWindowMinutes]);
 
   return (
     <>
@@ -295,6 +354,20 @@ const IncomingOrders = () => {
               </span>
             )}
           </p>
+          {collectWindowMinutes > 0 && (
+            <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+              לקוח בווצאפ מפצל הזמנה לכמה הודעות, ולכן הודעות ווצאפ{" "}
+              <span className="font-semibold">נצברות יחד</span> והעיבוד מתחיל אחרי{" "}
+              {collectWindowMinutes} דקות שבהן הלקוח לא שלח כלום. עד אז ההודעה
+              נמצאת בלשונית "ממתין להודעות", ואפשר ללחוץ שם "עבד עכשיו".
+              {collectingCount > 0 && (
+                <span className="font-semibold text-blue-600">
+                  {" "}
+                  {collectingCount} ממתינות כרגע.
+                </span>
+              )}
+            </p>
+          )}
           {stuckCount > 0 && (
             <p className="mt-2 text-sm font-semibold text-orange-600">
               {stuckCount} הודעות תקועות בעיבוד — כנראה השרת נפל באמצע קריאתן.
@@ -360,12 +433,20 @@ const IncomingOrders = () => {
         </CardBody>
       </Card>
 
-      {loading ? (
+      {showSkeleton ? (
         <TableLoading row={12} col={6} width={160} height={20} />
       ) : error ? (
         <span className="text-center mx-auto text-red-500">{error}</span>
       ) : rows.length > 0 ? (
-        <TableContainer className="mb-8 rounded-b-lg">
+        <TableContainer
+          // בזמן רענון הטבלה מעומעמת אך נשארת לחיצה: חסימת קליקים הייתה בולעת
+          // לחיצה שנייה על העימוד, ובכל מקרה אינה חוסמת מקלדת. הפעולות מזוהות
+          // לפי _id ולכן תקינות גם אם השורה שעל המסך כבר מיושנת.
+          aria-busy={refreshing}
+          className={`mb-8 rounded-b-lg transition-opacity ${
+            refreshing ? "opacity-50" : ""
+          }`}
+        >
           <Table>
             <TableHeader>
               <tr>
@@ -527,11 +608,35 @@ const IncomingOrders = () => {
                             {row.parsed.notAnOrderReason}
                           </div>
                         )}
+                        {/* בלי המועד המדויק "ממתין" הוא הבטחה בלי תאריך פירעון:
+                            אי אפשר לדעת אם ההזמנה עומדת להיכנס עוד רגע או שהיא
+                            תקועה. עם השעה — אפשר גם להחליט אם כדאי לעבד עכשיו. */}
+                        {row.status === "collecting" && (
+                          <div className="mt-1 text-gray-600">
+                            {row.messages?.length > 1
+                              ? `${row.messages.length} הודעות · `
+                              : ""}
+                            {row.processAfter
+                              ? `יעובד ב-${formatTime(row.processAfter)}`
+                              : "ממתין"}
+                          </div>
+                        )}
                       </div>
                     </TableCell>
 
                     <TableCell className="text-center align-top whitespace-nowrap">
-                      {row.status === "unknown_sender" ? (
+                      {row.status === "collecting" ? (
+                        // ההמתנה נועדה ללקוח שעדיין מקליד. מי שרואה את ההודעה
+                        // ויודע שהיא שלמה לא צריך לחכות לה.
+                        <button
+                          onClick={() => handleProcessNow(row._id)}
+                          disabled={busyId === row._id}
+                          className="px-2 py-1.5 text-xs font-medium text-white bg-blue-600 rounded hover:bg-blue-700 disabled:opacity-40"
+                          title="עבד את ההודעה עכשיו בלי להמתין להודעות נוספות"
+                        >
+                          {busyId === row._id ? "מעבד..." : "עבד עכשיו"}
+                        </button>
+                      ) : row.status === "unknown_sender" ? (
                         // שולח לא מוכר: הפעולה הרלוונטית היא לאשר אותו כלקוח,
                         // לא "לנסות שוב" — ניסיון חוזר יידחה מאותה סיבה בדיוק.
                         <div className="flex items-center justify-center gap-1">
@@ -589,8 +694,9 @@ const IncomingOrders = () => {
               // ה-Pagination של Windmill מחזיק את העמוד הנוכחי בסטייט פנימי ואין
               // דרך לשלוט בו מבחוץ. בלי המפתח הזה, מעבר לשונית היה מאפס אותנו
               // לעמוד 1 בנתונים אבל הרכיב היה ממשיך להציג "עמוד 3" ומספר תוצאות
-              // שגוי. המפתח מכריח אותו להיבנות מחדש בדיוק כשהסינון משתנה.
-              key={`${status}|${channel}|${search}`}
+              // שגוי. המפתח מכריח אותו להיבנות מחדש בדיוק כשהסינון משתנה — גם אם
+              // בפועל השלד כבר פירק אותו, שכן אסור שהאיפוס יסתמך על כך בלבד.
+              key={filterKey}
               totalResults={data.totalDoc}
               resultsPerPage={RESULTS_PER_PAGE}
               onChange={setPage}

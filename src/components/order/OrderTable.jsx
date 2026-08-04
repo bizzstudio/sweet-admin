@@ -16,8 +16,8 @@ const OrderTable = ({ orders, isCashierOrders = false }) => {
   const orderLink = (order) =>
     isCashierOrders ? `/cashier-order/${order._id}` : `/order/${order._id}`;
 
-  // user_info אינו חובה במודל ההזמנה (הזמנות מיובאות), לכן נדרש ערך ברירת מחדל
-  // כדי שהלינק לא ייווצר ריק ובלתי ניתן ללחיצה
+  // user_info אינו חובה במודל ההזמנה (הזמנות מיובאות), ולכן השם עלול להיות ריק.
+  // בלי ברירת המחדל התא היה נשאר ריק וה-title היה מציג "undefined undefined"
   const customerName = (order) =>
     `${order?.user_info?.name || ""} ${order?.user_info?.lastName || ""}`.trim() ||
     "לא זמין";
@@ -70,12 +70,7 @@ const OrderTable = ({ orders, isCashierOrders = false }) => {
                 {/* שם לקוח */}
                 <TableCell className="text-center max-w-[10vw] overflow-hidden truncate"
                   title={order?.user_info?.name || 'לא זמין'}>
-                  <Link
-                    to={orderLink(order)}
-                    className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
-                  >
-                    {order?.user_info?.name || 'לא זמין'}
-                  </Link>
+                  <span className="text-sm">{order?.user_info?.name || 'לא זמין'}</span>
                 </TableCell>
 
                 {/* טלפון לקוח */}
@@ -115,12 +110,7 @@ const OrderTable = ({ orders, isCashierOrders = false }) => {
               <>
                 <TableCell className="text-xs text-center max-w-[8vw] overflow-hidden truncate"
                   title={customerName(order)}>
-                  <Link
-                    to={orderLink(order)}
-                    className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
-                  >
-                    {customerName(order)}
-                  </Link>
+                  <span className="text-sm">{customerName(order)}</span>
                 </TableCell>
 
                 <TableCell className="text-center">

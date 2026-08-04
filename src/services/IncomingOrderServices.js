@@ -23,6 +23,11 @@ const IncomingOrderServices = {
     return requests.post(`/incoming-orders/${id}/retry`);
   },
 
+  // עיבוד הודעה שממתינה להודעות המשך, בלי להמתין לסוף חלון השקט
+  processCollectedNow: async (id) => {
+    return requests.post(`/incoming-orders/${id}/process-now`);
+  },
+
   // סימון הודעה כלא רלוונטית
   ignoreIncomingOrder: async (id) => {
     return requests.put(`/incoming-orders/${id}/ignore`);

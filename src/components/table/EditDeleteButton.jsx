@@ -14,6 +14,10 @@ const EditDeleteButton = ({
   product,
   parent,
   children,
+  // hideEdit: מסתיר את כפתור העריכה ומשאיר רק מחיקה. בשימוש בטבלת המוצרים,
+  // שבה העריכה עברה לעמוד המוצר עצמו. ברירת המחדל false - כל שאר הטבלאות
+  // ממשיכות להתנהג בדיוק כמו קודם
+  hideEdit = false,
 }) => {
   const { t } = useTranslation();
   // console.log('edite delet button')
@@ -21,7 +25,7 @@ const EditDeleteButton = ({
   return (
     <>
       <div className="flex justify-center text-center">
-        {children?.length > 0 ? (
+        {hideEdit ? null : children?.length > 0 ? (
           <>
             <Link
               to={`/categories/${parent?._id}`}
