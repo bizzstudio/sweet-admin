@@ -1,3 +1,7 @@
+// src/components/drawer/CustomerDrawer.jsx
+// ⚠️ לא בשימוש: עריכת הלקוח עברה לעמוד "צפייה בלקוח" עצמו (CustomerDetails),
+// שם השדות הופכים לשדות קלט במקומם בלי שנפתחת מגירה. הקובץ נשמר כרפרנס
+// לטופס המלא; הלוגיקה עצמה חיה ב-useCustomerSubmit ומשותפת לשני המצבים.
 import React from "react";
 import Scrollbars from "react-custom-scrollbars-2";
 

@@ -1,35 +1,73 @@
 // src/components/customer/CustomerAccountPanel.jsx
-// מצב החשבון וההטבות של הלקוח בחנות - לקריאה בלבד.
-// השדות האלה נקבעים על ידי החנות (הרשמה, מימוש מבצעים, קופון לקנייה הבאה)
-// ואין להם טופס עריכה, ולכן הם מוצגים בעמוד "צפייה בלקוח" בלבד ולא במגירת
-// העריכה - שם מופיעים רק שדות שניתן לערוך.
+// מצב החשבון וההטבות של הלקוח בחנות.
+// השדות האלה נקבעים בדרך כלל על ידי החנות עצמה (הרשמה, מימוש מבצעים, קופון
+// לקנייה הבאה), אבל במצב עריכה (editing) אפשר לשנות אותם ידנית מהעמוד -
+// למשל כדי לשחרר ללקוח מתנת הצטרפות שנתקעה כ"נוצלה".
+// מונים ותאריכי מערכת נשארים לקריאה: הם תוצאה של פעולות ולא הגדרה.
 import React from "react";
 import { FiGift } from "react-icons/fi";
 
+import { BoolControl, EditableField } from "@/components/common/EditableFields";
 import { Field, Panel } from "@/components/common/ReadOnlyFields";
 import { formatBool, formatDateTime } from "@/utils/displayFormat";
 
-const CustomerAccountPanel = ({ customer }) => {
+const CustomerAccountPanel = ({ customer, editing = false, form = {} }) => {
   if (!customer) return null;
+
+  const {
+    isRegistered,
+    setIsRegistered,
+    isCashier,
+    setIsCashier,
+    inBlackList,
+    setInBlackList,
+    welcomeGiftUsed,
+    setWelcomeGiftUsed,
+    shippingRewardIssued,
+    setShippingRewardIssued,
+  } = form;
 
   return (
     <Panel title="חשבון והטבות בחנות" icon={<FiGift />}>
-      <Field label="רשום לאתר" value={formatBool(customer.isRegistered)} />
-      <Field label="קופאי" value={formatBool(customer.isCashier)} />
+      <EditableField
+        editing={editing}
+        label="רשום לאתר"
+        value={formatBool(customer.isRegistered)}
+        control={<BoolControl value={isRegistered} onChange={setIsRegistered} />}
+      />
+      <EditableField
+        editing={editing}
+        label="קופאי"
+        value={formatBool(customer.isCashier)}
+        control={<BoolControl value={isCashier} onChange={setIsCashier} />}
+      />
       {/* inBlackList חוסם רק את הודעת הסקר אחרי הזמנה
           (orderController.js -> match: { inBlackList: { $ne: true } }),
           ולכן התווית מבהירה שאין מדובר בחסימת לקוח */}
-      <Field
+      <EditableField
+        editing={editing}
         label="ברשימה שחורה (לא מקבל סקר)"
         value={formatBool(customer.inBlackList)}
+        control={<BoolControl value={inBlackList} onChange={setInBlackList} />}
       />
-      <Field
+      <EditableField
+        editing={editing}
         label="מתנת הצטרפות נוצלה"
         value={formatBool(customer?.welcomeGift?.isUsed)}
+        control={
+          <BoolControl value={welcomeGiftUsed} onChange={setWelcomeGiftUsed} />
+        }
       />
-      <Field
+      <EditableField
+        editing={editing}
         label='קופון "לקנייה הבאה" הונפק'
         value={formatBool(customer.shippingRewardIssued)}
+        control={
+          <BoolControl
+            value={shippingRewardIssued}
+            onChange={setShippingRewardIssued}
+          />
+        }
       />
       <Field
         label="מבצעים חד-פעמיים שנוצלו"

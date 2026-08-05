@@ -1,4 +1,5 @@
-import { useContext, useEffect, useState } from "react";
+import dayjs from "dayjs";
+import { useCallback, useContext, useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 
 // Internal import
@@ -6,14 +7,95 @@ import { SidebarContext } from "@/context/SidebarContext";
 import CustomerServices from "@/services/CustomerServices";
 import { notifyError, notifySuccess } from "@/utils/toast";
 
-const useCustomerSubmit = (id) => {
+// מיפוי בין שמות השדות בטופס לשמות השדות ב-erp. מוחזק במקום אחד כדי שהמילוי
+// של הטופס ובניית גוף הבקשה לא ייצאו מסנכרון (אותו דפוס כמו במוצר).
+// הערכים הגולמיים מהקובץ (rawEmail, rawAddress, rawCity) ו-syncedAt אינם
+// נערכים בכוונה: הם התיעוד של מה שהגיע ביבוא
+const ERP_FORM_FIELDS = {
+  erpCustomerNumber: { key: "customerNumber" },
+  erpIdNumber: { key: "idNumber" },
+  erpCustomerType: { key: "customerType" },
+  erpContactPerson: { key: "contactPerson" },
+  erpLandline: { key: "landline" },
+  erpAgent: { key: "agent" },
+  erpPoints: { key: "points", numeric: true },
+  erpDiscountPercent: { key: "discountPercent", numeric: true },
+  erpCumulativePurchase: { key: "cumulativePurchase", numeric: true },
+  erpCredit: { key: "credit", numeric: true },
+  erpOpeningBalance: { key: "openingBalance", numeric: true },
+  erpPriceLevel: { key: "priceLevel", numeric: true },
+  erpPaymentTerms: { key: "paymentTerms", numeric: true },
+  erpBirthDate: { key: "birthDate", date: true },
+  erpOpenDate: { key: "openDate", date: true },
+  erpLastPurchaseAt: { key: "lastPurchaseAt", date: true },
+  erpNotes: { key: "notes" },
+};
+
+// שדה תאריך ב-HTML עובד רק בפורמט הזה; ערך ריק משאיר את השדה ריק
+const toDateInput = (value) =>
+  value && dayjs(value).isValid() ? dayjs(value).format("YYYY-MM-DD") : "";
+
+// מחרוזת ריקה בשדה מספרי או בשדה תאריך חייבת להישלח כ-null: השרת אינו יכול
+// להמיר "" ל-Number/Date, ובלי ההמרה כל שמירה עם שדה ריק הייתה נכשלת
+const toNumberOrNull = (value) =>
+  value === "" || value === null || value === undefined ? null : Number(value);
+
+// הערך שנשלח לשרת עבור שדה erp אחד, לפי סוג השדה
+const erpValueToSend = (field, value) => {
+  if (field.numeric) return toNumberOrNull(value);
+  if (field.date) return value || null;
+  return value ?? "";
+};
+
+// options מאפשר לטופס לרוץ בתוך העמוד עצמו ולא במגירה:
+//   inline      - העריכה מתרחשת בעמוד; המגירה לא מעורבת בכלל
+//   isOpen      - האם מצב העריכה פעיל (במקום isDrawerOpen)
+//   onDone      - מה לעשות אחרי שמירה מוצלחת (במקום closeDrawer)
+//   initialData - הלקוח שכבר נטען בעמוד, כדי למלא את הטופס בלי בקשה נוספת
+const useCustomerSubmit = (id, options = {}) => {
+  const {
+    inline = false,
+    isOpen: inlineIsOpen = false,
+    onDone,
+    initialData = null,
+  } = options;
+
   const [imageUrl, setImageUrl] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  // הלקוח המלא כפי שנטען מהשרת. משמש כדי להציג במגירת העריכה גם את נתוני
-  // ההנהח"ש (erp), ובעיקר כדי לא לאבד שדות כתובת שהטופס לא עורך - עדכון
+  // הלקוח המלא כפי שנטען מהשרת. משמש כדי להציג בטופס גם את נתוני
+  // ההנהח"ש (erp), ובעיקר כדי לא לאבד שדות שהטופס לא עורך - עדכון
   // הלקוח בשרת מחליף את אובייקט הכתובת כולו
   const [customer, setCustomer] = useState(null);
+
+  // שדות שאינם שדות טקסט של הטופס: העיר היא רשומה שלמה, והדגלים בוליאניים
+  const [city, setCity] = useState(null);
+  const [isCashier, setIsCashier] = useState(false);
+  const [inBlackList, setInBlackList] = useState(false);
+  const [isRegistered, setIsRegistered] = useState(false);
+  const [shippingRewardIssued, setShippingRewardIssued] = useState(false);
+  const [welcomeGiftUsed, setWelcomeGiftUsed] = useState(false);
+  const [erpActive, setErpActive] = useState(true);
+
+  // המזהה שהטופס כבר מולא עבורו בכניסה הנוכחית למצב עריכה. נתוני העמוד
+  // נטענים מחדש בכל שינוי בקונטקסט (למשל אחרי פעולה אחרת במסך), ובלי
+  // הסימון הזה כל רענון כזה היה דורס באמצע העריכה את מה שהמשתמש הקליד
+  const filledForRef = useRef(null);
+
+  // רשומת הלקוח שממנה נערכה השמירה האחרונה. נתוני העמוד מתרעננים בהשהיה,
+  // ובלי הסימון הזה כניסה חוזרת לעריכה מיד אחרי שמירה הייתה ממלאת את הטופס
+  // בערכים שלפני השמירה - ושמירה נוספת הייתה מחזירה אותם למסד
+  const savedFromRef = useRef(null);
+
   const { closeDrawer, isDrawerOpen, setIsUpdate } = useContext(SidebarContext);
+
+  const isFormOpen = inline ? inlineIsOpen : isDrawerOpen;
+  const finish = useCallback(() => {
+    if (inline) {
+      onDone?.();
+      return;
+    }
+    closeDrawer();
+  }, [inline, onDone, closeDrawer]);
 
   const {
     register,
@@ -29,15 +111,11 @@ const useCustomerSubmit = (id) => {
       // ומעבר ללקוח אחר שטעינתו נכשלה - שם נשארים בטופס הערכים של הקודם,
       // ושמירה הייתה כותבת אותם על הלקוח החדש
       if (id && String(customer?._id || "") !== String(id)) {
-        return notifyError("פרטי הלקוח לא נטענו. סגור את החלון ונסה שוב.");
+        return notifyError("פרטי הלקוח לא נטענו. רענן את העמוד ונסה שוב.");
       }
 
       setIsSubmitting(true);
 
-      // העיר לא נערכת כאן בכוונה. היא נשמרת כרשומה מלאה מנתוני הלמ"ס
-      // (city_code, region_code וכו'), ומחיר המשלוח וימי החלוקה מסתמכים על
-      // הקודים האלה. שדה טקסט חופשי היה מייצר עיר בלי קוד ושובר אותם, ולכן
-      // אובייקט העיר הקיים עובר כמו שהוא
       const customerData = {
         name: data.name,
         lastName: data.lastName,
@@ -45,6 +123,10 @@ const useCustomerSubmit = (id) => {
         phone: data.phone,
         address: {
           ...(customer?.address || {}),
+          // העיר נבחרת מרשימת היישובים של הלמ"ס ונשמרת כרשומה מלאה
+          // (city_code, region_code וכו'), כי מחיר המשלוח וימי החלוקה
+          // מסתמכים על הקודים האלה
+          city: city || null,
           street: data.street || "",
           houseNumber: data.houseNumber || "",
           apartmentNumber: data.apartmentNumber || "",
@@ -52,28 +134,114 @@ const useCustomerSubmit = (id) => {
           entryCode: data.entryCode || "",
           postalCode: data.postalCode || "",
         },
+        isCashier,
+        inBlackList,
+        isRegistered,
+        shippingRewardIssued,
+        welcomeGift: {
+          ...(customer?.welcomeGift || {}),
+          isUsed: welcomeGiftUsed,
+        },
       };
+
+      // נתוני ההנהח"ש נשלחים רק ללקוח שיש לו כאלה. ללקוח שנרשם בחנות אין erp,
+      // ושליחת שדות ריקים הייתה יוצרת לו אובייקט erp ומסמנת אותו בטעות
+      // כלקוח שהגיע מיבוא האקסל
+      if (customer?.erp) {
+        customerData.erp = Object.entries(ERP_FORM_FIELDS).reduce(
+          (acc, [formField, field]) => {
+            acc[field.key] = erpValueToSend(field, data[formField]);
+            return acc;
+          },
+          { active: erpActive }
+        );
+      }
 
       if (id) {
         const res = await CustomerServices.updateCustomer(id, customerData);
+        savedFromRef.current = customer;
         setIsUpdate(true);
         notifySuccess(res.message);
-        closeDrawer();
+        finish();
       }
       setIsSubmitting(false);
     } catch (err) {
       notifyError(err?.response?.data?.message || err?.message);
       setIsSubmitting(false);
-      closeDrawer();
+      // בעריכה בעמוד נשארים בטופס עם מה שהוקלד, כדי שהמשתמש יוכל לתקן
+      // ולנסות שוב; במגירה ההתנהגות המקורית נשמרת
+      if (!inline) closeDrawer();
     }
   };
 
+  // מילוי הטופס מרשומת לקוח. מוחזק בפונקציה אחת כדי ששני מקורות הנתונים -
+  // הבקשה שהמגירה שולחת והלקוח שכבר נטען בעמוד - ימלאו בדיוק אותם שדות
+  const fillForm = useCallback(
+    (res) => {
+      setValue("name", res.name || "");
+      setValue("lastName", res.lastName || "");
+      setValue("phone", res.phone || "");
+      setValue("email", res.email || "");
+      setValue("street", res?.address?.street || "");
+      setValue("houseNumber", res?.address?.houseNumber || "");
+      setValue("apartmentNumber", res?.address?.apartmentNumber || "");
+      setValue("floor", res?.address?.floor || "");
+      setValue("entryCode", res?.address?.entryCode || "");
+      setValue("postalCode", res?.address?.postalCode || "");
+
+      setCity(res?.address?.city || null);
+      setIsCashier(Boolean(res.isCashier));
+      setInBlackList(Boolean(res.inBlackList));
+      setIsRegistered(Boolean(res.isRegistered));
+      setShippingRewardIssued(Boolean(res.shippingRewardIssued));
+      setWelcomeGiftUsed(Boolean(res?.welcomeGift?.isUsed));
+      // ברירת המחדל היא "פעיל": כך הלקוח מוצג גם בכרטיס כשאין ערך בקובץ
+      setErpActive(res?.erp?.active !== false);
+
+      Object.entries(ERP_FORM_FIELDS).forEach(([formField, field]) => {
+        const value = res?.erp?.[field.key];
+        setValue(
+          formField,
+          field.date
+            ? toDateInput(value)
+            : value === null || value === undefined
+            ? ""
+            : value
+        );
+      });
+    },
+    [setValue]
+  );
+
   useEffect(() => {
     // המגירה מרונדרת תמיד (גם סגורה), ובעמוד פרטי הלקוח היא מקבלת את המזהה
-    // מהכתובת. בלי התנאי על isDrawerOpen הייתה נשלחת בקשה כפולה בכל כניסה
+    // מהכתובת. בלי התנאי על isFormOpen הייתה נשלחת בקשה כפולה בכל כניסה
     // לעמוד, וגם בכל לחיצה על מחיקה ברשימת הלקוחות
-    if (!id || !isDrawerOpen) {
+    if (!id || !isFormOpen) {
+      filledForRef.current = null;
       setCustomer(null);
+      return;
+    }
+
+    // בעריכה בעמוד הלקוח כבר נטען שם, ואין טעם לבקש אותו שוב. המילוי רץ
+    // פעם אחת בכל כניסה למצב עריכה, ולכן "ביטול" ולחיצה חוזרת על "עריכה"
+    // מחזירים את הערכים המקוריים ולא את מה שהוקלד ונזנח - אבל רענון של
+    // נתוני העמוד באמצע העריכה אינו דורס את מה שהוקלד.
+    // כשנתוני העמוד עדיין לא התרעננו אחרי השמירה האחרונה (אותו אובייקט
+    // בדיוק), מביאים את הלקוח מהשרת במקום להסתמך עליהם
+    const isStaleAfterSave =
+      savedFromRef.current !== null && initialData === savedFromRef.current;
+
+    if (
+      inline &&
+      !isStaleAfterSave &&
+      String(initialData?._id || "") === String(id)
+    ) {
+      setCustomer(initialData);
+      if (filledForRef.current !== String(id)) {
+        filledForRef.current = String(id);
+        fillForm(initialData);
+      }
       return;
     }
 
@@ -87,22 +255,16 @@ const useCustomerSubmit = (id) => {
     (async () => {
       try {
         // getCustomerDetails ולא getCustomerById: רק הוא מחזיר את erp
-        // (מוגדר select:false במודל), וזה מה שמאפשר להציג במגירה את כל
+        // (מוגדר select:false במודל), וזה מה שמאפשר להציג בטופס את כל
         // הפרטים שהגיעו מיבוא האקסל
         const res = await CustomerServices.getCustomerDetails(id);
         if (cancelled || !res) return;
 
         setCustomer(res);
-        setValue("name", res.name || "");
-        setValue("lastName", res.lastName || "");
-        setValue("phone", res.phone || "");
-        setValue("email", res.email || "");
-        setValue("street", res?.address?.street || "");
-        setValue("houseNumber", res?.address?.houseNumber || "");
-        setValue("apartmentNumber", res?.address?.apartmentNumber || "");
-        setValue("floor", res?.address?.floor || "");
-        setValue("entryCode", res?.address?.entryCode || "");
-        setValue("postalCode", res?.address?.postalCode || "");
+        fillForm(res);
+        // מסמנים שהטופס כבר מולא לכניסה הזו, כדי שרענון של נתוני העמוד
+        // מיד אחרי כן לא ימלא אותו שוב וידרוס את מה שהוקלד
+        filledForRef.current = String(id);
       } catch (err) {
         if (!cancelled) {
           notifyError(err?.response?.data?.message || err?.message);
@@ -113,7 +275,7 @@ const useCustomerSubmit = (id) => {
     return () => {
       cancelled = true;
     };
-  }, [id, isDrawerOpen, setValue]);
+  }, [id, isFormOpen, inline, initialData, fillForm]);
 
   return {
     register,
@@ -124,6 +286,20 @@ const useCustomerSubmit = (id) => {
     imageUrl,
     isSubmitting,
     customer,
+    city,
+    setCity,
+    isCashier,
+    setIsCashier,
+    inBlackList,
+    setInBlackList,
+    isRegistered,
+    setIsRegistered,
+    shippingRewardIssued,
+    setShippingRewardIssued,
+    welcomeGiftUsed,
+    setWelcomeGiftUsed,
+    erpActive,
+    setErpActive,
   };
 };
 

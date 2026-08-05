@@ -35,18 +35,29 @@ const ERP_FORM_FIELDS = {
   erpNotes: "notes",
 };
 
-const useProductSubmit = (id) => {
+// options מאפשר לטופס לרוץ בתוך העמוד עצמו ולא במגירה:
+//   inline - העריכה מתרחשת בעמוד המוצר; המגירה לא מעורבת בכלל
+//   isOpen - האם מצב העריכה פעיל (במקום isDrawerOpen)
+//   onDone - מה לעשות אחרי שמירה מוצלחת (במקום closeDrawer)
+const useProductSubmit = (id, options = {}) => {
+  const { inline = false, isOpen: inlineIsOpen = false, onDone } = options;
+
   const location = useLocation();
   const { isDrawerOpen, closeDrawer, setIsUpdate, lang } =
     useContext(SidebarContext);
 
+  // מצב "הטופס פתוח": במגירה זו המגירה עצמה, בעמוד זהו מצב העריכה. כל
+  // הטעינה והאיפוס של הטופס תלויים בו
+  const isFormOpen = inline ? inlineIsOpen : isDrawerOpen;
+  const finish = () => (inline ? onDone?.() : closeDrawer());
+
   const { data: attribue } = useAsync(AttributeServices.getShowingAttributes);
 
   // נתוני ההנהח"ש נטענים בנפרד: erp מוגדר select:false ולכן אינו חוזר
-  // מ-getProductById. מותנה ב-isDrawerOpen כי הטופס רלוונטי רק כשהמגירה פתוחה
+  // מ-getProductById. מותנה ב-isFormOpen כי הטופס רלוונטי רק כשהוא פתוח
   const { product: erpProduct, error: erpError } = useProductDetails(
     id,
-    isDrawerOpen
+    isFormOpen
   );
 
   // react ref
@@ -82,6 +93,10 @@ const useProductSubmit = (id) => {
   const [language, setLanguage] = useState(lang);
   const [openModal, setOpenModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // דלוק בזמן שהערכים של המוצר נטענים לתוך הטופס. בעריכה בעמוד השדות
+  // כבר מוצגים על המסך, ובלי הסימון הזה הם היו נראים ריקים לרגע והמשתמש
+  // היה יכול לשמור לפני שהערכים הגיעו
+  const [isFormLoading, setIsFormLoading] = useState(false);
   const [slug, setSlug] = useState("");
   const [specialOffers, setSpecialOffers] = useState([]);
   const [specialOffersComb, setSpecialOffersComb] = useState({});
@@ -117,9 +132,15 @@ const useProductSubmit = (id) => {
   } = useForm();
 
   const onSubmit = async (data) => {
-    console.log('onSubmit data :>>',data)
     // console.log('specialOffers: ', specialOffers)
     try {
+      // שומרים רק כשהמוצר שנטען לטופס הוא באמת זה שנערך. בלי הבדיקה, טעינה
+      // שנכשלה משאירה את updatedId ריק, והשמירה נופלת למסלול "הוספת מוצר" -
+      // כלומר יוצרת מוצר כפול במקום לעדכן את הקיים
+      if (id && String(updatedId || "") !== String(id)) {
+        return notifyError("פרטי המוצר לא נטענו. רענן את העמוד ונסה שוב.");
+      }
+
       setIsSubmitting(true);
       if (!imageUrl) return notifyError("Image is required!");
       // console.log(
@@ -220,16 +241,26 @@ const useProductSubmit = (id) => {
       // נתוני ההנהח"ש נשלחים רק כשהם נטענו עבור המוצר הזה. בלי הבדיקה, טעינה
       // שנכשלה או מוצר חדש היו שולחים שדות ריקים ומוחקים את נתוני האקסל
       if (erpProduct && String(erpProduct._id) === String(updatedId)) {
-        productData.erp = Object.entries(ERP_FORM_FIELDS).reduce(
+        const erpValues = Object.entries(ERP_FORM_FIELDS).reduce(
           (acc, [formField, erpField]) => {
             acc[erpField] = data[formField] ?? "";
             return acc;
           },
           {}
         );
-      }
 
-      console.log("productData :>>", productData);
+        // למוצר שנוצר בפאנל אין erp כלל, וכך הוא גם מוצג ("אין מק"ט ספק
+        // ועלות"). שליחת שדות ריקים הייתה יוצרת לו אובייקט erp ריק ומסמנת
+        // אותו כאילו הגיע מיבוא האקסל - ולכן שולחים רק כשיש נתונים קיימים
+        // או כשהוקלד ערך כלשהו
+        const hasErpInput = Object.values(erpValues).some(
+          (value) => value !== "" && value !== null && value !== undefined
+        );
+
+        if (erpProduct.erp || hasErpInput) {
+          productData.erp = erpValues;
+        }
+      }
 
       if (updatedId) {
         const res = await ProductServices.updateProduct(updatedId, productData);
@@ -247,11 +278,14 @@ const useProductSubmit = (id) => {
           }
         }
 
+        // בעריכה בעמוד אין לשונית "וריאציות", ולכן שמירה מוצלחת תמיד
+        // מחזירה את העמוד למצב קריאה
         if (
+          inline ||
           tapValue === "Combination" ||
           (tapValue !== "Combination" && !isCombination)
         ) {
-          closeDrawer();
+          finish();
         }
       } else {
         const res = await ProductServices.addProduct(productData);
@@ -306,11 +340,12 @@ const useProductSubmit = (id) => {
         }
 
         if (
+          inline ||
           tapValue === "Combination" ||
           (tapValue !== "Combination" && !isCombination)
         ) {
           setIsSubmitting(false);
-          closeDrawer();
+          finish();
         }
       }
     } catch (err) {
@@ -322,16 +357,16 @@ const useProductSubmit = (id) => {
 
   // טעינת שדות ההנהח"ש לטופס. נפרד מהאפקט הראשי כי הם מגיעים מבקשה אחרת
   useEffect(() => {
-    if (!isDrawerOpen) return;
+    if (!isFormOpen) return;
 
     Object.entries(ERP_FORM_FIELDS).forEach(([formField, erpField]) => {
       const value = erpProduct?.erp?.[erpField];
       setValue(formField, value === null || value === undefined ? "" : value);
     });
-  }, [erpProduct, isDrawerOpen, setValue]);
+  }, [erpProduct, isFormOpen, setValue]);
 
   useEffect(() => {
-    if (!isDrawerOpen) {
+    if (!isFormOpen) {
       setSlug("");
       setLanguage(lang);
       setValue("language", language);
@@ -392,6 +427,7 @@ const useProductSubmit = (id) => {
       setIsCartpprod(false);
       setIsStockManagement(true);
       setUpdatedId();
+      setIsFormLoading(false);
       return;
     } else {
       handleProductTap("Basic Info", true);
@@ -399,6 +435,7 @@ const useProductSubmit = (id) => {
 
     if (id) {
       setIsBasicComplete(true);
+      setIsFormLoading(true);
       (async () => {
         try {
           const res = await ProductServices.getProductById(id);
@@ -468,6 +505,8 @@ const useProductSubmit = (id) => {
           }
         } catch (err) {
           notifyError(err?.response?.data?.message || err?.message);
+        } finally {
+          setIsFormLoading(false);
         }
       })();
     }
@@ -475,7 +514,7 @@ const useProductSubmit = (id) => {
   }, [
     id,
     setValue,
-    isDrawerOpen,
+    isFormOpen,
     location.pathname,
     clearErrors,
     language,
@@ -807,6 +846,7 @@ const useProductSubmit = (id) => {
     onCloseModal,
     isBulkUpdate,
     isSubmitting,
+    isFormLoading,
     erpError,
     tapValue,
     setTapValue,

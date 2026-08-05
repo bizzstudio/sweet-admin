@@ -33,7 +33,7 @@ const SidebarContent = () => {
       <Link className="block px-6" to="/dashboard">
         <img
           src={mode === "dark" ? logoLight : logoDark}
-          alt="המתוקים של בני"
+          alt="מתוקיה של בני"
           className="w-full max-w-[190px] h-auto mx-auto"
         />
       </Link>

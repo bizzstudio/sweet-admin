@@ -346,7 +346,7 @@ const InvoiceForDownload = ({
               >
                 <Image
                   src={logoDark}
-                  alt="המתוקים של בני"
+                  alt="מתוקיה של בני"
                   style={{
                     width: 90,
                     alignItems: "right",

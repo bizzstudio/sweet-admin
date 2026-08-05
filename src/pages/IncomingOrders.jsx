@@ -621,6 +621,14 @@ const IncomingOrders = () => {
                               : "ממתין"}
                           </div>
                         )}
+                        {/* גם הודעות של שולח לא מוכר מקובצות לרשומה אחת, ולכן
+                            שורה אחת כאן יכולה להיות כמה הודעות. בלי הספירה
+                            "לקוח חדש" נראה כאילו הוא קורא הודעה בודדת. */}
+                        {row.status === "unknown_sender" && row.messages?.length > 1 && (
+                          <div className="mt-1 text-gray-600">
+                            {row.messages.length} הודעות
+                          </div>
+                        )}
                       </div>
                     </TableCell>
 

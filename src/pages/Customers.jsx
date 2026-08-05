@@ -10,7 +10,7 @@ import {
   TableFooter,
   TableHeader,
 } from "@windmill/react-ui";
-import React, { useContext, useState } from "react";
+import React, { useCallback, useContext, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 // Internal import
@@ -22,13 +22,40 @@ import PageTitle from "@/components/Typography/PageTitle";
 import useAsync from "@/hooks/useAsync";
 import useFilter from "@/hooks/useFilter";
 import CustomerServices from "@/services/CustomerServices";
+import CustomerPriceListServices from "@/services/CustomerPriceListServices";
 import ImportCustomersExcelModal from "@/components/customer/ImportCustomersExcelModal";
+import CustomerPriceListModal from "@/components/customer/CustomerPriceListModal";
 import { SidebarContext } from "@/context/SidebarContext";
 
 const Customers = () => {
   const { data, loading, error } = useAsync(CustomerServices.getAllCustomers);
   const { setIsUpdate } = useContext(SidebarContext);
   const [isExcelModalOpen, setIsExcelModalOpen] = useState(false);
+  // הלקוח שהמחירון שלו נערך כרגע (null = המודאל סגור)
+  const [priceListCustomer, setPriceListCustomer] = useState(null);
+
+  // ── סיכום המחירונים בבקשה אחת ──
+  //
+  // הטבלה צריכה להראות לאילו לקוחות יש מחירון, וקריאה לכל שורה בנפרד הייתה
+  // מייצרת עשרות בקשות בכל טעינת עמוד. הנתיב הזה מחזיר מטא-נתונים בלבד
+  // (בלי שורות המחירון), ולכן התגובה קטנה גם כשלמאות לקוחות יש מחירון.
+  const [priceLists, setPriceLists] = useState(new Map());
+
+  const loadPriceLists = useCallback(async () => {
+    try {
+      const summary = await CustomerPriceListServices.getSummary();
+      setPriceLists(
+        new Map((summary || []).map((item) => [String(item.customer), item]))
+      );
+    } catch (err) {
+      // כשל כאן אינו שובר את רשימת הלקוחות — רק התג של המחירון לא יוצג
+      console.log("loadPriceLists error: ", err?.message);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadPriceLists();
+  }, [loadPriceLists]);
 
   // console.log('customer',data)
 
@@ -58,6 +85,18 @@ const Customers = () => {
         isOpen={isExcelModalOpen}
         onClose={() => setIsExcelModalOpen(false)}
         onImported={() => setIsUpdate(true)}
+      />
+
+      {/* מחירון פרטי ללקוח מסוים. נשאר מותקן גם כשהוא סגור, כדי שהמצב הפנימי
+          שלו יתאפס לפי customerId ולא ישמור נתונים של הלקוח הקודם */}
+      <CustomerPriceListModal
+        isOpen={Boolean(priceListCustomer)}
+        onClose={() => setPriceListCustomer(null)}
+        customerId={priceListCustomer?._id}
+        customerName={`${priceListCustomer?.name || ""} ${
+          priceListCustomer?.lastName || ""
+        }`.trim()}
+        onChanged={loadPriceLists}
       />
 
       <Card className="min-w-0 shadow-xs overflow-hidden bg-white dark:bg-gray-800 mb-5">
@@ -134,13 +173,18 @@ const Customers = () => {
                 <TableCell>{t("CustomersName")}</TableCell>
                 <TableCell>{t("CustomersEmail")}</TableCell>
                 <TableCell>{t("CustomersPhone")}</TableCell>
+                <TableCell className="text-center">מחירון</TableCell>
                 <TableCell className="text-center">{t("CashierStatus")}</TableCell>
                 <TableCell className="text-right">
                   {t("CustomersActions")}
                 </TableCell>
               </tr>
             </TableHeader>
-            <CustomerTable customers={dataTable} />
+            <CustomerTable
+              customers={dataTable}
+              priceLists={priceLists}
+              onOpenPriceList={setPriceListCustomer}
+            />
           </Table>
           <TableFooter>
             <Pagination

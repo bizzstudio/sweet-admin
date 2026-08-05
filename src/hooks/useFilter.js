@@ -69,6 +69,39 @@ const couponSchema = {
   },
   required: ["title", "couponCode", "endTime", "status"],
 };
+// סימוני כיווניות (RTL/LTR) נדבקים למספר טלפון כשמעתיקים אותו מאקסל או
+// מוואטסאפ, והם בלתי נראים - אבל שוברים כל השוואת מחרוזות
+const stripBidiMarks = (value) =>
+  String(value ?? "").replace(/[\u200E\u200F\u202A-\u202E\u2066-\u2069]/g, "");
+
+// הטלפון נשמר בבסיס הנתונים כספרות בלבד (0528459703 / 039622655 / 528459703),
+// אבל מוקלד עם מקפים, רווחים או קידומת +972. ההשוואה נעשית על הספרות בלבד,
+// בלי קידומת המדינה ובלי האפס המוביל, כדי שכל הצורות יימצאו
+const phoneDigits = (value) => {
+  let digits = stripBidiMarks(value).replace(/\D/g, "");
+  if (digits.startsWith("00")) digits = digits.slice(2);
+  if (digits.startsWith("972") && digits.length > 9) digits = digits.slice(3);
+  return digits.replace(/^0+/, "");
+};
+
+// רק מחרוזת שכולה ספרות וסימני טלפון נחשבת חיפוש טלפון. בלי זה, חיפוש מייל
+// כמו erp-782@import.local היה מחזיר גם כל לקוח שבטלפון שלו הרצף 782
+const looksLikePhoneQuery = (value) =>
+  /^[+(]?\d[\d\s()+.\-]*$/.test(stripBidiMarks(value).trim());
+
+// שם לקוח נשמר כמחרוזת, אבל שם עובד (Admin) נשמר כאובייקט רב-לשוני {he,en}.
+// אותו סינון משרת את שני העמודים, ולכן שתי הצורות מומרות לטקסט לחיפוש.
+// כל השפות נכללות כדי שעובד עם שם אנגלי יימצא גם כשהממשק בעברית
+const searchableText = (value) => {
+  if (value === null || value === undefined) return "";
+  if (typeof value === "object") {
+    return Object.values(value)
+      .filter((item) => typeof item === "string")
+      .join(" ");
+  }
+  return String(value);
+};
+
 const useFilter = (data) => {
   const ajv = new Ajv({ allErrors: true });
 
@@ -252,16 +285,23 @@ const useFilter = (data) => {
       services = services.filter((staff) => staff.role === role);
     }
     // User and Admin filtering
-    if (searchUser) {
-      // console.log('searchUser: ', searchUser)
+    // התנאי על הטקסט הנקי ולא על searchUser הגולמי, כדי שחיפוש של רווחים
+    // בלבד יציג את כל הרשומות במקום להריץ סינון שלא מתאים לאף אחת
+    const term = stripBidiMarks(searchUser).trim().toLowerCase();
+    if (term) {
+      const termDigits = looksLikePhoneQuery(term) ? phoneDigits(term) : "";
       services = services.filter(
         (search) => {
-          const fullName = search?.name?.trim() + " " + search?.lastName?.trim();
-          return fullName
-            ?.toLowerCase()
-            .includes(searchUser.toLowerCase()) ||
-            search?.phone?.toLowerCase().includes(searchUser.toLowerCase()) ||
-            search?.email?.toLowerCase().includes(searchUser.toLowerCase())
+          const fullName =
+            `${searchableText(search?.name)} ${searchableText(search?.lastName)}`
+              .replace(/\s+/g, " ")
+              .trim()
+              .toLowerCase();
+          if (fullName.includes(term)) return true;
+          if (searchableText(search?.email).toLowerCase().includes(term))
+            return true;
+          // הטלפון מושווה בספרות בלבד, ולכן נמצא גם כשהוא נשמר בלי אפס מוביל
+          return !!termDigits && phoneDigits(search?.phone).includes(termDigits);
         });
     }
     // Coupon filtering
@@ -395,12 +435,18 @@ const useFilter = (data) => {
   const handleChangePage = (p) => {
     setCurrentPage(p);
   };
+  // חיפוש שמבוצע כשעומדים על עמוד 3 מחזיר תוצאה אחת, אבל הטבלה נחתכה
+  // מהרשומה ה-40 והלאה ולכן נראתה ריקה. הצמדת העמוד לטווח הקיים פותרת זאת
+  // בלי לאפס state - איפוס היה יוצר חוסר סנכרון עם ה-Pagination של Windmill,
+  // ששומר את העמוד הפעיל אצלו ומעדכן רק כשלוחצים עליו
   useEffect(() => {
+    const lastPage = Math.max(
+      1,
+      Math.ceil((serviceData?.length || 0) / resultsPerPage)
+    );
+    const page = Math.min(currentPage, lastPage);
     setDataTable(
-      serviceData?.slice(
-        (currentPage - 1) * resultsPerPage,
-        currentPage * resultsPerPage
-      )
+      serviceData?.slice((page - 1) * resultsPerPage, page * resultsPerPage)
     );
   }, [serviceData, currentPage, resultsPerPage]);
   //pagination functionality end
