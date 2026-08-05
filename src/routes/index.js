@@ -13,6 +13,7 @@ const Category = lazy(() => import("@/pages/Category"));
 // const Offers = lazy(() => import("@/pages/Offers"));
 const ChildCategory = lazy(() => import("@/pages/ChildCategory"));
 const Staff = lazy(() => import("@/pages/Staff"));
+const Pickers = lazy(() => import("@/pages/Pickers"));
 const Customers = lazy(() => import("@/pages/Customers"));
 const CustomerOrder = lazy(() => import("@/pages/CustomerOrder"));
 const CustomerDetails = lazy(() => import("@/pages/CustomerDetails"));
@@ -148,6 +149,10 @@ const routes = [
   {
     path: "/statuses",
     component: Statuses,
+  },
+  {
+    path: "/pickers",
+    component: Pickers,
   },
   {
     path: "/lotteries",

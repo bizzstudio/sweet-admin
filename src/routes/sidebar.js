@@ -9,6 +9,7 @@ import {
   FiTarget,
   FiGift,
   FiClipboard,
+  FiUserCheck,
 } from "react-icons/fi";
 import { FaRegWindowRestore } from "react-icons/fa6";
 import { GoDependabot } from "react-icons/go";
@@ -87,6 +88,12 @@ const sidebar = [
       //   name: "Statuses",
       // },
     ],
+  },
+
+  {
+    path: "/pickers",
+    icon: FiUserCheck,
+    name: "Pickers",
   },
 
   // קישור חיצוני לאפליקציית הליקוט. הכתובת נקראת מ-VITE_APP_LIKUTAPP_DOMAIN
