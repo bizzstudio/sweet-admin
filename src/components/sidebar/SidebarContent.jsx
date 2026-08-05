@@ -14,6 +14,17 @@ import logoLight from "@/assets/img/logo/logo-dark.png";
 import { AdminContext } from "@/context/AdminContext";
 import SidebarSubMenu from "@/components/sidebar/SidebarSubMenu";
 
+// קישורים חיצוניים (outside) חייבים <a> ולא NavLink: react-router v5 מתייחס
+// ל-`to` כנתיב פנימי ומדביק לו את ה-basename, כך שכתובת מלאה נשברת.
+const OUTSIDE_LINKS = {
+  store: import.meta.env.VITE_APP_STORE_DOMAIN,
+  // ברירת המחדל היא לפי מוסכמת התת-תיקיות של שאר השירותים ב-srv2.
+  // אם אפליקציית הליקוט תעלה לכתובת אחרת — להגדיר VITE_APP_LIKUTAPP_DOMAIN ב-.env.
+  likutApp:
+    import.meta.env.VITE_APP_LIKUTAPP_DOMAIN ||
+    "https://srv2.bizzstudio.co.il/sweet-likut",
+};
+
 const SidebarContent = () => {
   const { t } = useTranslation();
   const { mode } = useContext(WindmillContext);
@@ -41,6 +52,18 @@ const SidebarContent = () => {
         {sidebar.map((route) =>
           route.routes ? (
             <SidebarSubMenu route={route} key={route.name} />
+          ) : route.outside ? (
+            <li className="relative" key={route.name}>
+              <a
+                href={OUTSIDE_LINKS[route.outside]}
+                target="_blank"
+                rel="noreferrer"
+                className="px-6 py-4 inline-flex items-center w-full text-sm font-semibold transition-colors duration-150 hover:text-customGreen-dark dark:hover:text-gray-200"
+              >
+                <route.icon className="w-5 h-5" aria-hidden="true" />
+                <span className="mr-4">{t(`${route.name}`)}</span>
+              </a>
+            </li>
           ) : (
             <li className="relative" key={route.name}>
               <NavLink

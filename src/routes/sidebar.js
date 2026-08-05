@@ -8,6 +8,7 @@ import {
   FiGlobe,
   FiTarget,
   FiGift,
+  FiClipboard,
 } from "react-icons/fi";
 import { FaRegWindowRestore } from "react-icons/fa6";
 import { GoDependabot } from "react-icons/go";
@@ -86,6 +87,15 @@ const sidebar = [
       //   name: "Statuses",
       // },
     ],
+  },
+
+  // קישור חיצוני לאפליקציית הליקוט. הכתובת נקראת מ-VITE_APP_LIKUTAPP_DOMAIN
+  // ב-SidebarContent (ולא כאן), כמו הקישור "צפייה בחנות".
+  {
+    path: "/likut-app",
+    icon: FiClipboard,
+    name: "ViewLikutApp",
+    outside: "likutApp",
   },
 
   // {
