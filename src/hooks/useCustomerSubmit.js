@@ -62,6 +62,9 @@ const useCustomerSubmit = (id, options = {}) => {
 
   const [imageUrl, setImageUrl] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // דלוק בזמן שהערכים נטענים מהשרת לתוך הטופס. בעריכה בעמוד השדות כבר
+  // מוצגים, ובלי הסימון הזה אפשר היה ללחוץ שמירה לפני שהערכים הגיעו
+  const [isFormLoading, setIsFormLoading] = useState(false);
   // הלקוח המלא כפי שנטען מהשרת. משמש כדי להציג בטופס גם את נתוני
   // ההנהח"ש (erp), ובעיקר כדי לא לאבד שדות שהטופס לא עורך - עדכון
   // הלקוח בשרת מחליף את אובייקט הכתובת כולו
@@ -104,13 +107,22 @@ const useCustomerSubmit = (id, options = {}) => {
     formState: { errors },
   } = useForm();
 
+  // רשומת הבסיס לשמירה: ממנה נלקחים השדות שהטופס אינו עורך (שאר הכתובת,
+  // מזהי המתנה). כשהרשומה שכבר נטענה בעמוד היא של אותו לקוח היא תקפה לגמרי,
+  // גם אם באותו רגע מתבצעת טעינה מרעננת - אחרת נוצר רגע שבו הטופס מלא על
+  // המסך אבל השמירה נחסמת בהודעה "פרטי הלקוח לא נטענו"
+  const pageRecord =
+    String(initialData?._id || "") === String(id) ? initialData : null;
+  const baseCustomer =
+    String(customer?._id || "") === String(id) ? customer : pageRecord;
+
   const onSubmit = async (data) => {
     try {
-      // שומרים רק כשהלקוח שנטען הוא באמת זה שנערך. שני מקרים נחסמים כאן:
-      // טעינה שנכשלה (הטופס ריק, ושמירה הייתה מוחקת את הכתובת ושאר הפרטים),
-      // ומעבר ללקוח אחר שטעינתו נכשלה - שם נשארים בטופס הערכים של הקודם,
-      // ושמירה הייתה כותבת אותם על הלקוח החדש
-      if (id && String(customer?._id || "") !== String(id)) {
+      // שומרים רק כשהרשומה שבידינו היא באמת של הלקוח שנערך. שני מקרים
+      // נחסמים כאן: טעינה שנכשלה (הטופס ריק, ושמירה הייתה מוחקת את הכתובת
+      // ושאר הפרטים), ומעבר ללקוח אחר שטעינתו נכשלה - שם נשארים בטופס
+      // הערכים של הקודם, ושמירה הייתה כותבת אותם על הלקוח החדש
+      if (id && !baseCustomer) {
         return notifyError("פרטי הלקוח לא נטענו. רענן את העמוד ונסה שוב.");
       }
 
@@ -122,7 +134,7 @@ const useCustomerSubmit = (id, options = {}) => {
         email: data.email,
         phone: data.phone,
         address: {
-          ...(customer?.address || {}),
+          ...(baseCustomer?.address || {}),
           // העיר נבחרת מרשימת היישובים של הלמ"ס ונשמרת כרשומה מלאה
           // (city_code, region_code וכו'), כי מחיר המשלוח וימי החלוקה
           // מסתמכים על הקודים האלה
@@ -139,7 +151,7 @@ const useCustomerSubmit = (id, options = {}) => {
         isRegistered,
         shippingRewardIssued,
         welcomeGift: {
-          ...(customer?.welcomeGift || {}),
+          ...(baseCustomer?.welcomeGift || {}),
           isUsed: welcomeGiftUsed,
         },
       };
@@ -147,7 +159,7 @@ const useCustomerSubmit = (id, options = {}) => {
       // נתוני ההנהח"ש נשלחים רק ללקוח שיש לו כאלה. ללקוח שנרשם בחנות אין erp,
       // ושליחת שדות ריקים הייתה יוצרת לו אובייקט erp ומסמנת אותו בטעות
       // כלקוח שהגיע מיבוא האקסל
-      if (customer?.erp) {
+      if (baseCustomer?.erp) {
         customerData.erp = Object.entries(ERP_FORM_FIELDS).reduce(
           (acc, [formField, field]) => {
             acc[field.key] = erpValueToSend(field, data[formField]);
@@ -159,7 +171,7 @@ const useCustomerSubmit = (id, options = {}) => {
 
       if (id) {
         const res = await CustomerServices.updateCustomer(id, customerData);
-        savedFromRef.current = customer;
+        savedFromRef.current = pageRecord;
         setIsUpdate(true);
         notifySuccess(res.message);
         finish();
@@ -220,24 +232,28 @@ const useCustomerSubmit = (id, options = {}) => {
     if (!id || !isFormOpen) {
       filledForRef.current = null;
       setCustomer(null);
+      setIsFormLoading(false);
       return;
     }
+
+    const pageRecordMatches = String(initialData?._id || "") === String(id);
+
+    // הרשומה שכבר נטענה בעמוד היא של אותו לקוח, ולכן היא תקפה כרשומת בסיס
+    // לשמירה גם בזמן טעינה מרעננת. בלי זה נוצר רגע שבו הטופס מלא על המסך
+    // אבל השמירה נחסמת ב"פרטי הלקוח לא נטענו"
+    if (inline && pageRecordMatches) setCustomer(initialData);
+
+    // כשנתוני העמוד עדיין לא התרעננו אחרי השמירה האחרונה (אותו אובייקט
+    // בדיוק), מביאים את הלקוח מהשרת כדי למלא ערכים מעודכנים
+    const isStaleAfterSave =
+      savedFromRef.current !== null && initialData === savedFromRef.current;
 
     // בעריכה בעמוד הלקוח כבר נטען שם, ואין טעם לבקש אותו שוב. המילוי רץ
     // פעם אחת בכל כניסה למצב עריכה, ולכן "ביטול" ולחיצה חוזרת על "עריכה"
     // מחזירים את הערכים המקוריים ולא את מה שהוקלד ונזנח - אבל רענון של
-    // נתוני העמוד באמצע העריכה אינו דורס את מה שהוקלד.
-    // כשנתוני העמוד עדיין לא התרעננו אחרי השמירה האחרונה (אותו אובייקט
-    // בדיוק), מביאים את הלקוח מהשרת במקום להסתמך עליהם
-    const isStaleAfterSave =
-      savedFromRef.current !== null && initialData === savedFromRef.current;
-
-    if (
-      inline &&
-      !isStaleAfterSave &&
-      String(initialData?._id || "") === String(id)
-    ) {
-      setCustomer(initialData);
+    // נתוני העמוד באמצע העריכה אינו דורס את מה שהוקלד
+    if (inline && pageRecordMatches && !isStaleAfterSave) {
+      setIsFormLoading(false);
       if (filledForRef.current !== String(id)) {
         filledForRef.current = String(id);
         fillForm(initialData);
@@ -249,8 +265,9 @@ const useCustomerSubmit = (id, options = {}) => {
     // לקוח אחר לפני שהבקשה הראשונה חזרה. בלי זה אפשר לערוך לקוח אחד
     // ולשמור מעליו את הפרטים של לקוח אחר
     let cancelled = false;
-    // מאפסים לפני הטעינה כדי שהשמירה תיחסם כל עוד הלקוח החדש לא הגיע
-    setCustomer(null);
+    // כשאין בעמוד רשומה של הלקוח הזה, אין רשומת בסיס לשמירה עד שהבקשה חוזרת
+    if (!(inline && pageRecordMatches)) setCustomer(null);
+    setIsFormLoading(true);
 
     (async () => {
       try {
@@ -261,14 +278,18 @@ const useCustomerSubmit = (id, options = {}) => {
         if (cancelled || !res) return;
 
         setCustomer(res);
-        fillForm(res);
-        // מסמנים שהטופס כבר מולא לכניסה הזו, כדי שרענון של נתוני העמוד
-        // מיד אחרי כן לא ימלא אותו שוב וידרוס את מה שהוקלד
-        filledForRef.current = String(id);
+        if (filledForRef.current !== String(id)) {
+          // מסמנים שהטופס כבר מולא לכניסה הזו, כדי שרענון של נתוני העמוד
+          // מיד אחרי כן לא ימלא אותו שוב וידרוס את מה שהוקלד
+          filledForRef.current = String(id);
+          fillForm(res);
+        }
       } catch (err) {
         if (!cancelled) {
           notifyError(err?.response?.data?.message || err?.message);
         }
+      } finally {
+        if (!cancelled) setIsFormLoading(false);
       }
     })();
 
@@ -285,6 +306,7 @@ const useCustomerSubmit = (id, options = {}) => {
     setImageUrl,
     imageUrl,
     isSubmitting,
+    isFormLoading,
     customer,
     city,
     setCity,

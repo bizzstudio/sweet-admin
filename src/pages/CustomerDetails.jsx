@@ -71,6 +71,7 @@ const CustomerDetails = () => {
     onSubmit,
     errors,
     isSubmitting,
+    isFormLoading,
     city,
     setCity,
     erpActive,
@@ -146,6 +147,12 @@ const CustomerDetails = () => {
                     <span className="font-bold">
                       {text(customer.erp.customerNumber)}
                     </span>
+                  </p>
+                ) : null}
+
+                {editing && isFormLoading ? (
+                  <p className="mt-3 text-sm text-gray-400">
+                    מרענן את פרטי הלקוח...
                   </p>
                 ) : null}
 
@@ -242,6 +249,7 @@ const CustomerDetails = () => {
                   onEdit={() => setEditing(true)}
                   onCancel={() => setEditing(false)}
                   isSubmitting={isSubmitting}
+                  saveDisabled={isFormLoading}
                   editLabel="עריכת לקוח"
                   icon={<FiEdit />}
                 />

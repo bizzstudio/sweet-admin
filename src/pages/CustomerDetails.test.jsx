@@ -15,6 +15,8 @@ vi.mock("@/utils/toast", () => ({
   notifySuccess: vi.fn(),
 }));
 
+import { notifyError } from "@/utils/toast";
+
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({ t: (key) => key, i18n: { language: "he" } }),
 }));
@@ -351,6 +353,46 @@ describe("צפייה בלקוח — עריכה בתוך העמוד", () => {
     await flush();
 
     expect(fieldByLabel("קומה")?.value).toBe("9");
+  });
+
+  it("שמירה שנייה מיד אחרי הראשונה נשמרת, ולא מציגה 'פרטי הלקוח לא נטענו'", async () => {
+    await loadPage();
+    await clickButton("עריכת לקוח");
+    await typeInto(fieldByLabel("רחוב"), "רחוב חדש");
+    await clickButton("שמירה");
+
+    expect(CustomerServices.updateCustomer).toHaveBeenCalledTimes(1);
+
+    // הבקשה שמרעננת את הטופס נתקעת; בזמן הזה הטופס מלא על המסך והמשתמש
+    // נכנס שוב לעריכה ולוחץ שמירה
+    let release;
+    CustomerServices.getCustomerDetails.mockImplementation(
+      () => new Promise((resolve) => (release = () => resolve(CUSTOMER)))
+    );
+
+    await clickButton("עריכת לקוח");
+
+    // הכפתור חסום כל עוד הערכים בדרך, ולכן אי אפשר לשמור ערכים חלקיים
+    const saveButton = [...container.querySelectorAll("button")].find(
+      (b) => b.textContent.trim() === "שמירה"
+    );
+    expect(saveButton.disabled).toBe(true);
+    expect(container.textContent).toContain("מרענן את פרטי הלקוח");
+
+    await clickButton("שמירה");
+
+    // ובעיקר: אין הודעת "פרטי הלקוח לא נטענו" בזמן שהטופס מלא על המסך
+    expect(notifyError).not.toHaveBeenCalled();
+    expect(CustomerServices.updateCustomer).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      release();
+    });
+    await flush();
+
+    await clickButton("שמירה");
+    expect(CustomerServices.updateCustomer).toHaveBeenCalledTimes(2);
+    expect(notifyError).not.toHaveBeenCalled();
   });
 
   it("ביטול מחזיר לקריאה ומבטל את מה שהוקלד", async () => {
