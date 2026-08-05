@@ -77,24 +77,36 @@ const usePickerSubmit = (id) => {
       return;
     }
 
-    if (id) {
-      (async () => {
-        try {
-          const res = await StatusServices.getStatusById(id);
-          if (res) {
-            setExistingName(res.name || "");
-            setValue("heName", res.heName);
-            setValue("username", res.username || "");
-            setValue("password", res.password || "");
-            setValue("phone", res.phone || "");
-            setValue("color", res.color || "#0d9e6d");
-            setIsActive(res.isActive);
-          }
-        } catch (err) {
-          notifyError(err?.response?.data?.message || err?.message);
-        }
-      })();
-    }
+    if (!id) return;
+
+    // דגל הביטול מונע תגובה מעופשת: אם פותחים מלקט אחד, סוגרים ופותחים
+    // אחר לפני שהבקשה הראשונה חזרה, היא הייתה נוחתת אחרונה וממלאת את
+    // הטופס בפרטים של המלקט הקודם — ושמירה הייתה כותבת אותם על הנוכחי.
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const res = await StatusServices.getStatusById(id);
+        if (cancelled || !res) return;
+
+        setExistingName(res.name || "");
+        setValue("heName", res.heName);
+        setValue("username", res.username || "");
+        setValue("password", res.password || "");
+        setValue("phone", res.phone || "");
+        setValue("color", res.color || "#0d9e6d");
+        // רק false מכבה במפורש — ערך חסר משאיר את המלקט פעיל, כמו
+        // ברירת המחדל במודל.
+        setIsActive(res.isActive !== false);
+      } catch (err) {
+        if (cancelled) return;
+        notifyError(err?.response?.data?.message || err?.message);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [id, setValue, isDrawerOpen, clearErrors]);
 
   return {
