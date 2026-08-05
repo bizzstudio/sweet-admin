@@ -114,7 +114,10 @@ const CustomerDetails = () => {
           ) : null}
         </div>
       ) : (
-        <form onSubmit={onlySaveButtonSubmits(handleSubmit(onSubmit))}>
+        <form
+          autoComplete="off"
+          onSubmit={onlySaveButtonSubmits(handleSubmit(onSubmit))}
+        >
           <div className="mb-5 rounded-lg bg-white p-6 text-right dark:bg-gray-800">
             <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
               <div className="min-w-0 flex-grow">

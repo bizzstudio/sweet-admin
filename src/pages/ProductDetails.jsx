@@ -68,6 +68,7 @@ const ProductDetails = () => {
     setSelectedCategory,
     defaultCategory,
     setDefaultCategory,
+    handleProductSlug,
     isCombination,
     isStockManagement,
     setIsStockManagement,
@@ -140,7 +141,10 @@ const ProductDetails = () => {
           {error ? <p className="mt-2 text-sm text-gray-400">{error}</p> : null}
         </div>
       ) : (
-        <form onSubmit={onlySaveButtonSubmits(handleSubmit(onSubmit))}>
+        <form
+          autoComplete="off"
+          onSubmit={onlySaveButtonSubmits(handleSubmit(onSubmit))}
+        >
           <div className="inline-block h-full w-full overflow-y-auto align-middle transition-all transform">
             <div className="flex w-full flex-col overflow-hidden md:flex-row lg:flex-row">
               <div className="flex h-auto w-full flex-shrink-0 items-center justify-center md:w-80">
@@ -373,6 +377,7 @@ const ProductDetails = () => {
               register={register}
               errors={errors}
               form={formState}
+              onSlugChange={handleProductSlug}
             />
             <ProductErpPanel
               product={product}

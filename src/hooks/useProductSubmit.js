@@ -63,6 +63,9 @@ const useProductSubmit = (id, options = {}) => {
   // react ref
   const resetRef = useRef([]);
   const resetRefTwo = useRef("");
+  // המזהה שהטופס כבר מולא עבורו. שמירה לפני שהערכים נכנסו לטופס הייתה
+  // שולחת שדות ריקים ומוחקת את פרטי המוצר, ולכן היא נחסמת עד שהמילוי קרה
+  const filledForRef = useRef(null);
 
   // react hook
   const [imageUrl, setImageUrl] = useState([]);
@@ -139,6 +142,13 @@ const useProductSubmit = (id, options = {}) => {
       // כלומר יוצרת מוצר כפול במקום לעדכן את הקיים
       if (id && String(updatedId || "") !== String(id)) {
         return notifyError("פרטי המוצר לא נטענו. רענן את העמוד ונסה שוב.");
+      }
+
+      // רשת ביטחון נוספת: updatedId מאותחל למזהה שבכתובת, ולכן הוא לבדו
+      // אינו מעיד שהערכים כבר נכנסו לטופס. שמירה לפני המילוי הייתה מוחקת
+      // את פרטי המוצר
+      if (id && filledForRef.current !== String(id)) {
+        return notifyError("פרטי המוצר עדיין נטענים. נסה שוב בעוד רגע.");
       }
 
       setIsSubmitting(true);
@@ -428,6 +438,7 @@ const useProductSubmit = (id, options = {}) => {
       setIsStockManagement(true);
       setUpdatedId();
       setIsFormLoading(false);
+      filledForRef.current = null;
       return;
     } else {
       handleProductTap("Basic Info", true);
@@ -502,6 +513,9 @@ const useProductSubmit = (id, options = {}) => {
               });
               setSpecialOffersComb(obj);
             }
+
+            // מסמנים שהערכים אכן נכנסו לטופס - רק מכאן שמירה מותרת
+            filledForRef.current = String(res._id);
           }
         } catch (err) {
           notifyError(err?.response?.data?.message || err?.message);

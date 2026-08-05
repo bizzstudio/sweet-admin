@@ -307,6 +307,50 @@ describe("פרטי מוצר — עריכה בתוך העמוד", () => {
     expect(ProductServices.addProduct).not.toHaveBeenCalled();
   });
 
+  it("כפתור השמירה אינו אותו אלמנט DOM של כפתור העריכה", async () => {
+    // מיחזור של אותו צומת היה הופך את הלחיצה על "ערוך מוצר" לשליחת הטופס
+    await loadPage();
+
+    const editButton = [...container.querySelectorAll("button")].find(
+      (b) => b.textContent.trim() === "EditProduct"
+    );
+
+    await clickButton("EditProduct");
+
+    const saveButton = [...container.querySelectorAll("button")].find(
+      (b) => b.textContent.trim() === "שמירה"
+    );
+
+    expect(saveButton).not.toBe(editButton);
+    expect(editButton.isConnected).toBe(false);
+  });
+
+  it("שליחת הטופס לפני שהערכים נכנסו אליו אינה שומרת", async () => {
+    await loadPage();
+
+    const form = container.querySelector("form");
+    await act(async () => {
+      form.dispatchEvent(
+        new window.Event("submit", { bubbles: true, cancelable: true })
+      );
+    });
+    await flush();
+
+    expect(ProductServices.updateProduct).not.toHaveBeenCalled();
+    expect(ProductServices.addProduct).not.toHaveBeenCalled();
+  });
+
+  it("מזהה הכתובת (slug) מנורמל בהקלדה, כמו בטופס המקורי", async () => {
+    await loadPage();
+    await clickButton("EditProduct");
+
+    await typeInto(fieldByLabel("מזהה כתובת (slug)"), "Sweet Candy (Big)");
+    await clickButton("שמירה");
+
+    const [, sentData] = ProductServices.updateProduct.mock.calls[0];
+    expect(sentData.slug).toBe("sweet-candy-big");
+  });
+
   it("ביטול מחזיר לקריאה בלי לשמור", async () => {
     await loadPage();
     await clickButton("EditProduct");

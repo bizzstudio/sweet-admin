@@ -22,26 +22,19 @@ import PickerTable from "@/components/picker/PickerTable";
 import MainDrawer from "@/components/drawer/MainDrawer";
 import PickerDrawer from "@/components/drawer/PickerDrawer";
 
-// המלקטים חולקים collection עם סטטוסי ההזמנות (Pending, Delivered...).
-// רשומות חדשות מסומנות ב-isMelaket, אבל מלקטים שנוצרו לפני שהשדה נוסף
-// מזוהים לפי טלפון לא ריק — זו ההבחנה שהקוד הקיים כבר משתמש בה.
-// סטטוסי ההזמנה נזרעים עם phone: "" ולכן נופלים מחוץ לסינון.
-const isPickerRecord = (record) =>
-  record?.isMelaket === true || Boolean(record?.phone?.trim());
-
 const Pickers = () => {
   const { toggleDrawer } = useContext(SidebarContext);
   const { t } = useTranslation();
 
   const [serviceId, setServiceId] = useState("");
 
-  // withPassword — הטבלה מציגה את הסיסמה מאחורי כפתור עין, והשדה מוגדר
-  // select:false במודל ולכן לא חוזר בלי הבקשה המפורשת.
+  // נתיב ייעודי ולא רשימת הסטטוסים הכללית: הוא מסנן לפי מלקטים בלבד
+  // ומחזיר את הסיסמאות (select:false במודל), והוא רשום רק מאחורי isAdmin.
   const { data, loading, error } = useAsync(() =>
-    StatusServices.getAllStatuses({ query: "?getAll=true&withPassword=true" })
+    StatusServices.getAllMelaketim()
   );
 
-  const pickers = data?.filter(isPickerRecord) || [];
+  const pickers = Array.isArray(data) ? data : [];
 
   return (
     <>

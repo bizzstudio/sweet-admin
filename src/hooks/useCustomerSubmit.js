@@ -126,6 +126,13 @@ const useCustomerSubmit = (id, options = {}) => {
         return notifyError("פרטי הלקוח לא נטענו. רענן את העמוד ונסה שוב.");
       }
 
+      // רשת ביטחון: שמירה לפני שהערכים נכנסו לטופס הייתה שולחת שדות ריקים
+      // ומוחקת ללקוח את הכתובת, הדגלים ונתוני ההנהח"ש. שולחים רק אחרי
+      // שהטופס באמת מולא עבור הרשומה הזו
+      if (id && filledForRef.current !== String(id)) {
+        return notifyError("פרטי הלקוח עדיין נטענים. נסה שוב בעוד רגע.");
+      }
+
       setIsSubmitting(true);
 
       const customerData = {
@@ -287,6 +294,12 @@ const useCustomerSubmit = (id, options = {}) => {
       } catch (err) {
         if (!cancelled) {
           notifyError(err?.response?.data?.message || err?.message);
+          // כשהבקשה נכשלה אבל יש בעמוד רשומה של אותו לקוח, ממלאים ממנה.
+          // בלי זה העריכה נתקעת: השדות ריקים והשמירה חסומה עד יציאה וכניסה
+          if (inline && pageRecordMatches && filledForRef.current !== String(id)) {
+            filledForRef.current = String(id);
+            fillForm(initialData);
+          }
         }
       } finally {
         if (!cancelled) setIsFormLoading(false);

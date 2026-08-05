@@ -33,6 +33,9 @@ export const EditableField = ({
   hint,
   disabled = false,
   wide = false,
+  // רץ אחרי ה-onChange של react-hook-form, לשדות שדורשים נרמול תוך כדי
+  // הקלדה (כמו ה-slug של המוצר, שמנורמל גם במגירה)
+  onValueChange,
 }) => {
   const renderControl = () => {
     if (control) return control;
@@ -70,14 +73,26 @@ export const EditableField = ({
       );
     }
 
+    const registered = register(name, rules);
+
     return (
       <input
         id={name}
         type={type}
         step={step || (type === "number" ? "any" : undefined)}
         disabled={disabled}
+        // גלגלת העכבר משנה ערך בשדה מספרי ממוקד בכרום ובפיירפוקס. בעמוד
+        // ארוך עם מחירים, מלאי ויתרות זה שינוי שקט של נתונים תוך כדי גלילה,
+        // ולכן השדה מאבד מיקוד במקום להשתנות
+        onWheel={
+          type === "number" ? (event) => event.currentTarget.blur() : undefined
+        }
         className={inputClass + disabledClass}
-        {...register(name, rules)}
+        {...registered}
+        onChange={(event) => {
+          registered.onChange(event);
+          onValueChange?.(event.target.value);
+        }}
       />
     );
   };
@@ -154,9 +169,14 @@ export const EditActions = ({
   saveLabel = "שמירה",
   icon = null,
 }) => {
+  // ה-key חובה כאן: בלעדיו React ממחזר את אותו צומת DOM בין "עריכה" לבין
+  // "שמירה" ורק מחליף לו type ל-submit. הדפדפן מבצע את פעולת ברירת המחדל
+  // של הקליק אחרי שהעדכון כבר הוחל, כלומר עצם הלחיצה על "עריכה" הייתה
+  // שולחת את הטופס ושומרת מיד. key שונה מאלץ יצירת כפתור חדש
   if (!editing) {
     return (
       <button
+        key="edit"
         type="button"
         onClick={onEdit}
         className="flex cursor-pointer items-center gap-2 rounded-md border border-transparent bg-mainColor px-5 py-2 text-sm font-medium leading-5 text-white transition-colors duration-150 hover:bg-mainColor-dark focus:outline-none active:bg-mainColor-dark"
@@ -169,6 +189,7 @@ export const EditActions = ({
   return (
     <>
       <button
+        key="save"
         type="submit"
         data-page-save="true"
         disabled={isSubmitting || saveDisabled}
@@ -181,6 +202,7 @@ export const EditActions = ({
       </button>
 
       <button
+        key="cancel"
         type="button"
         onClick={onCancel}
         disabled={isSubmitting}

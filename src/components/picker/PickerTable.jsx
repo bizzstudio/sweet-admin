@@ -68,7 +68,6 @@ const PickerTable = ({ pickers, setServiceId }) => {
             <ActiveInActiveButtonStatus
               id={picker._id}
               status={picker.isActive ? "Active" : "Inactive"}
-              staff={false}
             />
           </TableCell>
 

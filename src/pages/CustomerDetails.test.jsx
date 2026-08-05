@@ -395,6 +395,43 @@ describe("צפייה בלקוח — עריכה בתוך העמוד", () => {
     expect(notifyError).not.toHaveBeenCalled();
   });
 
+  it("כפתור השמירה אינו אותו אלמנט DOM של כפתור העריכה", async () => {
+    // אם React ממחזר את אותו צומת ורק מחליף לו type ל-submit, הדפדפן מבצע
+    // את פעולת ברירת המחדל של הקליק *אחרי* העדכון - כלומר עצם הלחיצה על
+    // "עריכת לקוח" שולחת את הטופס ושומרת מיד
+    await loadPage();
+
+    const editButton = [...container.querySelectorAll("button")].find(
+      (b) => b.textContent.trim() === "עריכת לקוח"
+    );
+
+    await clickButton("עריכת לקוח");
+
+    const saveButton = [...container.querySelectorAll("button")].find(
+      (b) => b.textContent.trim() === "שמירה"
+    );
+
+    expect(saveButton).not.toBe(editButton);
+    expect(editButton.isConnected).toBe(false);
+  });
+
+  it("שליחת הטופס לפני שהערכים נכנסו אליו אינה מוחקת את פרטי הלקוח", async () => {
+    await loadPage();
+
+    // מדמה שליחה שקרתה לפני שהטופס מולא (למשל שליחה לא מכוונת ברגע
+    // המעבר למצב עריכה). ללא רשת הביטחון היו נשלחים שדות ריקים שמוחקים
+    // כתובת, דגלים ונתוני הנהח"ש
+    const form = container.querySelector("form");
+    await act(async () => {
+      form.dispatchEvent(
+        new window.Event("submit", { bubbles: true, cancelable: true })
+      );
+    });
+    await flush();
+
+    expect(CustomerServices.updateCustomer).not.toHaveBeenCalled();
+  });
+
   it("ביטול מחזיר לקריאה ומבטל את מה שהוקלד", async () => {
     await loadPage();
     await clickButton("עריכת לקוח");

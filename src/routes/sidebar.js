@@ -96,10 +96,9 @@ const sidebar = [
     name: "Pickers",
   },
 
-  // קישור חיצוני לאפליקציית הליקוט. הכתובת נקראת מ-VITE_APP_LIKUTAPP_DOMAIN
-  // ב-SidebarContent (ולא כאן), כמו הקישור "צפייה בחנות".
+  // קישור חיצוני לאפליקציית הליקוט. אין לו path: הכתובת נקראת מ-
+  // VITE_APP_LIKUTAPP_DOMAIN ב-SidebarContent, כמו הקישור "צפייה בחנות".
   {
-    path: "/likut-app",
     icon: FiClipboard,
     name: "ViewLikutApp",
     outside: "likutApp",

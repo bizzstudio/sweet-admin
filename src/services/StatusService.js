@@ -10,6 +10,11 @@ const StatusServices = {
     return requests.get("/status" + query);
   },
 
+  // רק המלקטים (בלי סטטוסי ההזמנות), כולל הסיסמאות לדף הניהול.
+  getAllMelaketim: async () => {
+    return requests.get("/status/melaketim");
+  },
+
   updateStatus: async (id, body) => {
     return requests.put(`/status/${id}`, body);
   },

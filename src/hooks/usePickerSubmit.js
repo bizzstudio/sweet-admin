@@ -8,7 +8,7 @@ import StatusServices from "@/services/StatusService";
 
 // המלקטים יושבים במודל Status יחד עם סטטוסי ההזמנות, ולכן ה-hook הזה
 // עובד מול StatusServices. השדה isMelaket מסמן את הרשומה כמלקט, כדי
-// שדף המלקטים לא יצטרך לנחש לפי טלפון (ראה isPickerRecord ב-Pickers).
+// שהשרת לא יצטרך לנחש לפי טלפון בלבד (ראה getAllMelaketim בבקאנד).
 const usePickerSubmit = (id) => {
   const { isDrawerOpen, closeDrawer, setIsUpdate } = useContext(SidebarContext);
 
@@ -22,6 +22,9 @@ const usePickerSubmit = (id) => {
 
   const [isActive, setIsActive] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // ה-name הקיים של רשומה בעריכה. רשומת מלקט משמשת גם כסטטוס הזמנה,
+  // וה-name שלה מוצג במסכים אחרים — שינוי שם המשתמש לא אמור לשנות אותו.
+  const [existingName, setExistingName] = useState("");
 
   const onSubmit = async (data) => {
     try {
@@ -29,9 +32,9 @@ const usePickerSubmit = (id) => {
 
       const pickerData = {
         heName: data.heName,
-        // המודל דורש name, ולמלקט אין שם אנגלי נפרד — שם המשתמש משמש
-        // כמזהה הפנימי, בדיוק כפי שהשם שימש לפני שהשדה הזה נוסף.
-        name: data.username || data.heName,
+        // המודל דורש name, ולמלקט אין שם אנגלי נפרד — ברשומה חדשה שם
+        // המשתמש משמש כמזהה הפנימי.
+        name: (id && existingName) || data.username || data.heName,
         username: data.username,
         phone: data.phone || "",
         password: data.password || "",
@@ -46,7 +49,9 @@ const usePickerSubmit = (id) => {
         : await StatusServices.addStatus(pickerData);
 
       if (res) {
-        notifySuccess(res.message || "המלקט נשמר בהצלחה");
+        // הודעת השרת אנגלית ("Status created successfully!") ולא מתאימה
+        // לממשק העברי, ולכן הטקסט נקבע כאן.
+        notifySuccess(id ? "המלקט עודכן בהצלחה" : "המלקט נוסף בהצלחה");
         setIsUpdate(true);
         closeDrawer();
       }
@@ -68,6 +73,7 @@ const usePickerSubmit = (id) => {
       setValue("phone", "");
       setValue("color", "#0d9e6d");
       setIsActive(true);
+      setExistingName("");
       return;
     }
 
@@ -76,6 +82,7 @@ const usePickerSubmit = (id) => {
         try {
           const res = await StatusServices.getStatusById(id);
           if (res) {
+            setExistingName(res.name || "");
             setValue("heName", res.heName);
             setValue("username", res.username || "");
             setValue("password", res.password || "");

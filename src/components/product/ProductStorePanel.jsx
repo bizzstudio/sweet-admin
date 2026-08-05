@@ -18,6 +18,7 @@ const ProductStorePanel = ({
   register,
   errors = {},
   form = {},
+  onSlugChange,
 }) => {
   if (!product) return null;
 
@@ -62,6 +63,7 @@ const ProductStorePanel = ({
         required
         register={register}
         error={errors.slug}
+        onValueChange={onSlugChange}
         wide
       />
       <EditableField
