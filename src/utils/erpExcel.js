@@ -178,6 +178,26 @@ export const detectHeaderRow = (rows, aliasLookup, requiredFields, maxScan = 40)
   return best;
 };
 
+// ── קידוד של קובצי CSV ──
+//
+// ‏CSV שיוצא מתוכנת ההנהח"ש נשמר ב-windows-1255 ולא ב-UTF-8. ‏xlsx מפענח
+// מערך בתים כ-UTF-8, ולכן קובץ כזה היה מגיע כג'יבריש: שורת הכותרות לא הייתה
+// מזוהה, וגם אם כן — שמות המוצרים והלקוחות היו נשמרים משובשים.
+//
+// הזיהוי הוא לפי התוצאה ולא לפי ניחוש: טקסט עברי ב-windows-1255 אינו UTF-8 תקין
+// ולכן מייצר תווי החלפה (U+FFFD). קובץ UTF-8 תקין אינו מייצר אותם ונשאר כמו שהוא.
+const decodeCsvBuffer = (buffer) => {
+  const utf8 = new TextDecoder("utf-8").decode(buffer);
+  if (!utf8.includes("�")) return utf8;
+  try {
+    return new TextDecoder("windows-1255").decode(buffer);
+  } catch {
+    return utf8;
+  }
+};
+
+const isCsvFile = (file) => /\.(csv|txt)$/i.test(file?.name || "");
+
 /**
  * קורא קובץ אקסל/CSV ומחזיר גריד של שורות.
  * blankrows: true נשמר בכוונה - כך האינדקס בגריד תואם למספר השורה
@@ -193,10 +213,15 @@ export const readSheetGrid = (file) =>
       try {
         // cellDates: false בכוונה - התאריכים מומרים ב-toDateISO,
         // כי ההמרה של xlsx מסיטה את התוצאה בשעות אזור הזמן
-        const workbook = XLSX.read(event.target.result, {
-          type: "array",
-          cellDates: false,
-        });
+        const workbook = isCsvFile(file)
+          ? XLSX.read(decodeCsvBuffer(event.target.result), {
+              type: "string",
+              cellDates: false,
+            })
+          : XLSX.read(event.target.result, {
+              type: "array",
+              cellDates: false,
+            });
         const sheetName = workbook.SheetNames[0];
         if (!sheetName) throw new Error("לא נמצא גליון בקובץ");
 

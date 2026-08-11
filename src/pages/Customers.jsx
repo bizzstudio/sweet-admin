@@ -12,6 +12,7 @@ import {
 } from "@windmill/react-ui";
 import React, { useCallback, useContext, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { FiDollarSign } from "react-icons/fi";
 
 // Internal import
 import UploadManyTwo from "@/components/common/UploadManyTwo";
@@ -25,6 +26,7 @@ import CustomerServices from "@/services/CustomerServices";
 import CustomerPriceListServices from "@/services/CustomerPriceListServices";
 import ImportCustomersExcelModal from "@/components/customer/ImportCustomersExcelModal";
 import CustomerPriceListModal from "@/components/customer/CustomerPriceListModal";
+import BulkCustomerPriceListModal from "@/components/customer/BulkCustomerPriceListModal";
 import { SidebarContext } from "@/context/SidebarContext";
 
 const Customers = () => {
@@ -33,6 +35,8 @@ const Customers = () => {
   const [isExcelModalOpen, setIsExcelModalOpen] = useState(false);
   // הלקוח שהמחירון שלו נערך כרגע (null = המודאל סגור)
   const [priceListCustomer, setPriceListCustomer] = useState(null);
+  // יבוא מרוכז: קובץ אחד עם המחירונים של כל הלקוחות
+  const [isBulkPriceListOpen, setIsBulkPriceListOpen] = useState(false);
 
   // ── סיכום המחירונים בבקשה אחת ──
   //
@@ -99,6 +103,13 @@ const Customers = () => {
         onChanged={loadPriceLists}
       />
 
+      {/* מחירונים של כל הלקוחות מקובץ אחד. ההתאמה ללקוח לפי מספר לקוח */}
+      <BulkCustomerPriceListModal
+        isOpen={isBulkPriceListOpen}
+        onClose={() => setIsBulkPriceListOpen(false)}
+        onImported={loadPriceLists}
+      />
+
       <Card className="min-w-0 shadow-xs overflow-hidden bg-white dark:bg-gray-800 mb-5">
         <CardBody>
           <form
@@ -113,6 +124,20 @@ const Customers = () => {
                 exportData={data}
                 onExcelImport={() => setIsExcelModalOpen(true)}
               />
+            </div>
+
+            {/* המחירונים מגיעים מההנהח"ש בקובץ אחד לכל הלקוחות, ולכן הכפתור
+                יושב כאן ולא בשורת הלקוח. העלאה ללקוח בודד נשארת בטבלה */}
+            <div className="flex items-center">
+              <Button
+                type="button"
+                layout="outline"
+                onClick={() => setIsBulkPriceListOpen(true)}
+                className="h-12 whitespace-nowrap"
+              >
+                <FiDollarSign className="ml-2" />
+                העלאת מחירון לקוחות
+              </Button>
             </div>
           </form>
         </CardBody>

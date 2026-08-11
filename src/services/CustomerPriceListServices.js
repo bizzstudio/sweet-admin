@@ -29,6 +29,18 @@ const CustomerPriceListServices = {
   deletePriceList: async (customerId) => {
     return requests.delete(`/customer-price-list/${customerId}`);
   },
+
+  // ── יבוא מרוכז: קובץ אחד עם המחירונים של כל הלקוחות ──
+  // הבדיקה מקבלת מטא-נתונים בלבד ({customerNumbers, skus}), כי הקובץ המלא
+  // אינו נכנס לבקשה אחת
+  checkBulkImport: async (body) => {
+    return requests.post("/customer-price-list/bulk/check", body);
+  },
+
+  // אצווה אחת של לקוחות: {fileName, customers: [{customerNumber, rows}]}
+  importBulk: async (body) => {
+    return requests.post("/customer-price-list/bulk", body);
+  },
 };
 
 export default CustomerPriceListServices;
