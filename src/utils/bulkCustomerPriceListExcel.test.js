@@ -152,6 +152,32 @@ describe("parseBulkPriceListFile", () => {
     );
   });
 
+  it("קורא CSV בקידוד UTF-8 כרגיל (רגרסיה: זיהוי הקידוד לא שבר את המקרה התקין)", async () => {
+    // ‏readSheetGrid משותף גם לייבוא הלקוחות ולייבוא המוצרים. הוספת פענוח
+    // windows-1255 מחליפה את נתיב הקריאה של **כל** קובץ CSV בשלושתם, ולכן
+    // קובץ UTF-8 תקין חייב להמשיך להיקרא בדיוק כמו קודם
+    const csv = [
+      "שם הלקוח,מספר לקוח,שם המוצר,מקט,בר-קוד,מחיר",
+      "לקוח א,10,שקדים,500,999,20",
+    ].join("\n");
+
+    const file = new File([new TextEncoder().encode(csv)], "מחירונים.csv", {
+      type: "text/csv",
+    });
+    const result = await parseBulkPriceListFile(file);
+
+    expect(result.customers[0]).toMatchObject({
+      customerNumber: "10",
+      customerName: "לקוח א",
+    });
+    expect(result.customers[0].rows[0]).toEqual({
+      rowNumber: 2,
+      sku: "500",
+      name: "שקדים",
+      price: 20,
+    });
+  });
+
   it("קורא CSV בקידוד windows-1255 בלי לשבש את העברית", async () => {
     // הקידוד שבו תוכנת ההנהח"ש שומרת CSV. פענוח כ-UTF-8 היה מייצר ג'יבריש,
     // ואז שורת הכותרות כלל לא הייתה מזוהה

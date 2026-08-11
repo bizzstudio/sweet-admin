@@ -346,6 +346,8 @@ const CustomerDetails = () => {
               customer={customer}
               editing={editing}
               form={accountForm}
+              register={register}
+              errors={errors}
             />
 
             {/* המחירון הפרטי. פורש על כל הרוחב כי הוא כולל טבלת שורות ולא

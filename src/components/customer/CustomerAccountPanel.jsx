@@ -9,9 +9,16 @@ import { FiGift } from "react-icons/fi";
 
 import { BoolControl, EditableField } from "@/components/common/EditableFields";
 import { Field, Panel } from "@/components/common/ReadOnlyFields";
+import CustomerPasswordField from "@/components/customer/CustomerPasswordField";
 import { formatBool, formatDateTime } from "@/utils/displayFormat";
 
-const CustomerAccountPanel = ({ customer, editing = false, form = {} }) => {
+const CustomerAccountPanel = ({
+  customer,
+  editing = false,
+  form = {},
+  register,
+  errors = {},
+}) => {
   if (!customer) return null;
 
   const {
@@ -25,10 +32,23 @@ const CustomerAccountPanel = ({ customer, editing = false, form = {} }) => {
     setWelcomeGiftUsed,
     shippingRewardIssued,
     setShippingRewardIssued,
+    setValue,
   } = form;
 
   return (
     <Panel title="חשבון והטבות בחנות" icon={<FiGift />}>
+      {/* הסיסמה ראשונה בכרטיס: זה השדה שבזכותו אפשר להיכנס לחנות בשם הלקוח,
+          ולכן אין טעם לחפש אותו מתחת לדגלי ההטבות */}
+      {register ? (
+        <CustomerPasswordField
+          customer={customer}
+          editing={editing}
+          register={register}
+          setValue={setValue}
+          error={errors.password}
+        />
+      ) : null}
+
       <EditableField
         editing={editing}
         label="רשום לאתר"

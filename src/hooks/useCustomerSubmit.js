@@ -84,6 +84,11 @@ const useCustomerSubmit = (id, options = {}) => {
   // הסימון הזה כל רענון כזה היה דורס באמצע העריכה את מה שהמשתמש הקליד
   const filledForRef = useRef(null);
 
+  // הסיסמה כפי שהיא הוקראה מהרשומה למילוי הטופס. הסיסמה נשלחת רק כשהוקלד
+  // ערך אחר ממנה: ללקוח שקבע לעצמו סיסמה בחנות אין ערך גלוי, השדה מוצג ריק,
+  // ובלי ההשוואה הזו כל שמירה של הכרטיס הייתה מוחקת לו את הסיסמה
+  const passwordFromRecordRef = useRef("");
+
   // רשומת הלקוח שממנה נערכה השמירה האחרונה. נתוני העמוד מתרעננים בהשהיה,
   // ובלי הסימון הזה כניסה חוזרת לעריכה מיד אחרי שמירה הייתה ממלאת את הטופס
   // בערכים שלפני השמירה - ושמירה נוספת הייתה מחזירה אותם למסד
@@ -163,6 +168,14 @@ const useCustomerSubmit = (id, options = {}) => {
         },
       };
 
+      // הסיסמה נשלחת רק כשהיא באמת שונתה בטופס. השרת מצפין מחדש כל ערך
+      // שמגיע, ומחרוזת ריקה מבטלת ללקוח את הכניסה עם סיסמה - ולכן אסור
+      // לשלוח את השדה סתם בכל שמירה
+      const typedPassword = (data.password ?? "").trim();
+      if (typedPassword !== passwordFromRecordRef.current) {
+        customerData.password = typedPassword;
+      }
+
       // נתוני ההנהח"ש נשלחים רק ללקוח שיש לו כאלה. ללקוח שנרשם בחנות אין erp,
       // ושליחת שדות ריקים הייתה יוצרת לו אובייקט erp ומסמנת אותו בטעות
       // כלקוח שהגיע מיבוא האקסל
@@ -207,6 +220,12 @@ const useCustomerSubmit = (id, options = {}) => {
       setValue("floor", res?.address?.floor || "");
       setValue("entryCode", res?.address?.entryCode || "");
       setValue("postalCode", res?.address?.postalCode || "");
+
+      // הסיסמה נשמרת גם כטקסט גלוי (plainPassword), ולכן היא נטענת לשדה
+      // כמו כל שדה אחר. ללקוח שקבע אותה בעצמו בחנות אין ערך גלוי, והשדה
+      // נשאר ריק עד שתיקבע לו סיסמה חדשה מכאן
+      passwordFromRecordRef.current = res?.plainPassword || "";
+      setValue("password", passwordFromRecordRef.current);
 
       setCity(res?.address?.city || null);
       setIsCashier(Boolean(res.isCashier));
@@ -315,6 +334,9 @@ const useCustomerSubmit = (id, options = {}) => {
     register,
     handleSubmit,
     onSubmit,
+    // setValue נחוץ לכפתור "יצירת סיסמה אקראית" בכרטיס הלקוח, שכותב ערך
+    // לשדה בלי שהמשתמש הקליד אותו
+    setValue,
     errors,
     setImageUrl,
     imageUrl,

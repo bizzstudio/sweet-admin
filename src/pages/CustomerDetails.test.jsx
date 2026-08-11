@@ -63,6 +63,10 @@ const CUSTOMER = {
   inBlackList: false,
   isRegistered: true,
   shippingRewardIssued: false,
+  // הסיסמה נשמרת גם כטקסט גלוי, כדי שאפשר יהיה לראות אותה בכרטיס ולהיכנס
+  // איתה לחנות בשם הלקוח
+  plainPassword: "Benny2026",
+  hasPassword: true,
   welcomeGift: { isUsed: false, sku: "GIFT-1" },
   erp: {
     customerNumber: "1001",
@@ -430,6 +434,101 @@ describe("צפייה בלקוח — עריכה בתוך העמוד", () => {
     await flush();
 
     expect(CustomerServices.updateCustomer).not.toHaveBeenCalled();
+  });
+
+  it("הסיסמה מוסתרת בקריאה ונחשפת בלחיצה על העין", async () => {
+    await loadPage();
+
+    // מוסתרת כברירת מחדל, כדי שלא תישאר גלויה על המסך
+    expect(container.textContent).not.toContain("Benny2026");
+    expect(container.textContent).toContain("•".repeat(9));
+
+    const reveal = container.querySelector('button[title="הצגת הסיסמה"]');
+    await act(async () => {
+      reveal.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+    });
+    await flush();
+
+    expect(container.textContent).toContain("Benny2026");
+  });
+
+  it("שדה הסיסמה נטען עם הסיסמה השמורה, ושמירה בלי לגעת בו אינה שולחת אותה", async () => {
+    await loadPage();
+    await clickButton("עריכת לקוח");
+
+    expect(fieldByLabel("סיסמה לכניסה לחנות")?.value).toBe("Benny2026");
+
+    await typeInto(fieldByLabel("רחוב"), "רחוב אחר");
+    await clickButton("שמירה");
+
+    // השרת מצפין מחדש כל ערך שמגיע, ומחרוזת ריקה מבטלת את הסיסמה - ולכן
+    // שמירה שלא נגעה בשדה אינה שולחת אותו בכלל
+    const [, sentData] = CustomerServices.updateCustomer.mock.calls[0];
+    expect(sentData).not.toHaveProperty("password");
+  });
+
+  it("סיסמה שהוקלדה נשלחת לשרת", async () => {
+    await loadPage();
+    await clickButton("עריכת לקוח");
+
+    await typeInto(fieldByLabel("סיסמה לכניסה לחנות"), "Sweet1234");
+    await clickButton("שמירה");
+
+    const [, sentData] = CustomerServices.updateCustomer.mock.calls[0];
+    expect(sentData.password).toBe("Sweet1234");
+  });
+
+  it("כפתור יצירת סיסמה ממלא את השדה ושולח את מה שנוצר", async () => {
+    await loadPage();
+    await clickButton("עריכת לקוח");
+
+    const generate = container.querySelector(
+      'button[title="יצירת סיסמה אקראית"]'
+    );
+    await act(async () => {
+      generate.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+    });
+    await flush();
+
+    const generated = fieldByLabel("סיסמה לכניסה לחנות")?.value;
+    expect(generated).toMatch(/^[A-Za-z2-9]{8}$/);
+    // הסיסמה שנוצרה מוצגת מיד, כדי שאפשר יהיה למסור אותה ללקוח
+    expect(fieldByLabel("סיסמה לכניסה לחנות")?.type).toBe("text");
+
+    await clickButton("שמירה");
+    const [, sentData] = CustomerServices.updateCustomer.mock.calls[0];
+    expect(sentData.password).toBe(generated);
+  });
+
+  it("סיסמה קצרה מדי נחסמת ואינה נשלחת", async () => {
+    await loadPage();
+    await clickButton("עריכת לקוח");
+
+    await typeInto(fieldByLabel("סיסמה לכניסה לחנות"), "123");
+    await clickButton("שמירה");
+
+    expect(CustomerServices.updateCustomer).not.toHaveBeenCalled();
+    expect(container.textContent).toContain("לפחות 6 תווים");
+  });
+
+  it("ללקוח שקבע סיסמה בעצמו מוצג שהיא אינה ניתנת לצפייה", async () => {
+    CustomerServices.getCustomerDetails.mockResolvedValue({
+      ...CUSTOMER,
+      plainPassword: undefined,
+      hasPassword: true,
+    });
+
+    await loadPage();
+
+    expect(container.textContent).toContain("אינה ניתנת לצפייה");
+
+    // והשמירה לא מוחקת לו אותה: השדה מוצג ריק, ולכן הוא אינו נשלח
+    await clickButton("עריכת לקוח");
+    expect(fieldByLabel("סיסמה לכניסה לחנות")?.value).toBe("");
+    await clickButton("שמירה");
+
+    const [, sentData] = CustomerServices.updateCustomer.mock.calls[0];
+    expect(sentData).not.toHaveProperty("password");
   });
 
   it("ביטול מחזיר לקריאה ומבטל את מה שהוקלד", async () => {
