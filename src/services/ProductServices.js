@@ -11,6 +11,11 @@ const ProductServices = {
     );
   },
 
+  // רשימת קטלוג רזה (מק"ט, שם, מחיר) לבוררי מוצרים — בלי התמונות והתיאורים
+  getProductsLite: async () => {
+    return requests.get("/products/lite");
+  },
+
   getProductById: async (id) => {
     return requests.post(`/products/${id}`);
   },

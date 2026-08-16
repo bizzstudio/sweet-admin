@@ -11,6 +11,7 @@ import { Badge } from "@windmill/react-ui";
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
+  FiCreditCard,
   FiEdit,
   FiFileText,
   FiMail,
@@ -34,6 +35,7 @@ import CustomerErpPanel, {
   CustomerErpStats,
 } from "@/components/customer/CustomerErpPanel";
 import CustomerPriceListPanel from "@/components/customer/CustomerPriceListPanel";
+import CustomerBillingPanel from "@/components/billing/CustomerBillingPanel";
 import Loading from "@/components/preloader/Loading";
 import PageTitle from "@/components/Typography/PageTitle";
 import useAsync from "@/hooks/useAsync";
@@ -257,12 +259,22 @@ const CustomerDetails = () => {
                   icon={<FiEdit />}
                 />
                 {!editing ? (
-                  <Link
-                    to={`/customer-order/${customer._id}`}
-                    className="flex items-center gap-2 rounded-md border border-gray-200 px-5 py-2 text-sm font-medium leading-5 text-gray-600 transition-colors duration-150 hover:text-mainColor-dark dark:border-gray-600 dark:text-gray-300"
-                  >
-                    <FiShoppingBag /> {t("CustomerOrderList")}
-                  </Link>
+                  <>
+                    <Link
+                      to={`/customer-order/${customer._id}`}
+                      className="flex items-center gap-2 rounded-md border border-gray-200 px-5 py-2 text-sm font-medium leading-5 text-gray-600 transition-colors duration-150 hover:text-mainColor-dark dark:border-gray-600 dark:text-gray-300"
+                    >
+                      <FiShoppingBag /> {t("CustomerOrderList")}
+                    </Link>
+                    {/* המסמכים עצמם יושבים בעמוד נפרד ולא בכרטיס: הם נטענים
+                        בקריאה נפרדת ויכולים להיות מאות שורות */}
+                    <Link
+                      to={`/customer-documents/${customer._id}`}
+                      className="flex items-center gap-2 rounded-md border border-gray-200 px-5 py-2 text-sm font-medium leading-5 text-gray-600 transition-colors duration-150 hover:text-mainColor-dark dark:border-gray-600 dark:text-gray-300"
+                    >
+                      <FiFileText /> מסמכי לקוח
+                    </Link>
+                  </>
                 ) : null}
               </div>
             </div>
@@ -356,6 +368,14 @@ const CustomerDetails = () => {
               customerId={customer._id}
               customerName={fullName}
             />
+
+            <Panel title="הגדרות חיוב" icon={<FiCreditCard />} span>
+              <CustomerBillingPanel
+                customerId={customer._id}
+                billing={customer.billing}
+                editing={editing}
+              />
+            </Panel>
 
             {/* בעריכה הכרטיס מוצג גם כשאין הערות, כדי שאפשר יהיה להוסיף
                 אותן; בקריאה הוא נעלם ולא תופס מקום ריק */}

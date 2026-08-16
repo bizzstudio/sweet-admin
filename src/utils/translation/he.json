@@ -22,6 +22,8 @@
   "TagsPlaceholder": "תגיות מאמר (כתוב ולחץ אנטר להוספת תגית חדשה)",
   "Draft": "טיוטה",
   "Published": "פורסם",
+  "CategoryRequiresManualNote": "סחורה שנשקלת",
+  "CategoryRequiresManualNoteHint": "מוצרי הקטגוריה לא ייכנסו לתעודת המשלוח האוטומטית. על המשקל שנשקל בפועל מוציאים תעודה ידנית, והיא זו שתחויב בסוף החודש. חל גם על תת-הקטגוריות.",
   "Hidden": "מוסתר",
   "draft": "טיוטה",
   "published": "פורסם",
@@ -186,7 +188,7 @@
   "ParentCategory": "הורה הקטגוריה",
   "ChildCategory": "תת קטגוריה",
   "ProductType": "סוג המוצר",
-  "Unit": "יחידה (kg/pc/lb/ml/g...וכו')",
+  "Unit": "יחידה",
   "ShowingIn": "מציג ב",
   "SHOWING": "מציג ב",
   "Store": "חנות",
@@ -1346,7 +1348,6 @@
   "NoSalesForDate": "אין מכירות למוצרים בתאריך זה",
   "NoSalesForDateHint": "לא נמצאו הזמנות בתאריך הנבחר. נסה כפתור „היום” או „אתמול” או בחר תאריך אחר.",
   "ErrorLoadingSales": "שגיאה בטעינת הנתונים. נסה שוב.",
-  "Unit": "יחידה",
   "Refresh": "טען שוב",
   "IncomingOrders": "קליטת הזמנות",
   "Cancel": "ביטול",
@@ -1381,5 +1382,9 @@
   "date": "תאריך",
   "discount": "הנחה",
   "Paymentmethod": "אמצעי תשלום",
-  "sr": "מס׳"
+  "sr": "מס׳",
+  "DeliveryNotes": "תעודות משלוח",
+  "MonthlyBilling": "סגירת חודש",
+  "Quotes": "הצעות מחיר",
+  "InvoicesAndCollection": "חשבוניות וגבייה"
 }

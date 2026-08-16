@@ -64,6 +64,8 @@
   "Download": "Download",
   "SearchProduct": "Suche nach Produktnamen",
   "Published": "Published",
+  "CategoryRequiresManualNote": "Gewogene Ware",
+  "CategoryRequiresManualNoteHint": "Produkte dieser Kategorie erscheinen nicht auf dem automatischen Lieferschein. Das tatsächlich gewogene Gewicht wird auf einem manuellen Lieferschein erfasst und am Monatsende abgerechnet. Gilt auch für Unterkategorien.",
   "Unpublished": "Unpublished",
   "StatusSelling": "Status - Selling",
   "StatusStock": " Status - Out of Stock",
@@ -1022,5 +1024,9 @@
   "TawkChatWidgetID": "Tawk Chat Widget ID",
   "TawkChatPropertyID": "Tawk Chat Property ID",
   "EnableTawkChat": "Enable Tawk Chat",
-  "Favicon": "Favicon"
+  "Favicon": "Favicon",
+  "DeliveryNotes": "Lieferscheine",
+  "MonthlyBilling": "Monatsabrechnung",
+  "Quotes": "Angebote",
+  "InvoicesAndCollection": "Rechnungen & Inkasso"
 }

@@ -17,6 +17,9 @@ const Pickers = lazy(() => import("@/pages/Pickers"));
 const Customers = lazy(() => import("@/pages/Customers"));
 const CustomerOrder = lazy(() => import("@/pages/CustomerOrder"));
 const CustomerDetails = lazy(() => import("@/pages/CustomerDetails"));
+const CustomerDocumentsPage = lazy(() =>
+  import("@/pages/CustomerDocumentsPage")
+);
 const Orders = lazy(() => import("@/pages/Orders"));
 // ⛔ הזמנות קופה כבויות (הקוד נשמר) - להחזרה: להסיר את ההערה כאן ובמסלול למטה
 // const CashierOrders = lazy(() => import("@/pages/CashierOrders"));
@@ -44,6 +47,11 @@ const Popups = lazy(() => import("@/pages/Popups"));
 const Messages = lazy(() => import("@/pages/Messages"));
 const Blogs = lazy(() => import("@/pages/Blogs"));
 const Lotteries = lazy(() => import("@/pages/Lotteries"));
+const DeliveryNotes = lazy(() => import("@/pages/DeliveryNotes"));
+const MonthlyBilling = lazy(() => import("@/pages/MonthlyBilling"));
+const Quotes = lazy(() => import("@/pages/Quotes"));
+const BillingDocument = lazy(() => import("@/pages/BillingDocument"));
+const Invoices = lazy(() => import("@/pages/Invoices"));
 
 /*
 //  * ⚠ These are internal routes!
@@ -121,6 +129,10 @@ const routes = [
     component: CustomerOrder,
   },
   {
+    path: "/customer-documents/:id",
+    component: CustomerDocumentsPage,
+  },
+  {
     path: "/customer/:id",
     component: CustomerDetails,
   },
@@ -165,6 +177,31 @@ const routes = [
   {
     path: "/order/:id",
     component: OrderInvoice,
+  },
+  {
+    path: "/delivery-notes",
+    component: DeliveryNotes,
+  },
+  {
+    path: "/monthly-billing",
+    component: MonthlyBilling,
+  },
+  {
+    path: "/quotes",
+    component: Quotes,
+  },
+  {
+    path: "/invoices",
+    component: Invoices,
+  },
+  // מסמכים להדפסה — נבנים אצלנו, לא ב-iCount
+  {
+    path: "/quote/:id",
+    component: BillingDocument,
+  },
+  {
+    path: "/delivery-note/:id",
+    component: BillingDocument,
   },
   // ⛔ קופונים כבויים (לא נמחקו) - להחזרה: להסיר את ההערה
   // {

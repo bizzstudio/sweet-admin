@@ -22,6 +22,8 @@
   "TagsPlaceholder": "Blog Tags (Write then press enter to add new tag)",
   "Draft": "Draft",
   "Published": "Published",
+  "CategoryRequiresManualNote": "Weighed goods",
+  "CategoryRequiresManualNoteHint": "Products in this category are excluded from the automatic delivery note. A manual note carries the weight actually measured, and that is what gets billed at month end. Applies to sub-categories too.",
   "Hidden": "Hidden",
   "draft": "Draft",
   "published": "Published",
@@ -183,7 +185,7 @@
   "ParentCategory": "Parent Category",
   "ChildCategory": "Child Category",
   "ProductType": "Product Type",
-  "Unit": "Unit (kg/pc/lb/ml/g...etc)",
+  "Unit": "Unit",
   "ShowingIn": "Showing In",
   "Store": "Store",
   "ProductQuantity": "Product Quantity",
@@ -1298,7 +1300,6 @@
   "NoSalesForDate": "No product sales on this date",
   "NoSalesForDateHint": "No orders found for the selected date. Try \"Today\" or \"Yesterday\" or pick another date.",
   "ErrorLoadingSales": "Error loading data. Please try again.",
-  "Unit": "Unit",
   "Refresh": "Refresh",
   "Shiping": "Deliveries",
   "Deliveries": "Delivery destinations",
@@ -1312,5 +1313,9 @@
   "UndeliverableCity": "City (Hebrew)",
   "UndeliverableReason": "Reason",
   "UndeliverableReasonNoZone": "No delivery zone for city",
-  "UndeliverableReasonNoDays": "Zone exists but no delivery days"
+  "UndeliverableReasonNoDays": "Zone exists but no delivery days",
+  "DeliveryNotes": "Delivery Notes",
+  "MonthlyBilling": "Monthly Billing",
+  "Quotes": "Quotes",
+  "InvoicesAndCollection": "Invoices & Collection"
 }

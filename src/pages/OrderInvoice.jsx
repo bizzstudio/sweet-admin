@@ -30,6 +30,7 @@ import AddressFormat from "@/components/AddressFormat";
 import StatusHistoryCard from "@/components/invoice/StatusHistoryCard";
 import CollapsibleSection from "@/components/common/CollapsibleSection";
 import IngestionErrorBanner from "@/components/order/IngestionErrorBanner";
+import DeliveryNoteAction from "@/components/billing/DeliveryNoteAction";
 import { SidebarContext } from "@/context/SidebarContext";
 
 const OrderInvoice = () => {
@@ -385,6 +386,8 @@ const OrderInvoice = () => {
           />
         </div>
       )} */}
+
+      {!loading && <DeliveryNoteAction orderId={id} customerId={data?.user} />}
     </>
   );
 };

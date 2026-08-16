@@ -18,6 +18,9 @@ const useCategorySubmit = (id, data) => {
   const [children, setChildren] = useState([]);
   const [language, setLanguage] = useState(lang);
   const [published, setPublished] = useState(true);
+  // סחורה שנשקלת: לא נכנסת לתעודת המשלוח האוטומטית ומוקלדת ידנית עם
+  // המשקל בפועל. ראו lib/billing/manualItems בשרת
+  const [requiresManualNote, setRequiresManualNote] = useState(false);
   const [selectCategoryName, setSelectCategoryName] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -65,6 +68,7 @@ const useCategorySubmit = (id, data) => {
         icon: imageUrl,
         coloredIcon: coloredImageUrl,
         status: published ? "show" : "hide",
+        requiresManualNote,
         lang: language,
       };
 
@@ -114,6 +118,7 @@ const useCategorySubmit = (id, data) => {
       setImageUrl("");
       setColoredImageUrl("");
       setPublished(true);
+      setRequiresManualNote(false);
       clearErrors("name");
       clearErrors("slug");
       clearErrors("parentId");
@@ -150,6 +155,7 @@ const useCategorySubmit = (id, data) => {
             setImageUrl(res.icon);
             setColoredImageUrl(res.coloredIcon);
             setPublished(res.status === "show" ? true : false);
+            setRequiresManualNote(Boolean(res.requiresManualNote));
           }
         } catch (err) {
           notifyError(err ? err.response.data.message : err.message);
@@ -169,6 +175,8 @@ const useCategorySubmit = (id, data) => {
     setChildren,
     published,
     setPublished,
+    requiresManualNote,
+    setRequiresManualNote,
     checked,
     setChecked,
     isSubmitting,

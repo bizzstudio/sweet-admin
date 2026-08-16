@@ -91,6 +91,29 @@ const sidebar = [
   },
 
   {
+    icon: IoNewspaperOutline,
+    name: "Billing",
+    routes: [
+      {
+        path: "/delivery-notes",
+        name: "DeliveryNotes",
+      },
+      {
+        path: "/monthly-billing",
+        name: "MonthlyBilling",
+      },
+      {
+        path: "/invoices",
+        name: "InvoicesAndCollection",
+      },
+      {
+        path: "/quotes",
+        name: "Quotes",
+      },
+    ],
+  },
+
+  {
     path: "/pickers",
     icon: FiUserCheck,
     name: "Pickers",

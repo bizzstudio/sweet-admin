@@ -40,6 +40,8 @@ const CategoryDrawer = ({ id, data }) => {
     setColoredImageUrl,
     published,
     setPublished,
+    requiresManualNote,
+    setRequiresManualNote,
     setChecked,
     selectCategoryName,
     setSelectCategoryName,
@@ -223,6 +225,20 @@ const CategoryDrawer = ({ id, data }) => {
                   handleProcess={setPublished}
                   processOption={published}
                 />
+              </div>
+            </div>
+
+            {/* --- סחורה שנשקלת --- */}
+            <div className="grid grid-cols-6 gap-1 mb-6">
+              <LabelArea label={t('CategoryRequiresManualNote')} />
+              <div className="col-span-6">
+                <SwitchToggle
+                  handleProcess={setRequiresManualNote}
+                  processOption={requiresManualNote}
+                />
+                <p className="text-xs text-gray-500 mt-2 leading-relaxed">
+                  {t('CategoryRequiresManualNoteHint')}
+                </p>
               </div>
             </div>
           </div>
