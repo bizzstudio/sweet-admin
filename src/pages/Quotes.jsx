@@ -212,20 +212,23 @@ const Quotes = () => {
 
             <p className="text-sm font-medium mb-2">פריטים</p>
             {rows.map((row, i) => (
-              <div key={i} className="flex gap-2 mb-2 items-center">
+              <div key={i} className="flex flex-wrap gap-2 mb-2 items-center">
                 <ProductPicker
-                  className="flex-1 min-w-0"
+                  className="flex-1 min-w-[220px]"
                   value={row.sku}
                   onChange={(sku) => updateRow(i, "sku", sku)}
                 />
-                <Input
-                  className="w-28"
-                  type="number"
-                  min="1"
-                  placeholder="כמות"
-                  value={row.quantity}
-                  onChange={(e) => updateRow(i, "quantity", e.target.value)}
-                />
+                {/* רוחב קבוע על העוטף ולא על ה-Input: ל-Input של Windmill יש
+                    w-full בבסיס, והוא גובר על w-28 ומועך את בורר המוצר */}
+                <div className="w-28">
+                  <Input
+                    type="number"
+                    min="1"
+                    placeholder="כמות"
+                    value={row.quantity}
+                    onChange={(e) => updateRow(i, "quantity", e.target.value)}
+                  />
+                </div>
                 <button
                   type="button"
                   onClick={() => removeRow(i)}
