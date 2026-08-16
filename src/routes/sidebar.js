@@ -113,19 +113,21 @@ const sidebar = [
     ],
   },
 
-  {
-    path: "/pickers",
-    icon: FiUserCheck,
-    name: "Pickers",
-  },
+  // ⛔ "מלקטים" מוסתר מהתפריט (הדף עצמו נשאר) - להחזרה: להסיר את ההערה
+  // {
+  //   path: "/pickers",
+  //   icon: FiUserCheck,
+  //   name: "Pickers",
+  // },
 
+  // ⛔ "צפייה באפליקציית הליקוט" מוסתר מהתפריט - להחזרה: להסיר את ההערה
   // קישור חיצוני לאפליקציית הליקוט. אין לו path: הכתובת נקראת מ-
   // VITE_APP_LIKUTAPP_DOMAIN ב-SidebarContent, כמו הקישור "צפייה בחנות".
-  {
-    icon: FiClipboard,
-    name: "ViewLikutApp",
-    outside: "likutApp",
-  },
+  // {
+  //   icon: FiClipboard,
+  //   name: "ViewLikutApp",
+  //   outside: "likutApp",
+  // },
 
   // {
   //   path: "/lotteries",
