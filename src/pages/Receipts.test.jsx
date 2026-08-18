@@ -15,7 +15,12 @@ import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/services/BillingServices", () => ({
-  default: { getReceipts: vi.fn() },
+  // getIcountMode נדרש בגלל DemoModeBanner שיושב על כל מסכי החיוב. בלעדיו
+  // הבאנר קורא לפונקציה שאינה קיימת במוק, וכל הקובץ נופל עוד לפני הבדיקה
+  default: {
+    getReceipts: vi.fn(),
+    getIcountMode: vi.fn(() => Promise.resolve({ mode: "live" })),
+  },
 }));
 
 vi.mock("@/utils/toast", () => ({

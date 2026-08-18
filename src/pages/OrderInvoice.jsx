@@ -2,12 +2,14 @@
 import dayjs from "dayjs";
 import { useParams } from "react-router";
 import ReactToPrint from "react-to-print";
-import React, { useContext, useEffect, useRef } from "react";
+import React, { useContext, useEffect, useRef, useState } from "react";
 import { FiPrinter } from "react-icons/fi";
 import { IoCloudDownloadOutline } from "react-icons/io5";
 import { FiClock } from "react-icons/fi";
+import { FiEdit } from "react-icons/fi";
 import { FiRefreshCw } from "react-icons/fi";
 import {
+  Button,
   TableCell,
   TableHeader,
   Table,
@@ -31,6 +33,7 @@ import StatusHistoryCard from "@/components/invoice/StatusHistoryCard";
 import CollapsibleSection from "@/components/common/CollapsibleSection";
 import IngestionErrorBanner from "@/components/order/IngestionErrorBanner";
 import DeliveryNoteAction from "@/components/billing/DeliveryNoteAction";
+import OrderItemsEditor from "@/components/order/OrderItemsEditor";
 import { SidebarContext } from "@/context/SidebarContext";
 
 const OrderInvoice = () => {
@@ -39,6 +42,7 @@ const OrderInvoice = () => {
   const { setIsUpdate } = useContext(SidebarContext);
   const { id } = useParams();
   const printRef = useRef();
+  const [editing, setEditing] = useState(false);
 
   const { data, loading, error } = useAsync(() =>
     OrderServices.getOrderById(id)
@@ -267,28 +271,55 @@ const OrderInvoice = () => {
           ) : error ? (
             <span className="text-center mx-auto text-red-500">{error}</span>
           ) : (
-            <TableContainer className="my-8">
-              <Table>
-                <TableHeader>
-                  <tr>
-                    <TableCell>{t("Sr")}</TableCell>
-                    <TableCell>Product Title</TableCell>
-                    <TableCell className="text-center">
-                      {t("Quantity")}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {t("ItemPrice")}
-                    </TableCell>
-                    <TableCell className="text-right">{t("Amount")}</TableCell>
-                  </tr>
-                </TableHeader>
-                <Invoice
-                  data={data}
-                  currency={currency}
-                  getNumberTwo={getNumberTwo}
+            <>
+              {/* עריכת הפריטים מרעננת גם את תעודת המשלוח, ולכן היא כאן ולא
+                  במסך נפרד: מי שמתקן כמות רואה מיד את התעודה שמתחת */}
+              {editing ? (
+                <OrderItemsEditor
+                  // ה-_id מהמסמך ולא הפרמטר מה-URL: המסלול הזה מקבל גם מספר
+                  // חשבונית (getOrderById תומך בשניהם), ומסלול העדכון דורש מזהה
+                  orderId={data?._id || id}
+                  order={data}
+                  onCancel={() => setEditing(false)}
+                  onSaved={() => {
+                    setEditing(false);
+                    setIsUpdate(true);
+                  }}
                 />
-              </Table>
-            </TableContainer>
+              ) : (
+                <>
+                  <div className="flex justify-end mt-6">
+                    <Button size="small" layout="outline" onClick={() => setEditing(true)}>
+                      <FiEdit className="ml-2" />
+                      עריכת פריטים
+                    </Button>
+                  </div>
+
+                  <TableContainer className="my-4">
+                    <Table>
+                      <TableHeader>
+                        <tr>
+                          <TableCell>{t("Sr")}</TableCell>
+                          <TableCell>Product Title</TableCell>
+                          <TableCell className="text-center">
+                            {t("Quantity")}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {t("ItemPrice")}
+                          </TableCell>
+                          <TableCell className="text-right">{t("Amount")}</TableCell>
+                        </tr>
+                      </TableHeader>
+                      <Invoice
+                        data={data}
+                        currency={currency}
+                        getNumberTwo={getNumberTwo}
+                      />
+                    </Table>
+                  </TableContainer>
+                </>
+              )}
+            </>
           )}
         </div>
 
@@ -387,7 +418,16 @@ const OrderInvoice = () => {
         </div>
       )} */}
 
-      {!loading && <DeliveryNoteAction orderId={id} customerId={data?.user} />}
+      {/* key על updatedAt: פאנל התעודה טוען את עצמו פעם אחת לפי orderId,
+          ובלי הרכבה מחדש הוא היה מציג את התעודה כפי שהייתה לפני עריכת
+          הפריטים */}
+      {!loading && (
+        <DeliveryNoteAction
+          key={data?.updatedAt}
+          orderId={id}
+          customerId={data?.user}
+        />
+      )}
     </>
   );
 };

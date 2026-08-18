@@ -87,6 +87,12 @@ const OrderServices = {
     return requests.put(`/orders/${id}`, body, headers);
   },
 
+  // עריכת שורות ההזמנה. body: { items: [{ _id?, sku?, quantity }],
+  // shippingCost?, discount?, allowLockedNote? }
+  updateOrderItems: async (id, body) => {
+    return requests.put(`/orders/${id}/items`, body);
+  },
+
   deleteOrder: async (id) => {
     return requests.delete(`/orders/${id}`);
   },

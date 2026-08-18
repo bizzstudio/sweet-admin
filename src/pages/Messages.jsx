@@ -9,9 +9,20 @@ import Cookies from "js-cookie";
 
 // Internal import
 import PageTitle from "@/components/Typography/PageTitle";
-import { notifySuccess } from "@/utils/toast";
+import { notifySuccess, notifyError } from "@/utils/toast";
 import Loading from "@/components/preloader/Loading";
 import Success from "@/components/success/Success";
+
+// קריאת טוקן האדמין מהעוגייה. משמש גם ללחיצת היד של הסוקט וגם לקריאות ה-HTTP,
+// ששניהם מוגנים באותו שער בשרת הווצאפ.
+const readAdminToken = () => {
+  try {
+    const adminInfo = Cookies.get("adminInfo");
+    return adminInfo ? JSON.parse(adminInfo).token : null;
+  } catch {
+    return null;
+  }
+};
 
 const Messages = () => {
   const { t } = useTranslation();
@@ -20,6 +31,8 @@ const Messages = () => {
   const [isConnected, setIsConnected] = useState(false); // Connection state
   const [isAuthenticating, setIsAuthenticating] = useState(false); // Authenticating state
   const [qrCode, setQrCode] = useState(null); // QR code state
+  const [isLoggingOut, setIsLoggingOut] = useState(false); // ניתוק בתהליך
+  const [connectionError, setConnectionError] = useState(null); // כשל בחיבור לשרת
 
   // חיבור לוואטסאפ או שליפת קוד קיו-אר
   useEffect(() => {
@@ -43,13 +56,8 @@ const Messages = () => {
     // ‏/status ו-/logout מוגנים בשרת הווצאפ. הדשבורד מזדהה עם טוקן האדמין
     // שלו, כדי שה-API key של שרת-לשרת לא יישב ב-bundle של הדפדפן.
     const authHeader = () => {
-      try {
-        const adminInfo = Cookies.get("adminInfo");
-        const token = adminInfo ? JSON.parse(adminInfo).token : null;
-        return token ? { Authorization: `Bearer ${token}` } : {};
-      } catch {
-        return {};
-      }
+      const token = readAdminToken();
+      return token ? { Authorization: `Bearer ${token}` } : {};
     };
 
     const checkStatus = async () => {
@@ -74,6 +82,8 @@ const Messages = () => {
     // websocket-only נכשל בשקט ו-QR פשוט לא מגיע למסך.
     const socketOptions = {
       transports: ["polling", "websocket"],
+      // שרת הווצאפ מאמת את לחיצת היד. בלי הטוקן החיבור נדחה ולא יגיע QR.
+      auth: { token: readAdminToken() },
     };
 
     if (socketPath) {
@@ -85,12 +95,19 @@ const Messages = () => {
 
     socket.on('connect', () => {
       console.log('Connected to sweet-whatsapp server');
+      setConnectionError(null);
       socket.emit("init-whatsapp");
     });
 
-    // טיפול בשגיאות
+    // טיפול בשגיאות. סוקט שנדחה משמעו שלא יגיע QR לעולם, ובלי ההודעה הזו
+    // המסך היה נתקע על "ממתין לקוד QR" בלי שום רמז למה.
     socket.on('connect_error', (error) => {
       console.error('Connection error:', error);
+      setConnectionError(
+        error.message === "אין הרשאה"
+          ? "אין הרשאה להתחבר לשרת הוואטסאפ — יש להתנתק ולהתחבר מחדש לפאנל"
+          : "אין תקשורת עם שרת הוואטסאפ"
+      );
     });
 
     socket.on('disconnect', (reason) => {
@@ -132,27 +149,28 @@ const Messages = () => {
 
   // Handle logout
   const handleLogout = async () => {
+    if (isLoggingOut) return; // לחיצה כפולה שולחת שתי בקשות ניתוק במקביל
     const confirmLogout = confirm(t("logoutWhatsApp")); // הודעת אישור
     if (!confirmLogout) {
       return; // אם המשתמש בחירת לא, הפעולה מתבטלת
     }
 
+    setIsLoggingOut(true);
     try {
       const link = import.meta.env.VITE_APP_WHATSAPP_SOCKET_URL;
       const httpPrefix = import.meta.env.VITE_APP_WHATSAPP_PATH_PREFIX || "";
 
-      let token = null;
-      try {
-        const adminInfo = Cookies.get("adminInfo");
-        token = adminInfo ? JSON.parse(adminInfo).token : null;
-      } catch {
-        token = null;
-      }
+      const token = readAdminToken();
 
       const response = await axios.post(
         `${link}${httpPrefix}/logout`,
         {},
-        { headers: token ? { Authorization: `Bearer ${token}` } : {} }
+        {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          // בלי תקרה בקשה תקועה נשארת פתוחה והמסך פשוט לא מגיב.
+          // גבוה מ-LOGOUT_TIMEOUT_MS בשרת, כדי שתשובה אמיתית תנצח.
+          timeout: 20000,
+        }
       );
       if (response.data.success) {
         setIsConnected(false); // עדכן את הסטטוס
@@ -160,9 +178,28 @@ const Messages = () => {
         notifySuccess(response.data.message); // הצגת הודעה למשתמש
       } else {
         console.error("Failed to logout:", response.data.message);
+        notifyError(response.data.message || "ההתנתקות נכשלה");
       }
     } catch (error) {
+      // בלי ההודעה הזו כישלון (למשל 403 על הרשאות) נראה למשתמש כמו כלום —
+      // לוחצים "אישור" והמסך פשוט לא משתנה.
       console.error("Error during logout:", error.message);
+      const status = error.response?.status;
+      const messageByStatus = {
+        403: "אין הרשאה לנתק את הבוט — יש להתחבר עם משתמש ניהולי",
+        429: "יותר מדי ניסיונות — יש להמתין כ-15 דקות ולנסות שוב",
+      };
+      notifyError(
+        messageByStatus[status] ||
+          error.response?.data?.message ||
+          (error.code === "ECONNABORTED"
+            ? "שרת הוואטסאפ לא הגיב בזמן — יש לרענן ולבדוק את הסטטוס"
+            : status
+              ? `ההתנתקות נכשלה (${status})`
+              : "ההתנתקות נכשלה — אין תקשורת עם שרת הוואטסאפ")
+      );
+    } finally {
+      setIsLoggingOut(false);
     }
   };
 
@@ -180,9 +217,10 @@ const Messages = () => {
             {isConnected &&
               <button
                 onClick={handleLogout}
-                className="text-sm underline mr-auto shadow-none"
+                disabled={isLoggingOut}
+                className="text-sm underline mr-auto shadow-none disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {t("LogoutBot")}
+                {isLoggingOut ? "מנתק…" : t("LogoutBot")}
               </button>}
           </div>
           <hr className="md:mb-6 mb-3" />
@@ -208,7 +246,11 @@ const Messages = () => {
                       </ol>
                     </div>
 
-                    {qrCode ? (
+                    {connectionError ? (
+                      <p className="bg-white rounded-md text-red-600 font-bold w-[246px] min-h-[246px] border border-red-300 flex items-center justify-center p-4 text-center">
+                        {connectionError}
+                      </p>
+                    ) : qrCode ? (
                       <div className="flex flex-col items-center">
                         <div className="bg-white p-2 rounded-md">
                           <QRCodeCanvas value={qrCode} size={230} />
