@@ -374,6 +374,9 @@ const CustomerDetails = () => {
                 customerId={customer._id}
                 billing={customer.billing}
                 editing={editing}
+                // הכתובת שאליה יישלחו החשבוניות כשאין כתובת ייעודית —
+                // הפאנל מציג אותה כדי שברור לאן הן הולכות בפועל
+                fallbackEmail={customer.email}
               />
             </Panel>
 

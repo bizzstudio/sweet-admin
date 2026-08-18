@@ -147,8 +147,9 @@ const DeliveryNoteAction = ({ orderId, customerId }) => {
               <div>
                 <p className="font-semibold">טרם הופקה תעודת משלוח</p>
                 <p className="text-sm text-gray-500">
-                  התעודה מצלמת את מה שנמסר ללקוח, ונסגרת לחשבונית בסוף החודש.
-                  סחורה שנשקלת אינה נכנסת אליה.
+                  התעודה נוצרת אוטומטית עם קליטת ההזמנה, ומתעדכנת איתה כל עוד לא
+                  חויבה. אם היא חסרה כאן — ההפקה נכשלה, או שכל ההזמנה היא סחורה
+                  נשקלת שעליה מקלידים תעודה ידנית.
                 </p>
               </div>
               <Button onClick={create} disabled={creating}>

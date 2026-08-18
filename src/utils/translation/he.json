@@ -1386,5 +1386,7 @@
   "DeliveryNotes": "תעודות משלוח",
   "MonthlyBilling": "סגירת חודש",
   "Quotes": "הצעות מחיר",
-  "InvoicesAndCollection": "חשבוניות וגבייה"
+  "InvoicesAndCollection": "חשבוניות וגבייה",
+  "Receipts": "קבלות",
+  "IcountDemo": "הדגמת iCount"
 }

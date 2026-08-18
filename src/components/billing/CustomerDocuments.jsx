@@ -1,6 +1,6 @@
 // src/components/billing/CustomerDocuments.jsx
 //
-// כל המסמכים של הלקוח: תעודות משלוח, חשבוניות והצעות מחיר.
+// כל המסמכים של הלקוח: תעודות משלוח, חשבוניות, קבלות והצעות מחיר.
 //
 // החלוקה היא בטאבים לפי סוג מסמך: מי שמחפש חשבונית לא צריך לגלול מעל
 // שלוש רשימות. מונה על כל טאב נותן את התמונה המלאה בלי להיכנס אליו.
@@ -72,6 +72,11 @@ const Tab = ({ id, title, count, active, onSelect }) => (
 
 const Empty = ({ text }) => <p className="py-6 text-center text-sm text-gray-400">{text}</p>;
 
+// כתובות המסמכים מגיעות מ-iCount ונשמרות אצלנו. מוצגות כקישור רק אם הן
+// http(s) — ערך אחר (javascript:, נתון פגום) יוצג כטקסט ולא כקישור לחיץ
+const externalHref = (url) =>
+  /^https?:\/\//i.test(String(url || "")) ? String(url) : null;
+
 /**
  * @param {object} props
  * @param {object} props.docs - תשובת getCustomerDocuments. העמוד מוודא את
@@ -80,6 +85,11 @@ const Empty = ({ text }) => <p className="py-6 text-center text-sm text-gray-400
  */
 const CustomerDocuments = ({ docs, customerId }) => {
   const { deliveryNotes, invoices, quotes } = docs;
+
+  // ברירת מחדל ולא שדה מחייב: הפאנל עשוי לרוץ מול שרת שטרם עודכן, ואז
+  // עדיף טאב קבלות ריק על מסך שנופל. הבדיקה ב-CustomerDocumentsPage
+  // בכוונה אינה דורשת את השדה מאותה סיבה
+  const receipts = docs.receipts || { items: [], total: 0, paidEstimate: 0 };
 
   // count הוא total מהשרת (מה שהמונה על הטאב אומר), ו-items הוא מה
   // שמוצג בפועל. היום הם זהים, אבל הקישור "פתיחה במסך מלא" ומצב "ריק"
@@ -92,6 +102,13 @@ const CustomerDocuments = ({ docs, customerId }) => {
       items: invoices.items,
       count: invoices.total ?? invoices.items.length,
       to: `/invoices?customer=${customerId}`,
+    },
+    {
+      id: "receipts",
+      title: "קבלות",
+      items: receipts.items,
+      count: receipts.total ?? receipts.items.length,
+      to: `/receipts?customer=${customerId}`,
     },
     {
       id: "notes",
@@ -187,9 +204,9 @@ const CustomerDocuments = ({ docs, customerId }) => {
                 key={inv.docNum}
                 className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm"
               >
-                {inv.icountDocUrl ? (
+                {externalHref(inv.icountDocUrl) ? (
                   <a
-                    href={inv.icountDocUrl}
+                    href={externalHref(inv.icountDocUrl)}
                     target="_blank"
                     rel="noreferrer"
                     className="font-mono font-semibold text-blue-600 hover:underline inline-flex items-center gap-1"
@@ -211,6 +228,49 @@ const CustomerDocuments = ({ docs, customerId }) => {
                 {inv.credits?.length > 0 && (
                   <span className="text-xs text-red-600">{inv.credits.length} זיכויים</span>
                 )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* ── קבלות ── */}
+      <div
+        role="tabpanel"
+        id="doc-panel-receipts"
+        aria-labelledby="doc-tab-receipts"
+        hidden={active !== "receipts"}
+      >
+        {receipts.items.length === 0 ? (
+          <Empty text="טרם נרשמו תשלומים ללקוח זה" />
+        ) : (
+          <div className="space-y-1">
+            {receipts.items.map((r) => (
+              <div
+                key={r.docNum}
+                className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm"
+              >
+                {externalHref(r.docUrl) ? (
+                  <a
+                    href={externalHref(r.docUrl)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="font-mono font-semibold text-blue-600 hover:underline inline-flex items-center gap-1"
+                  >
+                    {r.docNum} <FiExternalLink />
+                  </a>
+                ) : (
+                  <span className="font-mono font-semibold">{r.docNum}</span>
+                )}
+                <span className="text-gray-500">{hebDate(r.paidAt)}</span>
+                <span>{shekel(r.grossEstimate)} ₪</span>
+                {/* על איזו חשבונית שולם — זו השאלה שבגללה פותחים את הטאב */}
+                {(r.invoices || []).length > 0 && (
+                  <span className="text-xs text-gray-500">
+                    חשבונית {r.invoices.map((i) => i.docNum).join(", ")}
+                  </span>
+                )}
+                {r.hasCredit && <Badge type="warning">זוכתה</Badge>}
               </div>
             ))}
           </div>

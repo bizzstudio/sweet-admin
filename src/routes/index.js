@@ -52,6 +52,8 @@ const MonthlyBilling = lazy(() => import("@/pages/MonthlyBilling"));
 const Quotes = lazy(() => import("@/pages/Quotes"));
 const BillingDocument = lazy(() => import("@/pages/BillingDocument"));
 const Invoices = lazy(() => import("@/pages/Invoices"));
+const IcountDemo = lazy(() => import("@/pages/IcountDemo"));
+const Receipts = lazy(() => import("@/pages/Receipts"));
 
 /*
 //  * ⚠ These are internal routes!
@@ -193,6 +195,15 @@ const routes = [
   {
     path: "/invoices",
     component: Invoices,
+  },
+  {
+    path: "/receipts",
+    component: Receipts,
+  },
+  // מסך הדגמה — פעיל רק כשהשרת מחובר לחשבון דמו (ICOUNT_MODE=demo)
+  {
+    path: "/icount-demo",
+    component: IcountDemo,
   },
   // מסמכים להדפסה — נבנים אצלנו, לא ב-iCount
   {

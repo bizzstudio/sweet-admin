@@ -15,10 +15,15 @@ import BillingServices from "@/services/BillingServices";
 import CustomerServices from "@/services/CustomerServices";
 import { notifyError, notifySuccess } from "@/utils/toast";
 
-const CustomerBillingPanel = ({ customerId, billing, editing = false }) => {
+// כתובת שנוצרה בייבוא ללקוח שלא היה לו מייל. היא נראית תקינה אבל אין
+// מאחוריה תיבה, והשרת לא ישלח אליה — עדיף שזה ייאמר במסך ולא יתגלה בסוף החודש.
+const isPlaceholderEmail = (email) => /@import\.local$/i.test(String(email || ""));
+
+const CustomerBillingPanel = ({ customerId, billing, editing = false, fallbackEmail }) => {
   const [split, setSplit] = useState(Boolean(billing?.splitInvoiceByCategory));
   const [mode, setMode] = useState(billing?.mode || "monthly");
   const [clientId, setClientId] = useState(billing?.icountClientId || null);
+  const [invoiceEmail, setInvoiceEmail] = useState(billing?.invoiceEmail || "");
   const [syncing, setSyncing] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -26,7 +31,12 @@ const CustomerBillingPanel = ({ customerId, billing, editing = false }) => {
     setSplit(Boolean(billing?.splitInvoiceByCategory));
     setMode(billing?.mode || "monthly");
     setClientId(billing?.icountClientId || null);
+    setInvoiceEmail(billing?.invoiceEmail || "");
   }, [billing]);
+
+  // הכתובת שאליה החשבונית תישלח בפועל, לפי אותו סדר עדיפות שבשרת
+  const effectiveEmail = (invoiceEmail || fallbackEmail || "").trim();
+  const noDeliverableEmail = !effectiveEmail || isPlaceholderEmail(effectiveEmail);
 
   const sync = async () => {
     setSyncing(true);
@@ -82,6 +92,27 @@ const CustomerBillingPanel = ({ customerId, billing, editing = false }) => {
           ? "מעכשיו הלקוח יקבל חשבונית מס עם כל משלוח"
           : "מעכשיו הלקוח יקבל תעודות משלוח וחשבונית מרכזת בסוף החודש",
     });
+  };
+
+  /**
+   * שמירת המייל לחשבוניות ב-blur. נשלח רק כשהערך באמת השתנה — יציאה
+   * מהשדה בלי לגעת בו אינה סיבה לפנות לשרת.
+   */
+  const saveInvoiceEmail = async () => {
+    const previous = billing?.invoiceEmail || "";
+    // אותו נרמול כמו בשרת. בלעדיו ההשוואה שאחרי השמירה ("מה שחזר שווה למה
+    // ששלחתי") הייתה נכשלת על אות גדולה, והמסך היה מכריז על שמירה שנכשלה
+    const next = invoiceEmail.trim().toLowerCase();
+    if (next === previous) return;
+
+    const ok = await saveField("invoiceEmail", next, {
+      onRollback: () => setInvoiceEmail(previous),
+      successText: next
+        ? `החשבוניות יישלחו אל ${next}`
+        : "החשבוניות יישלחו לכתובת הרגילה של הלקוח",
+    });
+    // נרמול לצורה שנשמרה בפועל, כדי שהשדה לא יציג רווחים שכבר לא קיימים
+    if (ok) setInvoiceEmail(next);
   };
 
   const toggleSplit = async (checked) => {
@@ -204,6 +235,42 @@ const CustomerBillingPanel = ({ customerId, billing, editing = false }) => {
         </div>
       )}
 
+      {/* ── המייל שאליו נשלחות החשבוניות ──
+          שדה נפרד מכתובת הכניסה לחנות, שהיא ייחודית במסד: הנהלת חשבונות
+          אחת שמשרתת כמה לקוחות לא יכולה להופיע בה פעמיים. שמירה ב-blur
+          ולא בכל הקלדה, אחרת כל אות הייתה בקשה לשרת */}
+      {editing ? (
+        <div>
+          <p className="text-sm font-medium mb-1">מייל לשליחת חשבוניות</p>
+          <input
+            type="email"
+            dir="ltr"
+            value={invoiceEmail}
+            disabled={saving}
+            placeholder={fallbackEmail || "example@company.co.il"}
+            onChange={(e) => setInvoiceEmail(e.target.value)}
+            onBlur={saveInvoiceEmail}
+            className="w-full text-sm px-3 py-2 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700"
+          />
+          <span className="block text-xs text-gray-500 mt-1">
+            אפשר להשאיר ריק — אז החשבונית נשלחת לכתובת הרגילה של הלקוח
+            {fallbackEmail ? ` (${fallbackEmail})` : ""}. אותה כתובת יכולה
+            לשמש כמה לקוחות, למשל הנהלת חשבונות משותפת.
+          </span>
+        </div>
+      ) : (
+        <div>
+          <p className="text-sm font-medium">מייל לשליחת חשבוניות</p>
+          <p className="text-sm text-gray-600 dark:text-gray-300" dir="ltr">
+            {noDeliverableEmail ? "—" : effectiveEmail}
+          </p>
+          {noDeliverableEmail && (
+            <p className="text-xs text-red-600 dark:text-red-400">
+              אין ללקוח כתובת תקינה — החשבונית תופק אך לא תישלח אליו.
+            </p>
+          )}
+        </div>
+      )}
     </div>
   );
 };

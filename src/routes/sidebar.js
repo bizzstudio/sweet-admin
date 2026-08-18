@@ -107,8 +107,16 @@ const sidebar = [
         name: "InvoicesAndCollection",
       },
       {
+        path: "/receipts",
+        name: "Receipts",
+      },
+      {
         path: "/quotes",
         name: "Quotes",
+      },
+      {
+        path: "/icount-demo",
+        name: "IcountDemo",
       },
     ],
   },

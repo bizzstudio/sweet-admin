@@ -1028,5 +1028,7 @@
   "DeliveryNotes": "Lieferscheine",
   "MonthlyBilling": "Monatsabrechnung",
   "Quotes": "Angebote",
-  "InvoicesAndCollection": "Rechnungen & Inkasso"
+  "InvoicesAndCollection": "Rechnungen & Inkasso",
+  "Receipts": "Quittungen",
+  "IcountDemo": "iCount Demo"
 }

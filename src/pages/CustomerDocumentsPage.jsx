@@ -93,7 +93,7 @@ const CustomerDocumentsPage = () => {
             {loading ? "טוען..." : fullName || "לקוח"}
           </h2>
           <p className="text-sm text-gray-500 dark:text-gray-400">
-            חשבוניות, תעודות משלוח והצעות מחיר
+            חשבוניות, קבלות, תעודות משלוח והצעות מחיר
           </p>
         </div>
 

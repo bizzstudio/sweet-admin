@@ -10,6 +10,36 @@ const BillingServices = {
     return requests.post(`/billing/icount/sync-customer/${customerId}`, {});
   },
 
+  // המצב הפעיל בלבד. בניגוד ל-getIcountStatus הוא אינו מתחבר ל-iCount,
+  // ולכן מתאים לבאנר שנטען בכל מסך חיוב
+  getIcountMode: async () => {
+    return requests.get("/billing/icount/mode");
+  },
+
+  // --- דמו ---
+  // כל אלה מחזירים 409 כשהשרת מחובר לחשבון האמיתי
+  getDemoOptions: async () => {
+    return requests.get("/billing/demo/options");
+  },
+
+  // deliveryNoteId — הפקה על בסיס תעודה קיימת (התעודה עצמה לא משתנה);
+  // customerId — הפקה על סל ההדגמה הקבוע
+  createDemoInvoice: async ({ deliveryNoteId, customerId }) => {
+    return requests.post("/billing/demo/invoice", { deliveryNoteId, customerId });
+  },
+
+  getDemoInvoiceTotal: async (docNum) => {
+    return requests.get(`/billing/demo/invoice/${docNum}/total`);
+  },
+
+  createDemoCredit: async ({ docNum, reason }) => {
+    return requests.post("/billing/demo/credit", { docNum, reason });
+  },
+
+  createDemoReceipt: async ({ docNum, method }) => {
+    return requests.post("/billing/demo/receipt", { docNum, method });
+  },
+
   // --- תעודות משלוח ---
   getDeliveryNotes: async (params = {}) => {
     const q = new URLSearchParams(
@@ -56,6 +86,8 @@ const BillingServices = {
   },
 
   // --- סגירת חודש ---
+  // מחזיר תמיד את כל התעודות הפתוחות. הבחירה נעשית במסך, ונשלחת רק
+  // בהפקה עצמה — התצוגה המקדימה היא הרשימה שממנה בוחרים.
   previewMonth: async (params = {}) => {
     const q = new URLSearchParams(
       Object.entries(params).filter(([, v]) => v !== undefined && v !== "")
@@ -63,14 +95,27 @@ const BillingServices = {
     return requests.get(`/billing/month/preview${q ? `?${q}` : ""}`);
   },
 
+  // הלקוחות שיש להם תעודות פתוחות בחודש — למילוי בורר הלקוח
+  getOpenCustomers: async ({ month } = {}) => {
+    const q = new URLSearchParams(month ? { month } : {}).toString();
+    return requests.get(`/billing/month/open-customers${q ? `?${q}` : ""}`);
+  },
+
   // confirm:true נשלח מכאן ולא מהשרת בכוונה — ההפקה חייבת להיות פעולה
-  // מפורשת של מי שלחץ, ולא ברירת מחדל של הקריאה
-  closeMonth: async ({ month, customer, emailDocument = false }) => {
+  // מפורשת של מי שלחץ, ולא ברירת מחדל של הקריאה.
+  //
+  // notes ריק = כל התעודות הפתוחות של החודש. notes מלא = הפקה חלקית על
+  // התעודות שסומנו בלבד, ומחייב customer.
+  //
+  // emailDocument אינו נשלח כברירת מחדל: השרת שולח כל חשבונית ללקוח במייל,
+  // ושליחת false מכאן הייתה מבטלת את זה בשקט. הוא עובר רק כשמישהו בחר במפורש.
+  closeMonth: async ({ month, customer, notes, emailDocument }) => {
     return requests.post("/billing/month/close", {
       confirm: true,
       month,
       customer,
-      emailDocument,
+      notes: notes?.length ? notes : undefined,
+      ...(typeof emailDocument === "boolean" ? { emailDocument } : {}),
     });
   },
 
@@ -86,6 +131,14 @@ const BillingServices = {
 
   createReceipt: async (body) => {
     return requests.post("/billing/receipt", body);
+  },
+
+  // כל הקבלות שהופקו. from/to הם תאריכי תשלום בפורמט YYYY-MM-DD
+  getReceipts: async (params = {}) => {
+    const q = new URLSearchParams(
+      Object.entries(params).filter(([, v]) => v !== undefined && v !== "" && v !== null)
+    ).toString();
+    return requests.get(`/billing/receipts${q ? `?${q}` : ""}`);
   },
 
   // כל המסמכים של הלקוח בקריאה אחת — לכרטיס הלקוח

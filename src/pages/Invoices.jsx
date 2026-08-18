@@ -33,6 +33,7 @@ import { FiAlertTriangle, FiCornerUpLeft, FiDollarSign, FiExternalLink } from "r
 import useQueryParam from "@/hooks/useQueryParam";
 
 import PageTitle from "@/components/Typography/PageTitle";
+import DemoModeBanner from "@/components/common/DemoModeBanner";
 import TableLoading from "@/components/preloader/TableLoading";
 import NotFound from "@/components/table/NotFound";
 import BillingServices from "@/services/BillingServices";
@@ -165,6 +166,8 @@ const Invoices = () => {
   return (
     <>
       <PageTitle>חשבוניות וגבייה</PageTitle>
+
+      <DemoModeBanner />
 
       <Card className="min-w-0 shadow-xs overflow-hidden bg-white dark:bg-gray-800 mb-5">
         <CardBody>

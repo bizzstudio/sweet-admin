@@ -59,8 +59,26 @@ const DOCS = {
     overdue: 0,
     owed: 1180,
   },
+  receipts: {
+    items: [
+      {
+        docNum: "7001",
+        docUrl: "https://icount/doc/7001",
+        paidAt: "2026-08-05T00:00:00.000Z",
+        grossEstimate: 590,
+        invoices: [{ docNum: "4999", docUrl: null }],
+        notes: [1000],
+        hasCredit: false,
+      },
+    ],
+    total: 1,
+    paidEstimate: 590,
+  },
   quotes: { items: [], total: 0, open: 0 },
 };
+
+// לקוח בלי שום תקבול — לבדיקות שבוחנות על איזה טאב המסך נפתח
+const NO_RECEIPTS = { items: [], total: 0, paidEstimate: 0 };
 
 let container;
 let root;
@@ -175,12 +193,47 @@ describe("CustomerDocumentsPage", () => {
     );
   });
 
+  it("טאב הקבלות מציג את התקבול ואת החשבונית שנסגרה", async () => {
+    BillingServices.getCustomerDocuments.mockResolvedValue(DOCS);
+
+    await render();
+    await clickTab("קבלות");
+
+    expect(visiblePanel()).toBe("receipts");
+    const panel = container.querySelector("#doc-panel-receipts");
+    expect(panel.textContent).toContain("7001");
+    expect(panel.textContent).toContain("590.00");
+    expect(panel.textContent).toContain("חשבונית 4999");
+
+    const fullScreen = [...container.querySelectorAll("a")].find((a) =>
+      a.textContent.includes("פתיחה במסך מלא")
+    );
+    expect(fullScreen.getAttribute("href")).toBe("/receipts?customer=c1");
+  });
+
+  it("שרת שאינו מחזיר קבלות עדיין מציג את שאר המסמכים", async () => {
+    // הפאנל עשוי לרוץ מול שרת שטרם עודכן. טאב ריק מותר, מסך לבן לא
+    const { receipts, ...withoutReceipts } = DOCS;
+    BillingServices.getCustomerDocuments.mockResolvedValue(withoutReceipts);
+
+    await render();
+
+    expect(visiblePanel()).toBe("invoices");
+    expect(tabButton("קבלות").textContent).toContain("0");
+
+    await clickTab("קבלות");
+    expect(container.querySelector("#doc-panel-receipts").textContent).toContain(
+      "טרם נרשמו תשלומים"
+    );
+  });
+
   it("נפתח על הטאב הראשון שיש בו מסמכים", async () => {
     // לקוח בלי חשבוניות אבל עם תעודות: פתיחה על "חשבוניות" הייתה נראית
     // כאילו אין לו שום מסמך
     BillingServices.getCustomerDocuments.mockResolvedValue({
       ...DOCS,
       invoices: { items: [], total: 0, unpaid: 0, overdue: 0, owed: 0 },
+      receipts: NO_RECEIPTS,
     });
 
     await render();
@@ -205,6 +258,7 @@ describe("CustomerDocumentsPage", () => {
               ...DOCS,
               customer: { _id: "c2", name: "דנה", lastName: "" },
               invoices: { items: [], total: 0, unpaid: 0, overdue: 0, owed: 0 },
+              receipts: NO_RECEIPTS,
             }
       )
     );

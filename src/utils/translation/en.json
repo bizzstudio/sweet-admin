@@ -1317,5 +1317,7 @@
   "DeliveryNotes": "Delivery Notes",
   "MonthlyBilling": "Monthly Billing",
   "Quotes": "Quotes",
-  "InvoicesAndCollection": "Invoices & Collection"
+  "InvoicesAndCollection": "Invoices & Collection",
+  "Receipts": "Receipts",
+  "IcountDemo": "iCount Demo"
 }
