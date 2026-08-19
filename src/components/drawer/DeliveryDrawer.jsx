@@ -36,7 +36,7 @@ const DeliveryDrawer = ({ id }) => {
   useEffect(() => {
     (async () => {
       const response = await fetch(
-        "https://data.gov.il/api/3/action/datastore_search?resource_id=8f714b6f-c35c-4b40-a0e7-547b675eee0e&limit=100000"
+        `${import.meta.env.VITE_APP_API_BASE_URL || "/api"}/cities`
       );
       const data = await response.json();
       let tempcity = []
