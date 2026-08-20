@@ -85,6 +85,17 @@ const BillingServices = {
     return requests.patch(`/billing/delivery-notes/${id}/cancel`, { reason });
   },
 
+  // --- הדפסה ---
+  // התעודה מודפסת אוטומטית ברגע שהיא נוצרת; שתי אלה קיימות למקרה שההדפסה
+  // האוטומטית לא הגיעה ליעדה (מדפסת כבויה, המחשב במשרד לא דלוק).
+  reprintDeliveryNote: async (id) => {
+    return requests.post(`/billing/delivery-notes/${id}/reprint`, {});
+  },
+
+  getDeliveryNotePrintStatus: async (id) => {
+    return requests.get(`/billing/delivery-notes/${id}/print-status`);
+  },
+
   // --- סגירת חודש ---
   // מחזיר תמיד את כל התעודות הפתוחות. הבחירה נעשית במסך, ונשלחת רק
   // בהפקה עצמה — התצוגה המקדימה היא הרשימה שממנה בוחרים.

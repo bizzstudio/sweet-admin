@@ -12,22 +12,54 @@
 // המע"מ מוצג כאן לצורך תצוגה בלבד (18%). הוא אינו מחושב בשום מקום אחר
 // במערכת — המחירים ללא מע"מ, ומי שמוסיף אותו בפועל הוא iCount על החשבונית.
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useLocation } from "react-router-dom";
 import ReactToPrint from "react-to-print";
 import { Button, Card, CardBody } from "@windmill/react-ui";
-import { FiPrinter } from "react-icons/fi";
+import { FiPrinter, FiRefreshCw } from "react-icons/fi";
 
 import PageTitle from "@/components/Typography/PageTitle";
 import Loading from "@/components/preloader/Loading";
 import BillingServices from "@/services/BillingServices";
 import useUtilsFunction from "@/hooks/useUtilsFunction";
-import { notifyError } from "@/utils/toast";
+import { notifyError, notifySuccess } from "@/utils/toast";
 
 const shekel = (n) =>
   Number(n || 0).toLocaleString("he-IL", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 const hebDate = (d) => (d ? new Date(d).toLocaleDateString("he-IL") : "—");
+
+/**
+ * מצב ההדפסה האוטומטית של התעודה.
+ *
+ * "failed" מוצג באדום ובמפורש כי זו תעודה שלא יצאה מהמדפסת — כלומר סחורה
+ * שעלולה לצאת ללקוח בלי נייר, וזה המסך היחיד שבו זה נראה.
+ */
+const PRINT_STATUS_LABELS = {
+  pending: { text: "ממתינה למדפסת", cls: "text-gray-500" },
+  printing: { text: "מודפסת כעת", cls: "text-gray-500" },
+  printed: { text: "הודפסה", cls: "text-green-600" },
+  failed: { text: "ההדפסה נכשלה", cls: "text-red-600" },
+  cancelled: { text: "ההדפסה בוטלה", cls: "text-gray-500" },
+  disabled: { text: "ההדפסה האוטומטית כבויה", cls: "text-yellow-600" },
+};
+
+const PrintStatusBadge = ({ status }) => {
+  const label = PRINT_STATUS_LABELS[status.status];
+  if (!label) return null;
+
+  return (
+    <span className={`text-sm ${label.cls}`} title={status.lastError || ""}>
+      {label.text}
+      {status.status === "printed" && status.printedAt
+        ? ` · ${new Date(status.printedAt).toLocaleTimeString("he-IL", {
+            hour: "2-digit",
+            minute: "2-digit",
+          })}`
+        : ""}
+    </span>
+  );
+};
 
 const BillingDocument = () => {
   const { id } = useParams();
@@ -40,6 +72,14 @@ const BillingDocument = () => {
 
   const [doc, setDoc] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  // מצב ההדפסה האוטומטית. רק לתעודת משלוח — הצעת מחיר אינה מודפסת
+  // אוטומטית, ולכן אין לה מה להציג כאן.
+  const [printStatus, setPrintStatus] = useState(null);
+  const [reprinting, setReprinting] = useState(false);
+  // הרענון המושהה אחרי "שלח שוב" חייב להתבטל ביציאה מהמסך, אחרת הוא
+  // יורה על רכיב שכבר אינו קיים
+  const refreshTimer = useRef(null);
 
   useEffect(() => {
     let alive = true;
@@ -59,6 +99,38 @@ const BillingDocument = () => {
       alive = false;
     };
   }, [id, isQuote]);
+
+  // נכשל בשקט: אי אפשר לדעת אם הנייר יצא זו אי-נוחות, ואילו שגיאה אדומה
+  // על מסמך שנפתח כדי להדפיס אותו ידנית היא הפרעה.
+  const loadPrintStatus = useCallback(async () => {
+    if (isQuote) return;
+    try {
+      setPrintStatus(await BillingServices.getDeliveryNotePrintStatus(id));
+    } catch (_) {
+      setPrintStatus(null);
+    }
+  }, [id, isQuote]);
+
+  useEffect(() => {
+    loadPrintStatus();
+    return () => clearTimeout(refreshTimer.current);
+  }, [loadPrintStatus]);
+
+  const handleReprint = async () => {
+    setReprinting(true);
+    try {
+      const res = await BillingServices.reprintDeliveryNote(id);
+      notifySuccess(res?.message || "נשלח להדפסה");
+      // הסוכן מושך כל 10 שניות; רענון מיידי היה מראה "ממתינה" תמיד
+      clearTimeout(refreshTimer.current);
+      refreshTimer.current = setTimeout(loadPrintStatus, 12000);
+      setPrintStatus({ status: "pending" });
+    } catch (err) {
+      notifyError(err?.response?.data?.message || err.message);
+    } finally {
+      setReprinting(false);
+    }
+  };
 
   if (loading) return <Loading loading={loading} />;
   if (!doc) return <PageTitle>המסמך לא נמצא</PageTitle>;
@@ -91,15 +163,30 @@ const BillingDocument = () => {
           {title} {doc.number}
         </PageTitle>
 
-        <ReactToPrint
-          trigger={() => (
-            <Button>
-              <FiPrinter className="ml-2" /> הדפסה / שמירה כ-PDF
+        <div className="flex flex-wrap items-center gap-3">
+          {/* מצב ההדפסה האוטומטית — כדי ש"האם זה יצא מהמדפסת" תהיה שאלה
+              שנענית מהמסך ולא מהלוגים של השרת */}
+          {!isQuote && printStatus && printStatus.status !== "none" && (
+            <PrintStatusBadge status={printStatus} />
+          )}
+
+          {!isQuote && (
+            <Button layout="outline" onClick={handleReprint} disabled={reprinting}>
+              <FiRefreshCw className="ml-2" />
+              {reprinting ? "שולח..." : "שלח שוב למדפסת"}
             </Button>
           )}
-          content={() => printRef.current}
-          documentTitle={`${title}-${doc.number}`}
-        />
+
+          <ReactToPrint
+            trigger={() => (
+              <Button>
+                <FiPrinter className="ml-2" /> הדפסה / שמירה כ-PDF
+              </Button>
+            )}
+            content={() => printRef.current}
+            documentTitle={`${title}-${doc.number}`}
+          />
+        </div>
       </div>
 
       {!company.vatNumber && (

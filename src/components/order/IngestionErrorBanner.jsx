@@ -18,6 +18,7 @@ import { FaWhatsapp } from "react-icons/fa";
 
 import { notifyError, notifySuccess } from "@/utils/toast";
 import IncomingOrderServices from "@/services/IncomingOrderServices";
+import UnmatchedItemResolver from "@/components/order/UnmatchedItemResolver";
 
 const ERROR_HINTS = {
   llm_failed: "שירות הניתוח לא הגיב. אפשר פשוט להריץ שוב.",
@@ -156,6 +157,16 @@ const IngestionErrorBanner = ({ order, onChanged }) => {
               <div className="mt-1 text-xs text-gray-600 dark:text-gray-400">
                 {ERROR_HINTS[err.code]}
               </div>
+            )}
+
+            {/* ── מכאן ההזמנה גם *מלמדת* את המערכת ──
+                לא רק "מה נכשל" אלא "מה המוצר הנכון", והתשובה נשמרת. בלי זה
+                אותה שורה של אותו לקוח נכשלת שוב מחר. ראה UnmatchedItemResolver. */}
+            {/* בלי onResolved בכוונה: שמירת אליאס אינה משנה את ההזמנה, וטעינה
+                מחדש של המסך אחרי כל בחירה הייתה מאפסת את סימוני "נשמר" ואת
+                השורות שכבר הוכרעו — כלומר העובד היה מאבד את מקומו באמצע. */}
+            {!resolved && unmatched.length > 0 && (
+              <UnmatchedItemResolver orderId={order._id} items={unmatched} />
             )}
 
             {/* ההודעה המקורית של הלקוח — תמיד פתוחה, זה מה שהעובד באמת קורא */}

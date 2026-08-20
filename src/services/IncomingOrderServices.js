@@ -58,6 +58,20 @@ const IncomingOrderServices = {
     return requests.post(`/incoming-orders/order/${orderId}/retry`);
   },
 
+  // ── לימוד: "כשהלקוח כותב X הוא מתכוון למוצר Y" ──
+
+  // המועמדים לשורה שלא זוהתה, כפי שמנוע ההתאמה רואה אותם עכשיו
+  getItemCandidates: async (orderId, name) => {
+    return requests.get(
+      `/incoming-orders/order/${orderId}/item-candidates?name=${encodeURIComponent(name)}`
+    );
+  },
+
+  // "זה המוצר" — נשמר לפעם הבאה. scope: "customer" (ברירת מחדל) או "global"
+  resolveItem: async (orderId, body) => {
+    return requests.post(`/incoming-orders/order/${orderId}/resolve-item`, body);
+  },
+
   // סריקת תיבת המייל עכשיו, בלי לחכות לסריקה המתוזמנת
   scanEmailNow: async (body = {}) => {
     return requests.post("/incoming-orders/scan-email", body);
