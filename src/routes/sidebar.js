@@ -82,6 +82,10 @@ const sidebar = [
         path: "/incoming-orders",
         name: "IncomingOrders",
       },
+      {
+        path: "/order-platforms",
+        name: "OrderPlatforms",
+      },
       // ⛔ סטטוסי הזמנה מוסתרים מהתפריט (הסטטוסים והדף עצמם נשארו) - להחזרה: להסיר את ההערה
       // {
       //   path: "/statuses",

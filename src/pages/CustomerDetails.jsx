@@ -34,6 +34,7 @@ import CustomerAccountPanel from "@/components/customer/CustomerAccountPanel";
 import CustomerErpPanel, {
   CustomerErpStats,
 } from "@/components/customer/CustomerErpPanel";
+import CustomerHistoryPanel from "@/components/customer/CustomerHistoryPanel";
 import CustomerPriceListPanel from "@/components/customer/CustomerPriceListPanel";
 import CustomerBillingPanel from "@/components/billing/CustomerBillingPanel";
 import Loading from "@/components/preloader/Loading";
@@ -365,6 +366,14 @@ const CustomerDetails = () => {
             {/* המחירון הפרטי. פורש על כל הרוחב כי הוא כולל טבלת שורות ולא
                 רשימת שדות כמו שאר הכרטיסים */}
             <CustomerPriceListPanel
+              customerId={customer._id}
+              customerName={fullName}
+            />
+
+            {/* היסטוריית הרכישות. יושבת ליד המחירון כי שתיהן נתונים שמגיעים
+                מאותו ייצוא של ההנהח"ש ומשפיעות על מה שקורה בהזמנה — המחירון
+                על המחיר, וההיסטוריה על איזה מוצר נבחר כשהשם עמום */}
+            <CustomerHistoryPanel
               customerId={customer._id}
               customerName={fullName}
             />

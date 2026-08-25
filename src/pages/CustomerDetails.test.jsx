@@ -41,6 +41,20 @@ vi.mock("@/services/CustomerPriceListServices", () => ({
   },
 }));
 
+// כרטיס ההיסטוריה שולף אותה בכל טעינה, בדיוק כמו כרטיס המחירון. בלי המוק
+// הבדיקה יוצאת לרשת — והכשל נבלע לתוך הודעת "לא נטען" במקום להיכשל בקול,
+// כלומר בדיקה ירוקה שמסתירה קריאת רשת אמיתית.
+vi.mock("@/services/CustomerHistoryServices", () => ({
+  default: {
+    getCustomerHistory: vi.fn(() =>
+      Promise.resolve({ exists: false, itemsCount: 0, items: [] })
+    ),
+    checkImport: vi.fn(),
+    importHistory: vi.fn(),
+    deleteHistory: vi.fn(),
+  },
+}));
+
 // בורר היישובים האמיתי מושך את רשימת הלמ"ס מהרשת; כאן מספיק לדעת שהוא קיבל
 // את העיר של הלקוח ושהיא נשמרת גם כשלא נגעו בו
 vi.mock("@/components/select/City", () => ({

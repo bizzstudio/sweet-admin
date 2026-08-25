@@ -24,6 +24,8 @@ const Orders = lazy(() => import("@/pages/Orders"));
 // ⛔ הזמנות קופה כבויות (הקוד נשמר) - להחזרה: להסיר את ההערה כאן ובמסלול למטה
 // const CashierOrders = lazy(() => import("@/pages/CashierOrders"));
 const IncomingOrders = lazy(() => import("@/pages/IncomingOrders"));
+// פלטפורמות שמייל מהן מכיל קישור להזמנה ולא את ההזמנה — ראה sweet-backend/lib/link-follower
+const OrderPlatforms = lazy(() => import("@/pages/OrderPlatforms"));
 const CashierOrderInvoice = lazy(() => import("@/pages/CashierOrderInvoice"));
 const Statuses = lazy(() => import("@/pages/Statuses"));
 const OrderInvoice = lazy(() => import("@/pages/OrderInvoice"));
@@ -159,6 +161,10 @@ const routes = [
   {
     path: "/incoming-orders",
     component: IncomingOrders,
+  },
+  {
+    path: "/order-platforms",
+    component: OrderPlatforms,
   },
   {
     path: "/statuses",

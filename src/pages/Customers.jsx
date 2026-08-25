@@ -23,8 +23,10 @@ import PageTitle from "@/components/Typography/PageTitle";
 import useAsync from "@/hooks/useAsync";
 import useFilter from "@/hooks/useFilter";
 import CustomerServices from "@/services/CustomerServices";
+import CustomerHistoryServices from "@/services/CustomerHistoryServices";
 import CustomerPriceListServices from "@/services/CustomerPriceListServices";
 import ImportCustomersExcelModal from "@/components/customer/ImportCustomersExcelModal";
+import CustomerHistoryModal from "@/components/customer/CustomerHistoryModal";
 import CustomerPriceListModal from "@/components/customer/CustomerPriceListModal";
 import BulkCustomerPriceListModal from "@/components/customer/BulkCustomerPriceListModal";
 import { SidebarContext } from "@/context/SidebarContext";
@@ -35,6 +37,7 @@ const Customers = () => {
   const [isExcelModalOpen, setIsExcelModalOpen] = useState(false);
   // הלקוח שהמחירון שלו נערך כרגע (null = המודאל סגור)
   const [priceListCustomer, setPriceListCustomer] = useState(null);
+  const [historyCustomer, setHistoryCustomer] = useState(null);
   // יבוא מרוכז: קובץ אחד עם המחירונים של כל הלקוחות
   const [isBulkPriceListOpen, setIsBulkPriceListOpen] = useState(false);
 
@@ -57,9 +60,32 @@ const Customers = () => {
     }
   }, []);
 
+  // ── סיכום ההיסטוריות, באותה תבנית ומאותה סיבה ──
+  //
+  // הטבלה מראה לאילו לקוחות כבר יש היסטוריית רכישות, כי זה מה שמאפשר לראות
+  // במבט אחד את מי עוד כדאי להשלים — ובקשה לכל שורה בנפרד הייתה מייצרת עשרות
+  // בקשות בכל טעינת עמוד.
+  const [histories, setHistories] = useState(new Map());
+
+  const loadHistories = useCallback(async () => {
+    try {
+      const summary = await CustomerHistoryServices.getSummary();
+      setHistories(
+        new Map((summary || []).map((item) => [String(item.customer), item]))
+      );
+    } catch (err) {
+      // כשל כאן אינו שובר את רשימת הלקוחות — רק התג של ההיסטוריה לא יוצג
+      console.log("loadHistories error: ", err?.message);
+    }
+  }, []);
+
   useEffect(() => {
     loadPriceLists();
   }, [loadPriceLists]);
+
+  useEffect(() => {
+    loadHistories();
+  }, [loadHistories]);
 
   // console.log('customer',data)
 
@@ -101,6 +127,18 @@ const Customers = () => {
           priceListCustomer?.lastName || ""
         }`.trim()}
         onChanged={loadPriceLists}
+      />
+
+      {/* היסטוריית הרכישות של לקוח מסוים. נשאר מותקן גם כשהוא סגור, כדי
+          שהמצב הפנימי שלו יתאפס לפי customerId ולא ישמור נתונים של הקודם */}
+      <CustomerHistoryModal
+        isOpen={Boolean(historyCustomer)}
+        onClose={() => setHistoryCustomer(null)}
+        customerId={historyCustomer?._id}
+        customerName={`${historyCustomer?.name || ""} ${
+          historyCustomer?.lastName || ""
+        }`.trim()}
+        onChanged={loadHistories}
       />
 
       {/* מחירונים של כל הלקוחות מקובץ אחד. ההתאמה ללקוח לפי מספר לקוח */}
@@ -199,6 +237,7 @@ const Customers = () => {
                 <TableCell>{t("CustomersEmail")}</TableCell>
                 <TableCell>{t("CustomersPhone")}</TableCell>
                 <TableCell className="text-center">מחירון</TableCell>
+                <TableCell className="text-center">היסטוריה</TableCell>
                 <TableCell className="text-center">{t("CashierStatus")}</TableCell>
                 <TableCell className="text-right">
                   {t("CustomersActions")}
@@ -209,6 +248,8 @@ const Customers = () => {
               customers={dataTable}
               priceLists={priceLists}
               onOpenPriceList={setPriceListCustomer}
+              histories={histories}
+              onOpenHistory={setHistoryCustomer}
             />
           </Table>
           <TableFooter>

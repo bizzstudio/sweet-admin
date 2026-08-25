@@ -2,7 +2,7 @@ import { Badge, TableBody, TableCell, TableRow } from "@windmill/react-ui";
 import dayjs from "dayjs";
 import { t } from "i18next";
 import React from "react";
-import { FiDollarSign, FiZoomIn } from "react-icons/fi";
+import { FiClock, FiDollarSign, FiZoomIn } from "react-icons/fi";
 import { Link } from "react-router-dom";
 
 // Internal import
@@ -13,7 +13,13 @@ import Tooltip from "@/components/tooltip/Tooltip";
 import EditDeleteButton from "@/components/table/EditDeleteButton";
 import CashierToggleButton from "@/components/table/CashierToggleButton";
 
-const CustomerTable = ({ customers, priceLists = new Map(), onOpenPriceList }) => {
+const CustomerTable = ({
+  customers,
+  priceLists = new Map(),
+  onOpenPriceList,
+  histories = new Map(),
+  onOpenHistory,
+}) => {
   const { title, serviceId, handleModalOpen } = useToggleDrawer();
 
   // אין כאן מגירת עריכה: העריכה עברה לעמוד הלקוח (כניסה דרך שם הלקוח),
@@ -25,6 +31,7 @@ const CustomerTable = ({ customers, priceLists = new Map(), onOpenPriceList }) =
       <TableBody>
         {customers?.map((user) => {
           const priceList = priceLists.get(String(user._id));
+          const history = histories.get(String(user._id));
 
           return (
             <TableRow key={user._id}>
@@ -73,6 +80,26 @@ const CustomerTable = ({ customers, priceLists = new Map(), onOpenPriceList }) =
                     </Badge>
                   ) : (
                     <span className="text-gray-400">מחירון</span>
+                  )}
+                </button>
+              </TableCell>
+
+              {/* היסטוריית הרכישות: אותה תבנית כמו המחירון — מצב וכפתור
+                  באותו אלמנט, כדי לראות במבט אחד את מי עוד צריך להשלים */}
+              <TableCell className="text-center">
+                <button
+                  type="button"
+                  onClick={() => onOpenHistory?.(user)}
+                  className="mx-auto flex items-center gap-1.5 rounded-md border border-gray-200 px-2 py-1 text-xs font-medium text-gray-600 transition-colors duration-150 hover:text-mainColor-dark focus:outline-none dark:border-gray-600 dark:text-gray-300"
+                  title="העלאת היסטוריית רכישות מאקסל"
+                >
+                  <FiClock />
+                  {history?.itemsCount > 0 ? (
+                    <Badge type="success">
+                      <span className="font-bold">{history.itemsCount}</span>
+                    </Badge>
+                  ) : (
+                    <span className="text-gray-400">היסטוריה</span>
                   )}
                 </button>
               </TableCell>

@@ -23,14 +23,16 @@ import {
   TableRow,
 } from "@windmill/react-ui";
 import { Link } from "react-router-dom";
-import { FiMail, FiRefreshCw, FiSearch, FiSlash, FiUserPlus } from "react-icons/fi";
+import { FiCheck, FiLink, FiMail, FiRefreshCw, FiSearch, FiSlash, FiUserPlus } from "react-icons/fi";
 import { FaWhatsapp } from "react-icons/fa";
 
 import { notifyError, notifySuccess } from "@/utils/toast";
 import IncomingOrderServices from "@/services/IncomingOrderServices";
+import OrderPlatformServices from "@/services/OrderPlatformServices";
 import NotFound from "@/components/table/NotFound";
 import PageTitle from "@/components/Typography/PageTitle";
 import TableLoading from "@/components/preloader/TableLoading";
+import PlatformCustomerResolver from "@/components/order/PlatformCustomerResolver";
 
 const RESULTS_PER_PAGE = 20;
 
@@ -42,6 +44,13 @@ const STATUS_TABS = [
   // שולח שאינו לקוח במערכת. עלולה להיות כאן הזמנה אמיתית מלקוח חדש, ולכן
   // הלשונית בולטת ולא נבלעת ב"הכול".
   { key: "unknown_sender", label: "שולח לא מוכר" },
+  // ── פלטפורמות הזמנות שטרם אושרו ──
+  //
+  // מייל מ-no-reply@ של פלטפורמה (Zestt וכדומה), שההזמנה בו נמצאת מעבר
+  // לכפתור ולא בגוף ההודעה. לשונית נפרדת מ"שולח לא מוכר" בכוונה: שם הפעולה
+  // היא "צור לקוח מהשולח", וכאן היא הייתה יוצרת כרטיס בשם הפלטפורמה שכל
+  // המסעדות מוצמדות אליו. כאן הפעולה היא אישור הפלטפורמה, פעם אחת.
+  { key: "platform_pending", label: "פלטפורמות חדשות" },
   // הודעות ווצאפ שממתינות להמשך מהשולח. לשונית משלהן כי הן ההסבר לשאלה
   // "שלחתי הזמנה, למה היא לא במערכת?" — ומשם אפשר לעבד אותן מיד.
   { key: "collecting", label: "ממתין להודעות" },
@@ -58,6 +67,7 @@ const STATUS_META = {
   not_an_order: { label: "לא הזמנה", type: "neutral" },
   ignored: { label: "לא רלוונטי", type: "neutral" },
   unknown_sender: { label: "שולח לא מוכר", type: "warning" },
+  platform_pending: { label: "פלטפורמה שטרם אושרה", type: "warning" },
 };
 
 // תרגום קודי הכשל לשפה שאומרת לעובד מה לעשות.
@@ -73,6 +83,10 @@ const ERROR_HINTS = {
   below_minimum: "ההזמנה מתחת למינימום ליעד",
   out_of_stock: "אין מלאי מספיק",
   order_create_failed: "כשל טכני ביצירת ההזמנה",
+  // ── הזמנה שיושבת מעבר לקישור ──
+  platform_login_required: "צריך להתחבר לפלטפורמה פעם אחת",
+  link_unreadable: "הקישור להזמנה לא נפתח",
+  platform_customer_unmapped: "צריך למפות את הלקוח בפלטפורמה פעם אחת",
 };
 
 // שורות שדולגו בצדק — אין טעם להציג אותן כ"פריט שלא נכנס".
@@ -143,6 +157,9 @@ const IncomingOrders = () => {
   const [loadedKey, setLoadedKey] = useState(null);
   const [error, setError] = useState("");
   const [busyId, setBusyId] = useState(null);
+  // איזו הודעה פתוחה כרגע למיפוי לקוח. אחת בכל רגע — כמה פאנלים פתוחים
+  // בטבלה הופכים אותה לקיר טקסט, וזה מה שמונע לקרוא אותה.
+  const [mappingId, setMappingId] = useState(null);
   const [scanning, setScanning] = useState(false);
   const [expandedId, setExpandedId] = useState(null);
 
@@ -232,6 +249,43 @@ const IncomingOrders = () => {
     }
   };
 
+  /**
+   * אישור הפלטפורמה שההודעה הגיעה ממנה.
+   *
+   * הפעולה היא על **הפלטפורמה** ולא על ההודעה: אחריה כל ההודעות שהמתינו ממנה
+   * נקראות, וכל מה שיגיע ממנה בעתיד ייקרא לבד. לכן האישור מוצג עם מספר
+   * ההודעות שממתינות — כדי שיהיה ברור שזו לחיצה אחת שמטפלת בכולן.
+   */
+  const handleApprovePlatform = async (row) => {
+    const platformId = row.platform?.ref;
+    if (!platformId) {
+      notifyError("להודעה הזו אין פלטפורמה משויכת — יש לטפל בה במסך הפלטפורמות");
+      return;
+    }
+
+    const name = row.platform?.name || row.platform?.key || "הפלטפורמה";
+    if (
+      !window.confirm(
+        `לאשר את ${name} כפלטפורמת הזמנות?\n\n` +
+          `השרת יפתח את הקישור שבמייל בדפדפן שלו ויקרא את ההזמנה משם.\n` +
+          `כל ההודעות שממתינות מהפלטפורמה הזו ייקראו עכשיו, וכל מה שיגיע ממנה בעתיד ייקרא אוטומטית.`
+      )
+    ) {
+      return;
+    }
+
+    setBusyId(row._id);
+    try {
+      const res = await OrderPlatformServices.approvePlatform(platformId);
+      notifySuccess(res.message);
+      await load();
+    } catch (err) {
+      notifyError(err?.response?.data?.message || err.message);
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   const handleProcessNow = async (id) => {
     setBusyId(id);
     try {
@@ -275,6 +329,7 @@ const IncomingOrders = () => {
   const failedCount = data.countByStatus?.failed || 0;
   const unknownSenderCount = data.countByStatus?.unknown_sender || 0;
   const collectingCount = data.countByStatus?.collecting || 0;
+  const platformPendingCount = data.countByStatus?.platform_pending || 0;
   const stuckCount = data.stuckCount || 0;
   // אורך חלון הצבירה מגיע מהשרת. 0 = הצבירה כבויה, ואז אין מה להסביר.
   const collectWindowMinutes = data.collectWindowMinutes || 0;
@@ -351,6 +406,22 @@ const IncomingOrders = () => {
                 {" "}
                 {unknownSenderCount} הודעות משולחים לא מוכרים — כדאי לעבור עליהן, ייתכן
                 שיש שם הזמנה מלקוח חדש.
+              </span>
+            )}
+          </p>
+          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+            הזמנה שהגיעה דרך <span className="font-semibold">פלטפורמה</span> (כמו
+            Zestt) אינה נמצאת בגוף המייל אלא מעבר לכפתור "לצפייה בהזמנה". השרת
+            פותח את הכפתור בדפדפן שלו וקורא אותה משם. פלטפורמה חדשה נרשמת לבד
+            וממתינה לאישור אחד — בלשונית "פלטפורמות חדשות" או במסך{" "}
+            <Link to="/order-platforms" className="text-blue-600 hover:underline">
+              פלטפורמות הזמנות
+            </Link>
+            .
+            {platformPendingCount > 0 && (
+              <span className="font-semibold text-orange-600">
+                {" "}
+                {platformPendingCount} הודעות ממתינות לאישור פלטפורמה.
               </span>
             )}
           </p>
@@ -629,6 +700,62 @@ const IncomingOrders = () => {
                             {row.messages.length} הודעות
                           </div>
                         )}
+                        {/* ── ההזמנה מעבר לקישור ──
+                            שתי שורות שעונות על "למה זה לא נכנס": איזה קישור
+                            נמצא בהודעה, ומה קרה כשנפתח. בלעדיהן "שגיאה בקריאה"
+                            על מייל של פלטפורמה נראה כמו כשל בפרסר. */}
+                        {row.status === "platform_pending" && (
+                          <div className="mt-1 text-orange-600">
+                            {row.platform?.name || row.platform?.key || "פלטפורמה חדשה"} —
+                            ההזמנה נמצאת מעבר לקישור, וההודעה ממתינה לאישור הפלטפורמה
+                          </div>
+                        )}
+                        {row.linkFollow?.attempted && (
+                          <div className="mt-1 text-gray-600 flex items-start gap-1">
+                            <FiLink className="w-3 h-3 mt-0.5 shrink-0" />
+                            <span>
+                              {row.linkFollow.ok
+                                ? `הדף נפתח ונקרא (${row.linkFollow.chars} תווים)`
+                                : row.linkFollow.error}
+                            </span>
+                          </div>
+                        )}
+                        {row.errorCode === "platform_login_required" && (
+                          <Link
+                            to="/order-platforms"
+                            className="mt-1 inline-block text-blue-600 hover:underline"
+                          >
+                            התחבר לפלטפורמה (פעם אחת) »
+                          </Link>
+                        )}
+                        {/* ── המיפוי נעשה כאן, לא במסך אחר ──
+                            המזהים של הלקוח נמצאים **בהודעה הזו**, ושליחת מי
+                            שמטפל בה למסך אחר פירושה שהוא יחזור לחפש מספר בתוך
+                            המייל ויקליד אותו ידנית. הפאנל מציג את מה שנמצא
+                            בהודעה ואת הלקוחות הדומים. */}
+                        {row.errorCode === "platform_customer_unmapped" && (
+                          <>
+                            <button
+                              onClick={() =>
+                                setMappingId(mappingId === row._id ? null : row._id)
+                              }
+                              className="mt-1 text-blue-600 hover:underline"
+                            >
+                              {mappingId === row._id
+                                ? "סגור"
+                                : "מפה את הלקוח (פעם אחת) »"}
+                            </button>
+                            {mappingId === row._id && (
+                              <PlatformCustomerResolver
+                                incomingOrder={row}
+                                onResolved={() => {
+                                  setMappingId(null);
+                                  load();
+                                }}
+                              />
+                            )}
+                          </>
+                        )}
                       </div>
                     </TableCell>
 
@@ -644,6 +771,28 @@ const IncomingOrders = () => {
                         >
                           {busyId === row._id ? "מעבד..." : "עבד עכשיו"}
                         </button>
+                      ) : row.status === "platform_pending" ? (
+                        // פלטפורמה שטרם אושרה: הפעולה היא אישור **הפלטפורמה**,
+                        // לא "נסה שוב" — ניסיון חוזר ייעצר באותו שער בדיוק.
+                        <div className="flex items-center justify-center gap-1">
+                          <button
+                            onClick={() => handleApprovePlatform(row)}
+                            disabled={busyId === row._id}
+                            className="px-2 py-1.5 text-xs font-medium text-white bg-green-600 rounded hover:bg-green-700 disabled:opacity-40 flex items-center gap-1"
+                            title="אשר את הפלטפורמה — הקישור ייפתח וההזמנה תיקרא"
+                          >
+                            <FiCheck className="w-3.5 h-3.5" />
+                            {busyId === row._id ? "מאשר..." : "אשר פלטפורמה"}
+                          </button>
+                          <button
+                            onClick={() => handleIgnore(row._id)}
+                            disabled={busyId === row._id}
+                            title="סמן כלא רלוונטי"
+                            className="p-2 text-gray-500 hover:bg-gray-100 rounded disabled:opacity-40"
+                          >
+                            <FiSlash className="w-4 h-4" />
+                          </button>
+                        </div>
                       ) : row.status === "unknown_sender" ? (
                         // שולח לא מוכר: הפעולה הרלוונטית היא לאשר אותו כלקוח,
                         // לא "לנסות שוב" — ניסיון חוזר יידחה מאותה סיבה בדיוק.

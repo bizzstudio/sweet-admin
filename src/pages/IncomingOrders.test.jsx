@@ -26,7 +26,22 @@ vi.mock("@/services/IncomingOrderServices", () => ({
   },
 }));
 
+vi.mock("@/services/OrderPlatformServices", () => ({
+  default: {
+    approvePlatform: vi.fn(),
+    getMappingSuggestion: vi.fn(),
+    mapCustomer: vi.fn(),
+  },
+}));
+
+vi.mock("@/services/CustomerServices", () => ({
+  default: {
+    getAllCustomers: vi.fn(async () => []),
+  },
+}));
+
 import IncomingOrderServices from "@/services/IncomingOrderServices";
+import OrderPlatformServices from "@/services/OrderPlatformServices";
 import IncomingOrders from "@/pages/IncomingOrders";
 
 const TOTAL = 161;
@@ -228,5 +243,146 @@ describe("IncomingOrders — סינון", () => {
     const last = calls[calls.length - 1][0];
     expect(last.search).toBe("0524925665");
     expect(last.page).toBe(1);
+  });
+});
+
+// ── הזמנה שהגיעה דרך פלטפורמה ──
+//
+// הבאג שהבדיקות האלה שומרות עליו: על הודעה מ-no-reply@ של פלטפורמה, הפעולה
+// שהוצעה הייתה "לקוח חדש" — כלומר יצירת כרטיס לקוח בשם הפלטפורמה, שכל
+// המסעדות שמזמינות דרכה היו מוצמדות אליו. הפעולה הנכונה היא אישור הפלטפורמה,
+// פעם אחת, וההודעה חייבת להגיע ללשונית שבה זו הפעולה המוצעת.
+describe("IncomingOrders — פלטפורמות הזמנות", () => {
+  const platformRow = {
+    _id: "plat-row-1",
+    status: "platform_pending",
+    channel: "email",
+    receivedAt: "2026-08-24T06:14:00.000Z",
+    sender: { name: "Zestt", email: "no-reply@zestt.io" },
+    subject: "הזמנה חדשה מ ROOMS בסר פתח תקווה",
+    platform: { ref: "platform-1", key: "zestt.io", name: "Zestt" },
+    links: [{ url: "https://app.zester.co.il/#/orders/7667033", anchor: "לצפייה בהזמנה" }],
+    matchedItems: [],
+    parsed: { skippedRows: [] },
+  };
+
+  beforeEach(() => {
+    IncomingOrderServices.getAllIncomingOrders.mockImplementation(async () => ({
+      incomingOrders: [platformRow],
+      totalDoc: 1,
+      countByStatus: { platform_pending: 1 },
+      stuckCount: 0,
+      collectWindowMinutes: 0,
+    }));
+    OrderPlatformServices.approvePlatform.mockResolvedValue({
+      message: "הפלטפורמה Zestt אושרה.",
+    });
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+  });
+
+  it("הודעת פלטפורמה מציעה אישור פלטפורמה ולא יצירת לקוח מהשולח", async () => {
+    await render();
+    await flush();
+
+    const labels = [...container.querySelectorAll("button")].map((b) => b.textContent.trim());
+    expect(labels).toContain("אשר פלטפורמה");
+    // "לקוח חדש" על no-reply@ של פלטפורמה = כרטיס אחד לכל המסעדות
+    expect(labels).not.toContain("לקוח חדש");
+  });
+
+  it("האישור נשלח על הפלטפורמה ולא על ההודעה, והרשימה נטענת מחדש", async () => {
+    await render();
+    await flush();
+
+    const callsBefore = IncomingOrderServices.getAllIncomingOrders.mock.calls.length;
+    await clickButton("אשר פלטפורמה");
+
+    expect(OrderPlatformServices.approvePlatform).toHaveBeenCalledWith("platform-1");
+    expect(IncomingOrderServices.getAllIncomingOrders.mock.calls.length).toBe(callsBefore + 1);
+  });
+
+  it("יש לשונית לפלטפורמות חדשות", async () => {
+    await render();
+    await flush();
+
+    const tabs = [...container.querySelectorAll("button")].map((b) => b.textContent.trim());
+    expect(tabs.some((label) => label.startsWith("פלטפורמות חדשות"))).toBe(true);
+  });
+});
+
+// ── מיפוי הלקוח נעשה על ההודעה עצמה ──
+//
+// הבאג שהבדיקות האלה שומרות עליו: המזהים של הלקוח ("מס' 77521-942") נמצאים
+// בגוף ההודעה, וההפניה למסך אחר החזירה את מי שמטפל בה לחפש מספר בתוך המייל
+// ולהקליד אותו ידנית — כלומר הזמנה לטעות הקלדה בשיוך לקוח.
+describe("IncomingOrders — מיפוי לקוח של פלטפורמה", () => {
+  const unmappedRow = {
+    _id: "unmapped-1",
+    status: "failed",
+    channel: "email",
+    errorCode: "platform_customer_unmapped",
+    error: "ההזמנה נקראה, אבל לא ידוע לאיזה לקוח היא שייכת",
+    receivedAt: "2026-08-24T06:14:00.000Z",
+    sender: { name: "Zestt", email: "no-reply@zestt.io" },
+    platform: { ref: "platform-1", key: "zestt.io", name: "Zestt" },
+    linkFollow: { attempted: true, ok: true, chars: 223 },
+    matchedItems: [],
+    parsed: { skippedRows: [] },
+  };
+
+  beforeEach(() => {
+    IncomingOrderServices.getAllIncomingOrders.mockImplementation(async () => ({
+      incomingOrders: [unmappedRow],
+      totalDoc: 1,
+      countByStatus: { failed: 1 },
+      stuckCount: 0,
+      collectWindowMinutes: 0,
+    }));
+    OrderPlatformServices.getMappingSuggestion.mockResolvedValue({
+      refs: ["77521-942", "633"],
+      names: ["ROOMS בסר פתח תקווה"],
+      suggestions: [{ _id: "cust-1", name: "ROOMS בסר", lastName: "", email: "rooms@x.co.il" }],
+    });
+    OrderPlatformServices.mapCustomer.mockResolvedValue({ message: "מופה" });
+  });
+
+  it("מציג את מה שנקרא מהדף, ולא רק את הודעת השגיאה", async () => {
+    await render();
+    await flush();
+    expect(container.textContent).toContain("הדף נפתח ונקרא");
+  });
+
+  it("פתיחת המיפוי מביאה את המזהים מההודעה ומציעה לקוח", async () => {
+    await render();
+    await flush();
+
+    await clickButton("מפה את הלקוח (פעם אחת) »");
+
+    expect(OrderPlatformServices.getMappingSuggestion).toHaveBeenCalledWith("unmapped-1");
+    expect(container.textContent).toContain("77521-942");
+    expect(container.textContent).toContain("ROOMS בסר");
+  });
+
+  it("בחירת לקוח שומרת את המזהים על הפלטפורמה ומריצה את ההודעה מחדש", async () => {
+    await render();
+    await flush();
+    await clickButton("מפה את הלקוח (פעם אחת) »");
+
+    // ההצעה היא כפתור שהטקסט שלו כולל את שם הלקוח
+    const button = [...container.querySelectorAll("button")].find((b) =>
+      b.textContent.includes("rooms@x.co.il")
+    );
+    await act(async () => {
+      button.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+    });
+    await flush();
+
+    const [platformId, body] = OrderPlatformServices.mapCustomer.mock.calls[0];
+    expect(platformId).toBe("platform-1");
+    expect(body.customerId).toBe("cust-1");
+    // המזהים המסומנים כברירת מחדל: כל המספרים + השם הראשון
+    expect(body.keys).toEqual(["77521-942", "633", "ROOMS בסר פתח תקווה"]);
+    // ההודעה עצמה נקראת מחדש מיד, ולא רק ההזמנה הבאה
+    expect(body.incomingOrderId).toBe("unmapped-1");
   });
 });
