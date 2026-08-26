@@ -10,7 +10,7 @@
 // חשוב: אישור חייב לעבור מכאן ולא משינוי סטטוס ידני, כי שינוי סטטוס במערכת
 // אינו מוריד מלאי (המלאי יורד רק ב-WebHook של Cardcom).
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useHistory } from "react-router-dom";
 import { Button } from "@windmill/react-ui";
 import { FiAlertTriangle, FiCheck, FiMail, FiRefreshCw } from "react-icons/fi";
@@ -66,6 +66,16 @@ const IngestionErrorBanner = ({ order, onChanged }) => {
     }
   };
 
+  // ── איפוס מצב העבודה כשעוברים להזמנה אחרת ──
+  //
+  // ‏"נסה לקרוא שוב" מנווט ל-`/order/<מזהה חדש>`, ו-React Router מרנדר את
+  // **אותו** קומפוננט עם פרמטר אחר במקום לפרק אותו. בלי האיפוס הזה ה-state
+  // עובר איתו: הכפתור בהזמנה החדשה ממשיך להציג "מריץ..." לנצח, למרות
+  // שההרצה הסתיימה בהצלחה ונוצרה הזמנה.
+  useEffect(() => {
+    setBusy("");
+  }, [order?._id]);
+
   const handleRetry = async () => {
     setBusy("retry");
     try {
@@ -79,6 +89,9 @@ const IngestionErrorBanner = ({ order, onChanged }) => {
       }
     } catch (e) {
       notifyError(e?.response?.data?.message || e.message);
+    } finally {
+      // ‏finally ולא רק ב-catch: במסלול ההצלחה הניווט אינו מפרק את הקומפוננט
+      // (ראה למעלה), ולכן בלי האיפוס כאן הכפתור נתקע במצב "מריץ...".
       setBusy("");
     }
   };
