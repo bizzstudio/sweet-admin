@@ -161,7 +161,13 @@ const UnmatchedItemResolver = ({ orderId, items = [], onResolved }) => {
                       אין מועמדים בקטלוג לשם הזה. צריך להוסיף את המוצר לקטלוג קודם.
                     </div>
                   ) : (
-                    <div className="flex flex-col gap-1">
+                    // ── גלילה, ולא רשימה שמותחת את הבאנר ──
+                    //
+                    // הרשימה הורחבה מ-10 ל-20 מועמדים, כי מועמד שנחתך ממנה
+                    // אינו ניתן לבחירה כלל — אין כאן חיפוש חופשי. בלי גלילה
+                    // ההרחבה הייתה מכפילה את גובה הבאנר ודוחפת את כפתורי
+                    // הפעולה מתחת לקפל.
+                    <div className="flex flex-col gap-1 max-h-64 overflow-y-auto">
                       {data.candidates.map((product) => (
                         <button
                           key={product._id}

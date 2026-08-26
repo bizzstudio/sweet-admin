@@ -386,3 +386,61 @@ describe("IncomingOrders — מיפוי לקוח של פלטפורמה", () => {
     expect(body.incomingOrderId).toBe("unmapped-1");
   });
 });
+
+describe("IncomingOrders — פריט שהמנוע בחר עבורו מוצר", () => {
+  // ‏autoPicked הוא הכרעה של המערכת ולא בקשה של הלקוח: השורה "עוגיות" מתאימה
+  // לחמישה מוצרים כמעט זהים, המנוע בוחר אחד וההזמנה נכנסת רגיל. בלי סימון
+  // במסך אין לעובד שום דרך לדעת שהמוצר שבהזמנה אינו מה שהלקוח כתב.
+  const rowWithAutoPick = {
+    _id: "auto-1",
+    status: "order_created",
+    channel: "email",
+    invoice: 10066,
+    order: "order-1",
+    receivedAt: "2026-08-26T09:20:00.000Z",
+    sender: { name: "מוסך דידי", email: "m-didi@zahav.net.il" },
+    matchedItems: [
+      {
+        rawName: "עוגיות",
+        quantity: 3,
+        productTitle: "עוגיות אוראו",
+        product: "p1",
+        confidence: 0.53,
+        autoPicked: true,
+      },
+      {
+        rawName: "טסטר צוייס",
+        quantity: 1,
+        productTitle: "טסטר צוייס מנות אישיות בטעמים",
+        product: "p2",
+        confidence: 0.97,
+      },
+    ],
+    parsed: { skippedRows: [] },
+  };
+
+  beforeEach(() => {
+    IncomingOrderServices.getAllIncomingOrders.mockImplementation(async () => ({
+      incomingOrders: [rowWithAutoPick],
+      totalDoc: 1,
+      countByStatus: { order_created: 1 },
+      stuckCount: 0,
+      collectWindowMinutes: 0,
+    }));
+  });
+
+  it("מסמן את הפריט ומראה גם מה הלקוח כתב וגם מה נבחר", async () => {
+    await render();
+    await flush();
+
+    expect(container.textContent).toContain("עוגיות אוראו");
+    expect(container.textContent).toContain("נבחר אוטומטית מ«עוגיות»");
+  });
+
+  it("אינו מסמן פריט שהותאם רגיל", async () => {
+    await render();
+    await flush();
+
+    expect(container.textContent).not.toContain("נבחר אוטומטית מ«טסטר צוייס»");
+  });
+});
