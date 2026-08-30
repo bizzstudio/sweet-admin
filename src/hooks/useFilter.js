@@ -794,7 +794,7 @@ const useFilter = (data) => {
             })
             .catch((err) => {
               setLoading(false);
-              notifyError(err ? err.response.data.message : err.message);
+              notifyError(err?.response?.data?.message || err?.message);
             });
         } else {
           notifyError("Please enter valid data!");
@@ -818,7 +818,7 @@ const useFilter = (data) => {
             })
             .catch((err) => {
               setLoading(false);
-              notifyError(err ? err.response.data.message : err.message);
+              notifyError(err?.response?.data?.message || err?.message);
             });
         } else {
           notifyError("Please enter valid data!");
@@ -842,7 +842,7 @@ const useFilter = (data) => {
             })
             .catch((err) => {
               setLoading(false);
-              notifyError(err ? err.response.data.message : err.message);
+              notifyError(err?.response?.data?.message || err?.message);
             });
         } else {
           notifyError("Please enter valid data!");
@@ -866,7 +866,7 @@ const useFilter = (data) => {
       //       })
       //       .catch((err) => {
       //         setLoading(false);
-      //         notifyError(err ? err.response.data.message : err.message);
+      //         notifyError(err?.response?.data?.message || err?.message);
       //       });
       //   } else {
       //     notifyError("Please enter valid data!");
@@ -879,7 +879,7 @@ const useFilter = (data) => {
             notifySuccess(res.message);
           })
           .catch((err) =>
-            notifyError(err ? err.response.data.message : err.message)
+            notifyError(err?.response?.data?.message || err?.message)
           );
       }
 
@@ -890,7 +890,7 @@ const useFilter = (data) => {
             notifySuccess(res.message);
           })
           .catch((err) =>
-            notifyError(err ? err.response.data.message : err.message)
+            notifyError(err?.response?.data?.message || err?.message)
           );
       }
 
@@ -901,7 +901,7 @@ const useFilter = (data) => {
             notifySuccess(res.message);
           })
           .catch((err) =>
-            notifyError(err ? err.response.data.message : err.message)
+            notifyError(err?.response?.data?.message || err?.message)
           );
       }
     } else {

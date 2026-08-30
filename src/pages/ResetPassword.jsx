@@ -37,7 +37,7 @@ const ResetPassword = () => {
       })
       .catch((err) => {
         setLoading(false);
-        notifyError(err ? err.response.data.message : err.message);
+        notifyError(err?.response?.data?.message || err?.message);
       });
   };
 

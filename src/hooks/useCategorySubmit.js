@@ -158,7 +158,7 @@ const useCategorySubmit = (id, data) => {
             setRequiresManualNote(Boolean(res.requiresManualNote));
           }
         } catch (err) {
-          notifyError(err ? err.response.data.message : err.message);
+          notifyError(err?.response?.data?.message || err?.message);
         }
       })();
     }

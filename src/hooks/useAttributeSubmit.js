@@ -100,7 +100,7 @@ const useAttributeSubmit = (id) => {
         setServiceId();
       }
     } catch (err) {
-      notifyError(err ? err.response.data.message : err.message);
+      notifyError(err?.response?.data?.message || err?.message);
       closeDrawer();
       setIsSubmitting(false);
       setServiceId();
@@ -141,7 +141,7 @@ const useAttributeSubmit = (id) => {
         closeDrawer();
       }
     } catch (err) {
-      notifyError(err ? err.response.data.message : err.message);
+      notifyError(err?.response?.data?.message || err?.message);
       closeDrawer();
       setIsSubmitting(false);
       setServiceId();

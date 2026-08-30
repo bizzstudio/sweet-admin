@@ -47,6 +47,10 @@ import { notifyError } from "@/utils/toast";
 
 
 import TableHeaderCell from "@/components/table/TableHeaderCell";
+
+// תקרת השליפה לטווח תאריכים אחד. השרת מדפדף, והמסך מסכם הכל בצד הלקוח.
+const ORDERS_FETCH_LIMIT = 5000;
+
 const DashboardStats = () => {
 
   const { t } = useTranslation();
@@ -74,6 +78,12 @@ const DashboardStats = () => {
   const [ordersForDate, setOrdersForDate] = useState([]);
   const [loadingOrdersForDate, setLoadingOrdersForDate] = useState(false);
   const [fetchErrorForDate, setFetchErrorForDate] = useState(null);
+  /*
+   * כמה הזמנות באמת קיימות בטווח, לעומת כמה נשלפו.
+   * השליפה חסומה ב-ORDERS_FETCH_LIMIT, ובלי ההשוואה הזו טווח גדול יותר היה
+   * מציג סיכום חלקי בלי שום סימן לכך שהוא חלקי — מספר שנראה אמין ואינו.
+   */
+  const [truncatedTotal, setTruncatedTotal] = useState(0);
   // const [todayCashPayment, setTodayCashPayment] = useState(0);
   // const [todayCardPayment, setTodayCardPayment] = useState(0);
   // const [todayCreditPayment, setTodayCreditPayment] = useState(0);
@@ -102,18 +112,25 @@ const DashboardStats = () => {
       startDate: startFinal.toISOString(),
       endDate: endFinal.toISOString(),
       page: 1,
-      limit: 5000,
+      limit: ORDERS_FETCH_LIMIT,
       cacheBust: Date.now(),
     })
       .then((res) => {
         if (!cancelled) {
-          setOrdersForDate(res?.orders ?? []);
+          const fetched = res?.orders ?? [];
+          setOrdersForDate(fetched);
+          // totalDoc הוא מספר ההזמנות בטווח לפני ה-limit
+          const total = Number(res?.totalDoc);
+          setTruncatedTotal(
+            Number.isFinite(total) && total > fetched.length ? total : 0
+          );
           setFetchErrorForDate(null);
         }
       })
       .catch((err) => {
         if (!cancelled) {
           setOrdersForDate([]);
+          setTruncatedTotal(0);
           setFetchErrorForDate(err?.response?.data?.message || err?.message || true);
           notifyError(err?.response?.data?.message || err?.message || t("ErrorLoadingSales"));
         }
@@ -604,6 +621,18 @@ const DashboardStats = () => {
           {fetchErrorForDate && !loadingOrdersForDate && (
             <p className="mb-4 text-sm text-red-500 dark:text-red-400">
               {typeof fetchErrorForDate === "string" ? fetchErrorForDate : t("ErrorLoadingSales")}
+            </p>
+          )}
+
+          {/* קטיעה שקטה היא הסיכון האמיתי כאן: בלי השורה הזו הסיכום נראה מלא */}
+          {truncatedTotal > 0 && !loadingOrdersForDate && (
+            <p
+              role="status"
+              className="mb-4 text-sm font-semibold text-amber-700 dark:text-amber-400"
+            >
+              בטווח שנבחר יש {truncatedTotal.toLocaleString("he-IL")} הזמנות, והסיכום
+              מחושב מ־{ordersForDate.length.toLocaleString("he-IL")} בלבד (תקרת השליפה).
+              יש לצמצם את טווח התאריכים כדי לקבל סיכום מלא.
             </p>
           )}
 
