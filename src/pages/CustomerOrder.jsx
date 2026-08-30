@@ -56,7 +56,6 @@ const CustomerOrder = () => {
                 <TableCell>{t("CustomerOrderTime")}</TableCell>
                 <TableCell>{t("CustomerShippingAddress")}</TableCell>
                 <TableCell>{t("Phone")} </TableCell>
-                <TableCell>{t("CustomerOrderMethod")} </TableCell>
                 <TableCell>{t("Amount")}</TableCell>
                 <TableCell className="text-center">
                   {" "}

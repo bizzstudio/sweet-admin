@@ -1319,5 +1319,8 @@
   "Quotes": "Quotes",
   "InvoicesAndCollection": "Invoices & Collection",
   "Receipts": "Receipts",
-  "IcountDemo": "iCount Demo"
+  "IcountDemo": "iCount Demo",
+  "card": "Card",
+  "manual": "Manual",
+  "archive": "Archive"
 }

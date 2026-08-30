@@ -37,11 +37,6 @@ const CustomerOrderTable = ({ orders }) => {
               <span className="text-sm">{order.user_info?.contact}</span>{" "}
             </TableCell>
             <TableCell>
-              <span className="text-sm font-semibold">
-                {order.paymentMethod}
-              </span>
-            </TableCell>
-            <TableCell>
               {" "}
               <span className="text-sm font-semibold">
                 {currency}

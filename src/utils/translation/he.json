@@ -1389,5 +1389,8 @@
   "Quotes": "הצעות מחיר",
   "InvoicesAndCollection": "חשבוניות וגבייה",
   "Receipts": "קבלות",
-  "IcountDemo": "הדגמת iCount"
+  "IcountDemo": "הדגמת iCount",
+  "card": "כרטיס אשראי",
+  "manual": "ידני",
+  "archive": "ארכיון"
 }
