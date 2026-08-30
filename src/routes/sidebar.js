@@ -254,6 +254,14 @@ const sidebar = [
     name: "WhatsApp Bot",
     path: "/whatsappbot",
   },
+
+  // קישור חיצוני לחנות. אין לו path: הכתובת נקראת מ-VITE_APP_STORE_DOMAIN
+  // ב-SidebarContent (OUTSIDE_LINKS), ונפתחת בלשונית חדשה.
+  {
+    icon: FiTarget,
+    name: "ViewStore",
+    outside: "store",
+  },
   // {
   //   icon: IoNewspaperOutline,
   //   name: "Blogs",

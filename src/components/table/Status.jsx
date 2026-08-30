@@ -16,6 +16,10 @@ const Status = ({ status }) => {
     // ברשימת ההזמנות — כל המטרה שלה היא שמישהו ישים לב אליה
     else if (status?.name === "IngestionError")
       return <Badge type="danger">{status.heName}</Badge>
+    // הזמנה שיובאה מקובץ ההיסטוריה של ההנהח"ש. אין בה מה לעשות — הסחורה
+    // יצאה והחשבונית הופקה מזמן — ולכן היא נראית ניטרלית ולא כמשימה פתוחה
+    else if (status?.name === "Archive")
+      return <Badge type="neutral">{status.heName}</Badge>
     else{
       return <Badge type="primary">{status.heName}</Badge>
     }

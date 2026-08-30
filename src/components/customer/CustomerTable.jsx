@@ -2,7 +2,7 @@ import { Badge, TableBody, TableCell, TableRow } from "@windmill/react-ui";
 import dayjs from "dayjs";
 import { t } from "i18next";
 import React from "react";
-import { FiClock, FiDollarSign, FiZoomIn } from "react-icons/fi";
+import { FiClock, FiZoomIn } from "react-icons/fi";
 import { Link } from "react-router-dom";
 
 // Internal import
@@ -73,7 +73,6 @@ const CustomerTable = ({
                   className="mx-auto flex items-center gap-1.5 rounded-md border border-gray-200 px-2 py-1 text-xs font-medium text-gray-600 transition-colors duration-150 hover:text-mainColor-dark focus:outline-none dark:border-gray-600 dark:text-gray-300"
                   title="העלאת מחירון מאקסל"
                 >
-                  <FiDollarSign />
                   {priceList?.itemsCount > 0 ? (
                     <Badge type="success">
                       <span className="font-bold">{priceList.itemsCount}</span>
