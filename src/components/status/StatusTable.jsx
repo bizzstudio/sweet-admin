@@ -104,7 +104,7 @@ const StatusTable = ({ statuses, isCheck, setIsCheck, setServiceId }) => {
               {status.phone &&
                 <button
                   onClick={() => { handleUpdate(status._id), setServiceId(status._id) }}
-                  className="p-2 cursor-pointer text-gray-400 hover:text-customGreen-dark focus:outline-none"
+                  className="p-2 cursor-pointer text-gray-500 hover:text-customGreen-dark focus:outline-none"
                 >
                   <Tooltip
                     id="edit"

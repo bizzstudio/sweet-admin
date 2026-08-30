@@ -175,7 +175,7 @@ const AttributeListTable = ({
                 <button
                   type="button"
                   onClick={() => setIsOpen(prev => prev.map((v, index) => index === i ? !v : v))}
-                  className="h-12 cursor-pointer text-gray-400 hover:text-green-600 focus:outline-none"
+                  className="h-12 cursor-pointer text-gray-500 hover:text-green-600 focus:outline-none"
                 >
                   {isOpen[i] ?
                     <Tooltip

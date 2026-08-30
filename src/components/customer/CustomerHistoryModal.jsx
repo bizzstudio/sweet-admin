@@ -441,7 +441,7 @@ const CustomerHistoryModal = ({
                 <div className="mt-3">
                   {/* החיפוש רץ בשרת ולכן הוא מוצא גם מוצרים שמעבר לתקרת התצוגה */}
                   <div className="relative mb-2">
-                    <FiSearch className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <FiSearch className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-500" />
                     <input
                       type="text"
                       value={itemSearch}
@@ -503,7 +503,7 @@ const CustomerHistoryModal = ({
                                   {!item.inCatalog ? (
                                     <span className="text-orange-500">אינו בקטלוג</span>
                                   ) : item.catalogTitle && item.catalogTitle !== item.name ? (
-                                    <span className="text-gray-400">
+                                    <span className="text-gray-500">
                                       {`בקטלוג: ${item.catalogTitle}`}
                                     </span>
                                   ) : null}

@@ -26,7 +26,7 @@ import { SidebarContext } from "@/context/SidebarContext";
 import NotificationServices from "@/services/NotificationServices";
 
 const Header = () => {
-  const { toggleSidebar, handleLanguageChange, setNavBar, navBar } =
+  const { toggleSidebar, isSidebarOpen, handleLanguageChange, setNavBar, navBar } =
     useContext(SidebarContext);
   const { state, dispatch } = useContext(AdminContext);
   const { adminInfo } = state;
@@ -140,12 +140,17 @@ const Header = () => {
     <>
       <header className="z-30 py-4 bg-white shadow-sm dark:bg-gray-800">
         <div className="container flex items-center justify-between h-full px-6 mx-auto text-customGreen dark:text-customGreen">
+          {/* הכפתור מכיל SVG בלבד ואין לו שם נגיש — קורא מסך הכריז "לחצן"
+              ותו לא. ‎aria-expanded מוסר גם את המצב הנוכחי. */}
           <button
             type="button"
             onClick={() => setNavBar(!navBar)}
-            className="hidden lg:block outline-0 focus:outline-none"
+            aria-label={navBar ? t("closeSidebar") : t("openSidebar")}
+            aria-expanded={navBar}
+            className="tap-target hidden lg:block"
           >
             <svg
+              aria-hidden="true"
               className="w-4 h-4"
               fill="none"
               stroke="currentColor"
@@ -163,9 +168,11 @@ const Header = () => {
 
           {/* <!-- Mobile hamburger --> */}
           <button
-            className="p-1 mr-5 -ml-1 rounded-md lg:hidden focus:outline-none"
+            type="button"
+            className="tap-target p-1 mr-5 -ml-1 rounded-md lg:hidden"
             onClick={toggleSidebar}
-            aria-label="Menu"
+            aria-label={t("openSidebar")}
+            aria-expanded={isSidebarOpen}
           >
             <IoMenu className="w-6 h-6" aria-hidden="true" />
           </button>
@@ -220,9 +227,11 @@ const Header = () => {
 
             <li className="flex">
               <button
-                className="rounded-md focus:outline-none"
+                type="button"
+                className="tap-target rounded-md"
                 onClick={toggleMode}
-                aria-label="Toggle color mode"
+                aria-label={mode === "dark" ? t("lightMode") : t("darkMode")}
+                aria-pressed={mode === "dark"}
               >
                 {mode === "dark" ? (
                   <IoSunny className="w-5 h-5" aria-hidden="true" />
@@ -235,12 +244,23 @@ const Header = () => {
             {/* <!-- Notifications menu --> */}
             <li className="relative inline-block text-right" ref={nRef}>
               <button
-                className="relative align-middle rounded-md focus:outline-none"
+                type="button"
+                className="tap-target relative align-middle rounded-md"
                 onClick={handleNotificationOpen}
+                aria-haspopup="true"
+                aria-expanded={notificationOpen}
+                aria-label={
+                  unreadCount > 0
+                    ? `${t("Notifications")} – ${unreadCount}`
+                    : t("Notifications")
+                }
               >
                 <IoNotificationsSharp className="w-5 h-5" aria-hidden="true" />
                 {unreadCount > 0 && (
-                  <span className="absolute z-10 top-0 left-0 inline-flex items-center justify-center p-1 h-5 w-5 text-xs font-medium leading-none text-red-100 transform -translate-x-1/2 -translate-y-1/2 bg-red-500 rounded-full">
+                  // ‎aria-hidden: המספר כבר נאמר ב-aria-label של הכפתור.
+                  // ‎bg-red-600 ולא ‎red-500: לבן על ‎#ef4444 = 3.76:1 ונופל,
+                  // לבן על ‎#dc2626 = 4.83:1 ועובר.
+                  <span aria-hidden="true" className="absolute z-10 top-0 left-0 inline-flex items-center justify-center p-1 h-5 w-5 text-xs font-bold leading-none text-white transform -translate-x-1/2 -translate-y-1/2 bg-red-600 rounded-full">
                     {unreadCount}
                   </span>
                 )}
@@ -281,7 +301,7 @@ const Header = () => {
                                   />
                                 ) : (
                                   <span className="p-2 ml-2 hidden md:flex items-center justify-center bg-gray-50 border border-gray-200 rounded-full">
-                                    <IoNotificationsSharp className="w-5 h-5 text-gray-400" />
+                                    <IoNotificationsSharp className="w-5 h-5 text-gray-500" />
                                   </span>
                                 )}
 
@@ -290,7 +310,7 @@ const Header = () => {
                                     {n.message}
                                   </h6>
 
-                                  <p className="flex items-center text-xs text-gray-400">
+                                  <p className="flex items-center text-xs text-gray-500">
                                     {n.status === "unread" && (
                                       <Badge type="danger">חדש</Badge>
                                     )}
@@ -337,7 +357,7 @@ const Header = () => {
                                 Yellow Sweet Corn Stock out, please check!
                               </h6>
 
-                              <p className="flex items-center text-xs text-gray-400">
+                              <p className="flex items-center text-xs text-gray-500">
                                 <Badge type="danger">Stock Out</Badge>
 
                                 <span className="ml-2">
@@ -367,7 +387,7 @@ const Header = () => {
                                 order!
                               </h6>
 
-                              <p className="flex items-center text-xs text-gray-400">
+                              <p className="flex items-center text-xs text-gray-500">
                                 <Badge type="success">New Order</Badge>
 
                                 <span className="ml-2">
@@ -395,7 +415,7 @@ const Header = () => {
                                 Radicchio Stock out, please check!
                               </h6>
 
-                              <p className="flex items-center text-xs text-gray-400">
+                              <p className="flex items-center text-xs text-gray-500">
                                 <Badge type="danger">Stock Out</Badge>
 
                                 <span className="ml-2">
@@ -423,7 +443,7 @@ const Header = () => {
                                 Organic Baby Carrot Stock out, please check!
                               </h6>
 
-                              <p className="flex items-center text-xs text-gray-400">
+                              <p className="flex items-center text-xs text-gray-500">
                                 <Badge type="danger">Stock Out</Badge>
 
                                 <span className="ml-2">
@@ -451,7 +471,7 @@ const Header = () => {
                                 Orange Stock out, please check!
                               </h6>
 
-                              <p className="flex items-center text-xs text-gray-400">
+                              <p className="flex items-center text-xs text-gray-500">
                                 <Badge type="danger">Stock Out</Badge>
 
                                 <span className="ml-2">
@@ -481,7 +501,7 @@ const Header = () => {
                                 order!
                               </h6>
 
-                              <p className="flex items-center text-xs text-gray-400">
+                              <p className="flex items-center text-xs text-gray-500">
                                 <Badge type="success">New Order</Badge>
 
                                 <span className="ml-2">
@@ -505,8 +525,12 @@ const Header = () => {
             {/* <!-- Profile menu --> */}
             <li className="relative pr-3 inline-block text-right" ref={pRef}>
               <button
-                className="rounded-full dark:bg-gray-500 bg-customGreen text-white h-8 w-8 font-medium mx-auto focus:outline-none"
+                type="button"
+                className="tap-target focus-ring-light rounded-full dark:bg-gray-500 bg-customGreen text-white h-8 w-8 font-medium mx-auto"
                 onClick={handleProfileOpen}
+                aria-haspopup="true"
+                aria-expanded={profileOpen}
+                aria-label={t("EditProfile")}
               >
                 {adminInfo.image ? (
                   <Avatar
@@ -521,7 +545,7 @@ const Header = () => {
 
               {profileOpen && (
                 <ul className="origin-top-left absolute left-0 mt-2 w-56 rounded-md shadow-lg bg-white dark:bg-gray-800 focus:outline-none">
-                  <li className="justify-between font-serif font-medium py-2 pr-4 transition-colors duration-150 hover:bg-gray-100 text-gray-500 hover:text-customGreen dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-200">
+                  <li className="justify-between font-serif font-medium py-2 pr-4 transition-colors duration-150 hover:bg-gray-100 text-gray-700 hover:text-customGreen-dark dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-gray-200">
                     <Link to="/dashboard">
                       <span className="flex items-center text-sm">
                         <IoGridOutline
@@ -533,7 +557,7 @@ const Header = () => {
                     </Link>
                   </li>
 
-                  <li className="justify-between font-serif font-medium py-2 pr-4 transition-colors duration-150 hover:bg-gray-100 text-gray-500 hover:text-customGreen dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-200">
+                  <li className="justify-between font-serif font-medium py-2 pr-4 transition-colors duration-150 hover:bg-gray-100 text-gray-700 hover:text-customGreen-dark dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-gray-200">
                     <Link to="/edit-profile">
                       <span className="flex items-center text-sm">
                         <IoSettingsOutline
@@ -545,10 +569,14 @@ const Header = () => {
                     </Link>
                   </li>
 
-                  <li
-                    onClick={handleLogOut}
-                    className="cursor-pointer justify-between font-serif font-medium py-2 pr-4 transition-colors duration-150 hover:bg-gray-100 text-gray-500 hover:text-customGreen dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-200"
-                  >
+                  {/* ‎<li onClick> אינו מקבל פוקוס ואינו מגיב ל-Enter — פעולת
+                      ההתנתקות הייתה בלתי נגישה לחלוטין במקלדת. */}
+                  <li className="justify-between font-serif font-medium transition-colors duration-150 hover:bg-gray-100 text-gray-600 hover:text-customGreen dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-gray-200">
+                    <button
+                      type="button"
+                      onClick={handleLogOut}
+                      className="w-full text-right cursor-pointer py-2 pr-4"
+                    >
                     <span className="flex items-center text-sm">
                       <IoLogOutOutline
                         className="w-4 h-4 ml-3"
@@ -556,6 +584,7 @@ const Header = () => {
                       />
                       <span>{t("LogOut")}</span>
                     </span>
+                    </button>
                   </li>
                 </ul>
               )}

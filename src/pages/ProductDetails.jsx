@@ -41,6 +41,7 @@ import Loading from "@/components/preloader/Loading";
 import PageTitle from "@/components/Typography/PageTitle";
 import { SidebarContext } from "@/context/SidebarContext";
 
+import TableHeaderCell from "@/components/table/TableHeaderCell";
 const ProductDetails = () => {
   const { id } = useParams();
   const { t } = useTranslation();
@@ -138,7 +139,7 @@ const ProductDetails = () => {
           <h2 className="text-base font-medium text-gray-600 dark:text-gray-400">
             {error ? "טעינת המוצר נכשלה" : "המוצר לא נמצא"}
           </h2>
-          {error ? <p className="mt-2 text-sm text-gray-400">{error}</p> : null}
+          {error ? <p className="mt-2 text-sm text-gray-500">{error}</p> : null}
         </div>
       ) : (
         <form
@@ -172,7 +173,7 @@ const ProductDetails = () => {
                   // בחנות", כדי שכל שדה יופיע בטופס פעם אחת בלבד
                   <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
                     {isFormLoading ? (
-                      <p className="sm:col-span-2 text-sm text-gray-400">
+                      <p className="sm:col-span-2 text-sm text-gray-500">
                         טוען את פרטי המוצר לעריכה...
                       </p>
                     ) : null}
@@ -273,7 +274,7 @@ const ProductDetails = () => {
                               {t("ThisProductShowing")}
                             </span>
                           ) : (
-                            <span className="text-red-400">
+                            <span className="text-red-600">
                               {t("ThisProductHidden")}
                             </span>
                           )}
@@ -294,7 +295,7 @@ const ProductDetails = () => {
                         {currency}
                         {getNumberTwo(product?.prices?.price)}
                         {product?.prices?.discount >= 1 && (
-                          <del className="pl-2 text-lg text-gray-400 dark:text-gray-500">
+                          <del className="pl-2 text-lg text-gray-500 dark:text-gray-500">
                             {currency}
                             {getNumberTwo(product?.prices?.originalPrice)}
                           </del>
@@ -393,17 +394,17 @@ const ProductDetails = () => {
         <>
           <PageTitle>{t("ProductVariantList")}</PageTitle>
           <TableContainer className="mb-8 rounded-b-lg">
-            <Table>
+            <Table className="w-full whitespace-nowrap admin-table">
               <TableHeader>
                 <tr>
-                  <TableCell>{t("SR")}</TableCell>
-                  <TableCell>{t("Image")}</TableCell>
-                  <TableCell>{t("Combination")}</TableCell>
-                  <TableCell>{t("Sku")}</TableCell>
-                  <TableCell>{t("Barcode")}</TableCell>
-                  <TableCell>{t("OrginalPrice")}</TableCell>
-                  <TableCell>{t("SalePrice")}</TableCell>
-                  <TableCell>{t("Quantity")}</TableCell>
+                  <TableHeaderCell>{t("SR")}</TableHeaderCell>
+                  <TableHeaderCell>{t("Image")}</TableHeaderCell>
+                  <TableHeaderCell>{t("Combination")}</TableHeaderCell>
+                  <TableHeaderCell>{t("Sku")}</TableHeaderCell>
+                  <TableHeaderCell>{t("Barcode")}</TableHeaderCell>
+                  <TableHeaderCell>{t("OrginalPrice")}</TableHeaderCell>
+                  <TableHeaderCell>{t("SalePrice")}</TableHeaderCell>
+                  <TableHeaderCell>{t("Quantity")}</TableHeaderCell>
                 </tr>
               </TableHeader>
               <AttributeList

@@ -37,6 +37,7 @@ import NotFound from "@/components/table/NotFound";
 import spinnerLoadingImage from "@/assets/img/spinner.gif";
 import { notifyError } from "@/utils/toast";
 
+import TableHeaderCell from "@/components/table/TableHeaderCell";
 const Category = () => {
   const { toggleDrawer, lang } = useContext(SidebarContext);
 
@@ -294,10 +295,10 @@ const Category = () => {
         <span className="text-center mx-auto text-red-500">{error}</span>
       ) : serviceData?.length !== 0 ? (
         <TableContainer className="mb-8">
-          <Table>
+          <Table className="w-full whitespace-nowrap admin-table">
             <TableHeader>
               <tr>
-                <TableCell>
+                <TableHeaderCell>
                   <CheckBox
                     type="checkbox"
                     name="selectAll"
@@ -305,16 +306,16 @@ const Category = () => {
                     handleClick={handleSelectAll}
                     isChecked={isCheckAll}
                   />
-                </TableCell>
+                </TableHeaderCell>
 
-                <TableCell className="text-center">{t("catIdTbl")}</TableCell>
-                <TableCell className="text-center">{t("Slug")}</TableCell>
-                <TableCell className="text-start">{t("catIconTbl")}</TableCell>
-                <TableCell className="text-start">{t("CatTbName")}</TableCell>
-                <TableCell className="text-start">{t("CatTbDescription")}</TableCell>
-                <TableCell className="text-center">
+                <TableHeaderCell className="text-center">{t("catIdTbl")}</TableHeaderCell>
+                <TableHeaderCell className="text-center">{t("Slug")}</TableHeaderCell>
+                <TableHeaderCell className="text-start">{t("catIconTbl")}</TableHeaderCell>
+                <TableHeaderCell className="text-start">{t("CatTbName")}</TableHeaderCell>
+                <TableHeaderCell className="text-start">{t("CatTbDescription")}</TableHeaderCell>
+                <TableHeaderCell className="text-center">
                   {t("catActionsTbl")}
-                </TableCell>
+                </TableHeaderCell>
               </tr>
             </TableHeader>
 

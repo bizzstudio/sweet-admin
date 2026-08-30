@@ -32,6 +32,7 @@ import TableLoading from "@/components/preloader/TableLoading";
 import spinnerLoadingImage from "@/assets/img/spinner.gif";
 import useUtilsFunction from "@/hooks/useUtilsFunction";
 
+import TableHeaderCell from "@/components/table/TableHeaderCell";
 const CashierOrders = () => {
   const {
     time,
@@ -325,20 +326,20 @@ const CashierOrders = () => {
         <span className="text-center mx-auto text-red-500">{error}</span>
       ) : serviceData?.length !== 0 ? (
         <TableContainer className="mb-8 dark:bg-gray-900">
-          <Table>
+          <Table className="w-full whitespace-nowrap admin-table">
             <TableHeader>
               <tr>
-                <TableCell className="text-center">{t("InvoiceNo")}</TableCell>
-                <TableCell className="text-center">{t("orderCreation")}</TableCell>
-                <TableCell className="text-center">{t("orderUpdate")}</TableCell>
-                <TableCell className="text-center">{t("Cashier")}</TableCell>
-                <TableCell className="text-center">{t("CustomerName")}</TableCell>
-                <TableCell className="text-center">{t("CustomerPhone")}</TableCell>
-                <TableCell className="text-center">{t("ProductCount")}</TableCell>
-                <TableCell className="text-center">{t("Discount")}</TableCell>
-                <TableCell className="text-center">{t("Total")}</TableCell>
-                <TableCell className="text-center">{t("Coupon")}</TableCell>
-                <TableCell className="text-center">{t("ActionTbl")}</TableCell>
+                <TableHeaderCell className="text-center">{t("InvoiceNo")}</TableHeaderCell>
+                <TableHeaderCell className="text-center">{t("orderCreation")}</TableHeaderCell>
+                <TableHeaderCell className="text-center">{t("orderUpdate")}</TableHeaderCell>
+                <TableHeaderCell className="text-center">{t("Cashier")}</TableHeaderCell>
+                <TableHeaderCell className="text-center">{t("CustomerName")}</TableHeaderCell>
+                <TableHeaderCell className="text-center">{t("CustomerPhone")}</TableHeaderCell>
+                <TableHeaderCell className="text-center">{t("ProductCount")}</TableHeaderCell>
+                <TableHeaderCell className="text-center">{t("Discount")}</TableHeaderCell>
+                <TableHeaderCell className="text-center">{t("Total")}</TableHeaderCell>
+                <TableHeaderCell className="text-center">{t("Coupon")}</TableHeaderCell>
+                <TableHeaderCell className="text-center">{t("ActionTbl")}</TableHeaderCell>
               </tr>
             </TableHeader>
 

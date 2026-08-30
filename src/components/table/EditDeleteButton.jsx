@@ -29,7 +29,8 @@ const EditDeleteButton = ({
           <>
             <Link
               to={`/categories/${parent?._id}`}
-              className="p-2 cursor-pointer text-gray-400 hover:text-customGreen-dark focus:outline-none"
+              aria-label={`${t("View")}${title ? ` – ${title}` : ""}`}
+              className="tap-target p-2 cursor-pointer text-gray-500 hover:text-customGreen-dark"
             >
               <Tooltip
                 id="view"
@@ -40,9 +41,11 @@ const EditDeleteButton = ({
             </Link>
 
             <button
+              type="button"
               disabled={isCheck?.length > 0}
               onClick={() => handleUpdate(id)}
-              className="p-2 cursor-pointer text-gray-400 hover:text-customGreen-dark focus:outline-none"
+              aria-label={`${t("Edit")}${title ? ` – ${title}` : ""}`}
+              className="tap-target p-2 cursor-pointer text-gray-500 hover:text-customGreen-dark disabled:opacity-40"
             >
               <Tooltip
                 id="edit"
@@ -55,7 +58,8 @@ const EditDeleteButton = ({
         ) : (
           <>
           <div
-            className="opacity-0 p-2 text-gray-400 hover:text-customGreen-dark focus:outline-none"
+            aria-hidden="true"
+            className="opacity-0 p-2 text-gray-500"
           >
             <Tooltip
               id="view"
@@ -66,9 +70,11 @@ const EditDeleteButton = ({
           </div>
 
           <button
+            type="button"
             disabled={isCheck?.length > 0}
             onClick={() => handleUpdate(id)}
-            className="p-2 cursor-pointer text-gray-400 hover:text-customGreen-dark focus:outline-none"
+            aria-label={`${t("Edit")}${title ? ` – ${title}` : ""}`}
+            className="tap-target p-2 cursor-pointer text-gray-500 hover:text-customGreen-dark disabled:opacity-40"
           >
             <Tooltip
               id="edit"
@@ -81,9 +87,11 @@ const EditDeleteButton = ({
         )}
 
         <button
+          type="button"
           disabled={isCheck?.length > 0}
           onClick={() => handleModalOpen(id, title, product)}
-          className="p-2 cursor-pointer text-gray-400 hover:text-red-600 focus:outline-none"
+          aria-label={`${t("Delete")}${title ? ` – ${title}` : ""}`}
+          className="tap-target p-2 cursor-pointer text-gray-500 hover:text-red-600 disabled:opacity-40"
         >
           <Tooltip
             id="delete"

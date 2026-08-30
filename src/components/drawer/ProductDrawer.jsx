@@ -40,6 +40,7 @@ import AttributeListTable from "@/components/attribute/AttributeListTable";
 import SwitchToggleForCombination from "@/components/form/switch/SwitchToggleForCombination";
 import SwitchToggle from "../form/switch/SwitchToggle";
 
+import TableHeaderCell from "@/components/table/TableHeaderCell";
 const ProductDrawer = ({ id }) => {
   const { t } = useTranslation();
 
@@ -632,18 +633,18 @@ const ProductDrawer = ({ id }) => {
               {/* {variants?.length >= 0 && ( */}
               {isCombination && (
                 <TableContainer className="md:mb-32 mb-40 rounded-b-lg">
-                  <Table>
+                  <Table className="w-full whitespace-nowrap admin-table">
                     <TableHeader>
                       <tr>
-                        <TableCell className='text-center'>{t("Image")}</TableCell>
-                        <TableCell className='text-center'>{t("Combination")}</TableCell>
-                        <TableCell className='text-center'>{t("Sku")}</TableCell>
-                        <TableCell className='text-center'>{t("Barcode")}</TableCell>
-                        <TableCell className='text-center'>{t("Price")}</TableCell>
-                        <TableCell className='text-center'>{t("SalePrice")}</TableCell>
-                        <TableCell className='text-center'>{t("QuantityTbl")}</TableCell>
-                        <TableCell className="text-center">{t("Actions")}</TableCell>
-                        <TableCell className="text-center">{t("specialOffers")}</TableCell>
+                        <TableHeaderCell className='text-center'>{t("Image")}</TableHeaderCell>
+                        <TableHeaderCell className='text-center'>{t("Combination")}</TableHeaderCell>
+                        <TableHeaderCell className='text-center'>{t("Sku")}</TableHeaderCell>
+                        <TableHeaderCell className='text-center'>{t("Barcode")}</TableHeaderCell>
+                        <TableHeaderCell className='text-center'>{t("Price")}</TableHeaderCell>
+                        <TableHeaderCell className='text-center'>{t("SalePrice")}</TableHeaderCell>
+                        <TableHeaderCell className='text-center'>{t("QuantityTbl")}</TableHeaderCell>
+                        <TableHeaderCell className="text-center">{t("Actions")}</TableHeaderCell>
+                        <TableHeaderCell className="text-center">{t("specialOffers")}</TableHeaderCell>
                       </tr>
                     </TableHeader>
 

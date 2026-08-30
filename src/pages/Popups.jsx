@@ -31,6 +31,7 @@ import NotFound from "@/components/table/NotFound";
 import UploadManyTwo from "@/components/common/UploadManyTwo";
 import PopupDrawer from "@/components/drawer/PopupDrawer";
 
+import TableHeaderCell from "@/components/table/TableHeaderCell";
 const Popups = () => {
   const { t } = useTranslation();
   const { toggleDrawer, lang } = useContext(SidebarContext);
@@ -107,10 +108,10 @@ const Popups = () => {
         <span className="text-center mx-auto text-red-500">{error}</span>
       ) : serviceData?.length !== 0 ? (
         <TableContainer className="mb-8">
-          <Table>
+          <Table className="w-full whitespace-nowrap admin-table">
             <TableHeader>
               <tr>
-                <TableCell className="text-center">
+                <TableHeaderCell className="text-center">
                   <CheckBox
                     type="checkbox"
                     name="selectAll"
@@ -118,12 +119,12 @@ const Popups = () => {
                     handleClick={handleSelectAll}
                     isChecked={isCheckAll}
                   />
-                </TableCell>
-                <TableCell className="text-center">{t("PopupTitle")}</TableCell>
-                <TableCell className="text-center">{t("PopupPageToShow")}</TableCell>
-                <TableCell className="text-center">{t("PopupPublished")}</TableCell>
-                <TableCell className="text-center">{t("CreatedAt")}</TableCell>
-                <TableCell className="text-center">{t("PopupActions")}</TableCell>
+                </TableHeaderCell>
+                <TableHeaderCell className="text-center">{t("PopupTitle")}</TableHeaderCell>
+                <TableHeaderCell className="text-center">{t("PopupPageToShow")}</TableHeaderCell>
+                <TableHeaderCell className="text-center">{t("PopupPublished")}</TableHeaderCell>
+                <TableHeaderCell className="text-center">{t("CreatedAt")}</TableHeaderCell>
+                <TableHeaderCell className="text-center">{t("PopupActions")}</TableHeaderCell>
               </tr>
             </TableHeader>
             <PopupTable

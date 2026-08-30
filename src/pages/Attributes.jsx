@@ -31,6 +31,7 @@ import useFilter from "@/hooks/useFilter";
 import useToggleDrawer from "@/hooks/useToggleDrawer";
 import AttributeServices from "@/services/AttributeServices";
 
+import TableHeaderCell from "@/components/table/TableHeaderCell";
 // Internal import
 
 const Attributes = () => {
@@ -193,10 +194,10 @@ const Attributes = () => {
         <span className="text-center mx-auto text-red-500">{error}</span>
       ) : serviceData?.length !== 0 ? (
         <TableContainer className="mb-8">
-          <Table>
+          <Table className="w-full whitespace-nowrap admin-table">
             <TableHeader>
               <tr>
-                <TableCell>
+                <TableHeaderCell>
                   <CheckBox
                     type="checkbox"
                     name="selectAll"
@@ -204,19 +205,19 @@ const Attributes = () => {
                     handleClick={handleSelectAll}
                     isChecked={isCheckAll}
                   />
-                </TableCell>
-                <TableCell> {t("Id")} </TableCell>
-                <TableCell> {t("AName")}</TableCell>
-                <TableCell> {t("ADisplayName")}</TableCell>
-                <TableCell>{t("AOption")}</TableCell>
+                </TableHeaderCell>
+                <TableHeaderCell> {t("Id")} </TableHeaderCell>
+                <TableHeaderCell> {t("AName")}</TableHeaderCell>
+                <TableHeaderCell> {t("ADisplayName")}</TableHeaderCell>
+                <TableHeaderCell>{t("AOption")}</TableHeaderCell>
 
-                <TableCell className="text-center">
+                <TableHeaderCell className="text-center">
                   {t("catPublishedTbl")}
-                </TableCell>
+                </TableHeaderCell>
 
-                <TableCell className="text-center">{t("Avalues")}</TableCell>
+                <TableHeaderCell className="text-center">{t("Avalues")}</TableHeaderCell>
 
-                <TableCell className="text-right">{t("AAction")}</TableCell>
+                <TableHeaderCell className="text-right">{t("AAction")}</TableHeaderCell>
               </tr>
             </TableHeader>
 

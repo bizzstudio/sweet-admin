@@ -49,7 +49,7 @@ import { text } from "@/utils/displayFormat";
 // (במיוחד המייל הפנימי של היבוא) לא יגלוש מחוץ לכרטיס
 const Contact = ({ icon, children }) => (
   <span className="flex min-w-0 items-center gap-1.5 break-words">
-    <span className="flex-shrink-0 text-gray-400 dark:text-gray-500">{icon}</span>
+    <span className="flex-shrink-0 text-gray-500 dark:text-gray-500">{icon}</span>
     {children}
   </span>
 );
@@ -113,7 +113,7 @@ const CustomerDetails = () => {
             {error ? "טעינת הלקוח נכשלה" : "הלקוח לא נמצא"}
           </h2>
           {error ? (
-            <p className="mt-2 text-sm text-gray-400">{error}</p>
+            <p className="mt-2 text-sm text-gray-500">{error}</p>
           ) : null}
         </div>
       ) : (
@@ -157,7 +157,7 @@ const CustomerDetails = () => {
                 ) : null}
 
                 {editing && isFormLoading ? (
-                  <p className="mt-3 text-sm text-gray-400">
+                  <p className="mt-3 text-sm text-gray-500">
                     מרענן את פרטי הלקוח...
                   </p>
                 ) : null}
@@ -229,7 +229,7 @@ const CustomerDetails = () => {
                     <Contact icon={<FiMail />}>
                       {isPlaceholderEmail(customer.email) ? (
                         <>
-                          <span className="text-gray-400">{customer.email}</span>{" "}
+                          <span className="text-gray-500">{customer.email}</span>{" "}
                           <Badge type="warning">
                             מזהה פנימי — אין מייל בקובץ
                           </Badge>
@@ -386,6 +386,9 @@ const CustomerDetails = () => {
                 // הכתובת שאליה יישלחו החשבוניות כשאין כתובת ייעודית —
                 // הפאנל מציג אותה כדי שברור לאן הן הולכות בפועל
                 fallbackEmail={customer.email}
+                // אחוז ההנחה שהגיע בייבוא של מנוע. משמש כברירת מחדל כשלא
+                // נקבע אחוז אצלנו, ומוצג בפאנל כדי שיהיה ברור מאיפה הוא בא
+                erpDiscountPercent={customer.erp?.discountPercent}
               />
             </Panel>
 
@@ -412,7 +415,7 @@ const CustomerDetails = () => {
             ) : null}
           </div>
 
-          <p className="mb-8 mt-4 text-right text-xs text-gray-400 dark:text-gray-500">
+          <p className="mb-8 mt-4 text-right text-xs text-gray-500 dark:text-gray-500">
             מזהה במערכת: {text(customer._id)}
           </p>
         </form>

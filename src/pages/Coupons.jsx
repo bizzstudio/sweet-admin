@@ -33,6 +33,7 @@ import CouponTable from "@/components/coupon/CouponTable";
 import NotFound from "@/components/table/NotFound";
 import UploadManyTwo from "@/components/common/UploadManyTwo";
 
+import TableHeaderCell from "@/components/table/TableHeaderCell";
 const Coupons = () => {
   const { t } = useTranslation();
   const { toggleDrawer, lang, windowDimension } = useContext(SidebarContext);
@@ -235,10 +236,10 @@ const Coupons = () => {
         <span className="text-center mx-auto text-red-500">{error}</span>
       ) : serviceData?.length !== 0 ? (
         <TableContainer className="mb-8">
-          <Table>
+          <Table className="w-full whitespace-nowrap admin-table">
             <TableHeader>
               <tr>
-                <TableCell className="text-center">
+                <TableHeaderCell className="text-center">
                   <CheckBox
                     type="checkbox"
                     name="selectAll"
@@ -246,17 +247,17 @@ const Coupons = () => {
                     handleClick={handleSelectAll}
                     isChecked={isCheckAll}
                   />
-                </TableCell>
-                {/* <TableCell className="text-center">{t("CoupTblCampaignsName")}</TableCell> */}
-                <TableCell className="text-center">{t("CoupTblCode")}</TableCell>
-                <TableCell className="text-center">{t("Discount")}</TableCell>
-                <TableCell className="text-center">{t("Usage Count")}</TableCell>
+                </TableHeaderCell>
+                {/* <TableHeaderCell className="text-center">{t("CoupTblCampaignsName")}</TableHeaderCell> */}
+                <TableHeaderCell className="text-center">{t("CoupTblCode")}</TableHeaderCell>
+                <TableHeaderCell className="text-center">{t("Discount")}</TableHeaderCell>
+                <TableHeaderCell className="text-center">{t("Usage Count")}</TableHeaderCell>
 
-                <TableCell className="text-center">{t("catPublishedTbl")}</TableCell>
-                <TableCell className="text-center">{t("CoupTblStartDate")}</TableCell>
-                {/* <TableCell className="text-center">{t("CoupTblEndDate")}</TableCell> */}
-                {/* <TableCell className="text-center">{t("CoupTblStatus")}</TableCell> */}
-                <TableCell className="text-center">{t("CoupTblActions")}</TableCell>
+                <TableHeaderCell className="text-center">{t("catPublishedTbl")}</TableHeaderCell>
+                <TableHeaderCell className="text-center">{t("CoupTblStartDate")}</TableHeaderCell>
+                {/* <TableHeaderCell className="text-center">{t("CoupTblEndDate")}</TableHeaderCell> */}
+                {/* <TableHeaderCell className="text-center">{t("CoupTblStatus")}</TableHeaderCell> */}
+                <TableHeaderCell className="text-center">{t("CoupTblActions")}</TableHeaderCell>
               </tr>
             </TableHeader>
             <CouponTable

@@ -32,6 +32,7 @@ import BillingServices from "@/services/BillingServices";
 import OrderServices from "@/services/OrderServices";
 import { notifyError, notifySuccess } from "@/utils/toast";
 
+import TableHeaderCell from "@/components/table/TableHeaderCell";
 const shekel = (n) =>
   Number(n || 0).toLocaleString("he-IL", {
     minimumFractionDigits: 2,
@@ -262,15 +263,15 @@ const OrderItemsEditor = ({ orderId, order, onSaved, onCancel }) => {
         )}
 
         <TableContainer className="mb-4">
-          <Table>
+          <Table className="w-full whitespace-nowrap admin-table">
             <TableHeader>
               <tr>
-                <TableCell>מוצר</TableCell>
-                <TableCell className="text-center">מק"ט</TableCell>
-                <TableCell className="text-center">כמות</TableCell>
-                <TableCell className="text-center">מחיר ליחידה</TableCell>
-                <TableCell className="text-left">סה"כ שורה</TableCell>
-                <TableCell />
+                <TableHeaderCell>מוצר</TableHeaderCell>
+                <TableHeaderCell className="text-center">מק"ט</TableHeaderCell>
+                <TableHeaderCell className="text-center">כמות</TableHeaderCell>
+                <TableHeaderCell className="text-center">מחיר ליחידה</TableHeaderCell>
+                <TableHeaderCell className="text-left">סה"כ שורה</TableHeaderCell>
+                <TableHeaderCell />
               </tr>
             </TableHeader>
             <TableBody>

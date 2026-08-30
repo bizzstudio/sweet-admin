@@ -32,6 +32,7 @@ import MainDrawer from "@/components/drawer/MainDrawer";
 import StatusDrawer from "@/components/drawer/StatusDrawer";
 import CheckBox from "@/components/form/others/CheckBox";
 
+import TableHeaderCell from "@/components/table/TableHeaderCell";
 const Statuses = () => {
   const {
     status,
@@ -147,10 +148,10 @@ const Statuses = () => {
         <span className="text-center mx-auto text-red-500">{error}</span>
       ) : data?.length !== 0 ? (
         <TableContainer className="mb-8 dark:bg-gray-900">
-          <Table>
+          <Table className="w-full whitespace-nowrap admin-table">
             <TableHeader>
               <tr>
-                {/* <TableCell>
+                {/* <TableHeaderCell>
                   <CheckBox
                     type="checkbox"
                     name="selectAll"
@@ -158,15 +159,15 @@ const Statuses = () => {
                     handleClick={handleSelectAll}
                     isChecked={isCheckAll}
                   />
-                </TableCell> */}
-                <TableCell className='text-center'>{t("Name")}</TableCell>
-                <TableCell className='text-center'>{t("heName")}</TableCell>
-                <TableCell className='text-center'>{t("phone")}</TableCell>
-                {/* <TableCell className='text-center'>{t("IsActive")}</TableCell> */}
-                <TableCell className='text-center'>{t("CreatedAt")}</TableCell>
-                <TableCell className='text-center'>{t("UpdatedAt")}</TableCell>
-                <TableCell className='text-center'>{t("IsActive")}</TableCell>
-                <TableCell className='text-center'>{t("Actions")}</TableCell>
+                </TableHeaderCell> */}
+                <TableHeaderCell className='text-center'>{t("Name")}</TableHeaderCell>
+                <TableHeaderCell className='text-center'>{t("heName")}</TableHeaderCell>
+                <TableHeaderCell className='text-center'>{t("phone")}</TableHeaderCell>
+                {/* <TableHeaderCell className='text-center'>{t("IsActive")}</TableHeaderCell> */}
+                <TableHeaderCell className='text-center'>{t("CreatedAt")}</TableHeaderCell>
+                <TableHeaderCell className='text-center'>{t("UpdatedAt")}</TableHeaderCell>
+                <TableHeaderCell className='text-center'>{t("IsActive")}</TableHeaderCell>
+                <TableHeaderCell className='text-center'>{t("Actions")}</TableHeaderCell>
               </tr>
             </TableHeader>
 

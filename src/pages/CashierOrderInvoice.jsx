@@ -24,6 +24,7 @@ import PageTitle from "@/components/Typography/PageTitle";
 import useUtilsFunction from "@/hooks/useUtilsFunction";
 import InvoiceForDownload from "@/components/invoice/InvoiceForDownload";
 
+import TableHeaderCell from "@/components/table/TableHeaderCell";
 const CashierOrderInvoice = () => {
     const { t } = useTranslation();
     const { mode } = useContext(WindmillContext);
@@ -124,18 +125,18 @@ const CashierOrderInvoice = () => {
                         <span className="text-center mx-auto text-red-500">{error}</span>
                     ) : (
                         <TableContainer className="my-8">
-                            <Table>
+                            <Table className="w-full whitespace-nowrap">
                                 <TableHeader>
                                     <tr>
-                                        <TableCell>{t("Sr")}</TableCell>
-                                        <TableCell>Product Title</TableCell>
-                                        <TableCell className="text-center">
+                                        <TableHeaderCell>{t("Sr")}</TableHeaderCell>
+                                        <TableHeaderCell>Product Title</TableHeaderCell>
+                                        <TableHeaderCell className="text-center">
                                             {t("Quantity")}
-                                        </TableCell>
-                                        <TableCell className="text-center">
+                                        </TableHeaderCell>
+                                        <TableHeaderCell className="text-center">
                                             {t("ItemPrice")}
-                                        </TableCell>
-                                        <TableCell className="text-right">{t("Amount")}</TableCell>
+                                        </TableHeaderCell>
+                                        <TableHeaderCell className="text-right">{t("Amount")}</TableHeaderCell>
                                     </tr>
                                 </TableHeader>
                                 <Invoice

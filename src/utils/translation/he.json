@@ -111,6 +111,7 @@
   "Attribute": "תכונות",
   "Coupons": "קופונים",
   "OurStaff": "הצוות שלנו",
+  "SalesStats": "נתוני מכירות",
   "Customers": "לקוחות",
   "International": "בינלאומי",
   "Localization": "לוקליזציה",
@@ -1392,5 +1393,14 @@
   "IcountDemo": "הדגמת iCount",
   "card": "כרטיס אשראי",
   "manual": "ידני",
-  "archive": "ארכיון"
+  "archive": "ארכיון",
+  "skipToContent": "דלג לתוכן המרכזי",
+  "mainNavigation": "ניווט ראשי",
+  "subMenu": "תת-תפריט",
+  "openSidebar": "פתיחת תפריט הצד",
+  "closeSidebar": "סגירת תפריט הצד",
+  "opensInNewWindow": "נפתח בחלון חדש",
+  "lightMode": "מעבר למצב בהיר",
+  "darkMode": "מעבר למצב כהה",
+  "Notifications": "התראות"
 }

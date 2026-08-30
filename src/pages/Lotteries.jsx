@@ -19,6 +19,7 @@ import { SidebarContext } from "@/context/SidebarContext";
 import useAsync from "@/hooks/useAsync";
 import LotteryServices from "@/services/LotteryServices";
 
+import TableHeaderCell from "@/components/table/TableHeaderCell";
 function formatDate(iso) {
   if (!iso) return "—";
   try {
@@ -323,16 +324,16 @@ const Lotteries = () => {
               {pageError}
             </p>
           )}
-          <Table>
+          <Table className="w-full whitespace-nowrap admin-table">
             <TableHeader>
               <tr>
-                <TableCell>כותרת</TableCell>
-                <TableCell>טווח תאריכים</TableCell>
-                <TableCell>משתתפים</TableCell>
-                <TableCell>סטטוס הגרלה</TableCell>
-                <TableCell>זוכה בהגרלה</TableCell>
-                <TableCell className="whitespace-nowrap">ביצוע הגרלה</TableCell>
-                <TableCell className="whitespace-nowrap">מחיקה</TableCell>
+                <TableHeaderCell>כותרת</TableHeaderCell>
+                <TableHeaderCell>טווח תאריכים</TableHeaderCell>
+                <TableHeaderCell>משתתפים</TableHeaderCell>
+                <TableHeaderCell>סטטוס הגרלה</TableHeaderCell>
+                <TableHeaderCell>זוכה בהגרלה</TableHeaderCell>
+                <TableHeaderCell className="whitespace-nowrap">ביצוע הגרלה</TableHeaderCell>
+                <TableHeaderCell className="whitespace-nowrap">מחיקה</TableHeaderCell>
               </tr>
             </TableHeader>
             <tbody>
@@ -460,7 +461,7 @@ const Lotteries = () => {
                           בצע הגרלה
                         </Button>
                       ) : (
-                        <span className="text-sm text-gray-400">—</span>
+                        <span className="text-sm text-gray-500">—</span>
                       )}
                     </TableCell>
                     <TableCell className="align-top">

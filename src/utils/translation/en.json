@@ -110,6 +110,7 @@
   "Attribute": "Attribute",
   "Coupons": "Coupons",
   "OurStaff": "Our Staff",
+  "SalesStats": "Sales Stats",
   "Customers": "Customers",
   "International": "International",
   "Localization": "Localization",
@@ -1322,5 +1323,14 @@
   "IcountDemo": "iCount Demo",
   "card": "Card",
   "manual": "Manual",
-  "archive": "Archive"
+  "archive": "Archive",
+  "skipToContent": "Skip to main content",
+  "mainNavigation": "Main navigation",
+  "subMenu": "Submenu",
+  "openSidebar": "Open sidebar",
+  "closeSidebar": "Close sidebar",
+  "opensInNewWindow": "opens in a new window",
+  "lightMode": "Switch to light mode",
+  "darkMode": "Switch to dark mode",
+  "Notifications": "Notifications"
 }

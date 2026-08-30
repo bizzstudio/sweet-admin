@@ -3,6 +3,8 @@ import { lazy } from "react";
 // use lazy for better code splitting
 const StatusInvoice = lazy(()=>import("@/pages/StatusInvoice"));
 const Dashboard = lazy(() => import("@/pages/Dashboard"));
+// נתוני המכירות שהיו בלוח הבקרה עד שהוא הפך למסך ניווט (כפתורים).
+const DashboardStats = lazy(() => import("@/pages/DashboardStats"));
 // ⛔ תכונות כבויות (הקוד נשמר) - להחזרה: להסיר את ההערה כאן ובמסלולים למטה
 // const Attributes = lazy(() => import("@/pages/Attributes"));
 // const ChildAttributes = lazy(() => import("@/pages/ChildAttributes"));
@@ -53,6 +55,8 @@ const DeliveryNotes = lazy(() => import("@/pages/DeliveryNotes"));
 const MonthlyBilling = lazy(() => import("@/pages/MonthlyBilling"));
 const Quotes = lazy(() => import("@/pages/Quotes"));
 const BillingDocument = lazy(() => import("@/pages/BillingDocument"));
+// נספח "ריכוז תעודות" שמצורף לחשבונית החודשית
+const InvoiceNotesSummary = lazy(() => import("@/pages/InvoiceNotesSummary"));
 const Invoices = lazy(() => import("@/pages/Invoices"));
 const IcountDemo = lazy(() => import("@/pages/IcountDemo"));
 const Receipts = lazy(() => import("@/pages/Receipts"));
@@ -72,6 +76,10 @@ const routes = [
   {
     path: "/dashboard",
     component: Dashboard,
+  },
+  {
+    path: "/dashboard-stats",
+    component: DashboardStats,
   },
   {
     path: "/products",
@@ -219,6 +227,10 @@ const routes = [
   {
     path: "/delivery-note/:id",
     component: BillingDocument,
+  },
+  {
+    path: "/invoice-summary/:docNum",
+    component: InvoiceNotesSummary,
   },
   // ⛔ קופונים כבויים (לא נמחקו) - להחזרה: להסיר את ההערה
   // {

@@ -29,7 +29,7 @@ const MessageTable = ({ messages, setServiceId }) => {
           <TableCell className='flex justify-center'>
             <button
               onClick={() => { handleUpdate(message._id); setServiceId(message._id); }}
-              className="p-2 cursor-pointer text-gray-400 hover:text-customGreen-dark focus:outline-none"
+              className="p-2 cursor-pointer text-gray-500 hover:text-customGreen-dark focus:outline-none"
             >
               <Tooltip
                 id="edit"

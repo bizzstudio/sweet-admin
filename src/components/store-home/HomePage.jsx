@@ -1052,7 +1052,7 @@ const HomePage = ({
                         setImageUrl={setPlaceHolderImage}
                         folder='HomePage'
                       />
-                      <div className="text-xs text-center text-gray-400">
+                      <div className="text-xs text-center text-gray-500">
                         <em>( {t("ImagesResolution")} )</em>
                       </div>
                     </div>

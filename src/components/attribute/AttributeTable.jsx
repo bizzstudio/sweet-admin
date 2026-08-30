@@ -75,7 +75,7 @@ const AttributeTable = ({ isCheck, setIsCheck, attributes }) => {
             <TableCell className="flex justify-center">
               <Link
                 to={`/attributes/${attribute._id}`}
-                className="p-2 cursor-pointer text-gray-400 hover:text-customGreen-dark focus:outline-none"
+                className="p-2 cursor-pointer text-gray-500 hover:text-customGreen-dark focus:outline-none"
               >
                 <Tooltip
                   id="edit values"

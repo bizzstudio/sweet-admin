@@ -141,7 +141,7 @@ export default function SpecialOffers({ offers = [],
     //                         <button
     //                             type="button"
     //                             onClick={() => handleDelete(i)}
-    //                             className="h-12 cursor-pointer text-gray-400 hover:text-red-600 focus:outline-none"
+    //                             className="h-12 cursor-pointer text-gray-500 hover:text-red-600 focus:outline-none"
     //                         >
     //                             <Tooltip
     //                                 id="delete"

@@ -31,6 +31,7 @@ import useToggleDrawer from "@/hooks/useToggleDrawer";
 import useFilter from "@/hooks/useFilter";
 import { SidebarContext } from "@/context/SidebarContext";
 
+import TableHeaderCell from "@/components/table/TableHeaderCell";
 const Blogs = () => {
     const { t } = useTranslation();
     const { toggleDrawer } = useContext(SidebarContext);
@@ -174,24 +175,24 @@ const Blogs = () => {
                 <span className="text-red-500">{error}</span>
             ) : serviceData?.length ? (
                 <TableContainer className="mb-8 rounded-b-lg">
-                    <Table>
+                    <Table className="w-full whitespace-nowrap admin-table">
                         <TableHeader>
                             <tr>
-                                <TableCell className="text-center">
+                                <TableHeaderCell className="text-center">
                                     <CheckBox
                                         id="selectAll"
                                         type="checkbox"
                                         handleClick={handleSelectAll}
                                         isChecked={isCheckAll}
                                     />
-                                </TableCell>
-                                <TableCell className="text-center">{t("Image")}</TableCell>
-                                <TableCell>{t("Title")}</TableCell>
-                                <TableCell>{t("Author")}</TableCell>
-                                <TableCell>{t("Category")}</TableCell>
-                                <TableCell className="text-center">{t("Status")}</TableCell>
-                                <TableCell className="text-center">{t("PublishDate")}</TableCell>
-                                <TableCell className="text-center">{t("Actions")}</TableCell>
+                                </TableHeaderCell>
+                                <TableHeaderCell className="text-center">{t("Image")}</TableHeaderCell>
+                                <TableHeaderCell>{t("Title")}</TableHeaderCell>
+                                <TableHeaderCell>{t("Author")}</TableHeaderCell>
+                                <TableHeaderCell>{t("Category")}</TableHeaderCell>
+                                <TableHeaderCell className="text-center">{t("Status")}</TableHeaderCell>
+                                <TableHeaderCell className="text-center">{t("PublishDate")}</TableHeaderCell>
+                                <TableHeaderCell className="text-center">{t("Actions")}</TableHeaderCell>
                             </tr>
                         </TableHeader>
 

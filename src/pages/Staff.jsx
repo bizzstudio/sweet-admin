@@ -29,6 +29,7 @@ import { AdminContext } from "@/context/AdminContext";
 import { SidebarContext } from "@/context/SidebarContext";
 import AdminServices from "@/services/AdminServices";
 
+import TableHeaderCell from "@/components/table/TableHeaderCell";
 const Staff = () => {
   const { state } = useContext(AdminContext);
   const { adminInfo } = state;
@@ -130,24 +131,24 @@ const Staff = () => {
         <span className="text-center mx-auto text-red-500">{error}</span>
       ) : serviceData?.length !== 0 ? (
         <TableContainer className="mb-8 rounded-b-lg">
-          <Table>
+          <Table className="w-full whitespace-nowrap admin-table">
             <TableHeader>
               <tr>
-                <TableCell>{t("StaffNameTbl")}</TableCell>
-                <TableCell>{t("StaffEmailTbl")}</TableCell>
-                <TableCell>{t("StaffContactTbl")}</TableCell>
-                <TableCell>{t("StaffJoiningDateTbl")}</TableCell>
-                <TableCell>{t("StaffRoleTbl")}</TableCell>
-                <TableCell className="text-center">
+                <TableHeaderCell>{t("StaffNameTbl")}</TableHeaderCell>
+                <TableHeaderCell>{t("StaffEmailTbl")}</TableHeaderCell>
+                <TableHeaderCell>{t("StaffContactTbl")}</TableHeaderCell>
+                <TableHeaderCell>{t("StaffJoiningDateTbl")}</TableHeaderCell>
+                <TableHeaderCell>{t("StaffRoleTbl")}</TableHeaderCell>
+                <TableHeaderCell className="text-center">
                   {t("OderStatusTbl")}
-                </TableCell>
-                <TableCell className="text-center">
+                </TableHeaderCell>
+                <TableHeaderCell className="text-center">
                   {t("PublishedTbl")}
-                </TableCell>
+                </TableHeaderCell>
 
-                <TableCell className="text-right">
+                <TableHeaderCell className="text-right">
                   {t("StaffActionsTbl")}
-                </TableCell>
+                </TableHeaderCell>
               </tr>
             </TableHeader>
 

@@ -36,6 +36,7 @@ import TableLoading from "@/components/preloader/TableLoading";
 import SelectCategory from "@/components/form/selectOption/SelectCategory";
 import ImportExcelModal from "@/components/product/ImportExcelModal";
 
+import TableHeaderCell from "@/components/table/TableHeaderCell";
 const Products = () => {
   const {
     title,
@@ -255,10 +256,10 @@ const Products = () => {
         <span className="text-center mx-auto text-red-500">{error}</span>
       ) : data?.products?.length !== 0 ? (
         <TableContainer className="mb-8 rounded-b-lg">
-          <Table>
+          <Table className="w-full whitespace-nowrap admin-table">
             <TableHeader>
               <tr>
-                <TableCell className='text-center'>
+                <TableHeaderCell className='text-center'>
                   <CheckBox
                     type="checkbox"
                     name="selectAll"
@@ -266,26 +267,26 @@ const Products = () => {
                     isChecked={isCheckAll}
                     handleClick={handleSelectAll}
                   />
-                </TableCell>
+                </TableHeaderCell>
                 {/* מוסתר זמנית - עמודת "פורסם" */}
                 {false && (
-                  <TableCell className="text-center">
+                  <TableHeaderCell className="text-center">
                     {t("PublishedTbl")}
-                  </TableCell>
+                  </TableHeaderCell>
                 )}
-                <TableCell className='text-right'>{t("ProductNameTbl")}</TableCell>
-                <TableCell className='text-center'>{t("PriceTbl")}</TableCell>
-                <TableCell className='text-center'>{t("offer")}</TableCell>
-                <TableCell className='text-center'>{t("CategoryTbl")}</TableCell>
+                <TableHeaderCell className='text-right'>{t("ProductNameTbl")}</TableHeaderCell>
+                <TableHeaderCell className='text-center'>{t("PriceTbl")}</TableHeaderCell>
+                <TableHeaderCell className='text-center'>{t("offer")}</TableHeaderCell>
+                <TableHeaderCell className='text-center'>{t("CategoryTbl")}</TableHeaderCell>
                 {/* מוסתר זמנית - עמודת "סדר הופעה בחנות" */}
                 {false && (
-                  <TableCell className='text-center'>{t("ProductSerialOrder")}</TableCell>
+                  <TableHeaderCell className='text-center'>{t("ProductSerialOrder")}</TableHeaderCell>
                 )}
-                <TableCell className='text-center'>{t("StockTbl")}</TableCell>
-                {/* <TableCell className='text-center'>Sale Price</TableCell>
-                <TableCell className='text-center'>{t("StockTbl")}</TableCell>
-                <TableCell className='text-center'>{t("StatusTbl")}</TableCell> */}
-                <TableCell className="text-center">{t("ActionsTbl")}</TableCell>
+                <TableHeaderCell className='text-center'>{t("StockTbl")}</TableHeaderCell>
+                {/* <TableHeaderCell className='text-center'>Sale Price</TableHeaderCell>
+                <TableHeaderCell className='text-center'>{t("StockTbl")}</TableHeaderCell>
+                <TableHeaderCell className='text-center'>{t("StatusTbl")}</TableHeaderCell> */}
+                <TableHeaderCell className="text-center">{t("ActionsTbl")}</TableHeaderCell>
               </tr>
             </TableHeader>
             <ProductTable

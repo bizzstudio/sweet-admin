@@ -13,6 +13,7 @@ import { useTranslation } from "react-i18next";
 import AddressFormat from "../AddressFormat";
 import useUtilsFunction from "@/hooks/useUtilsFunction";
 
+import TableHeaderCell from "@/components/table/TableHeaderCell";
 const InvoiceForPrint = forwardRef(({ data, globalSetting }, ref) => {
   const { t } = useTranslation();
 
@@ -101,25 +102,25 @@ const InvoiceForPrint = forwardRef(({ data, globalSetting }, ref) => {
             </div>}
 
             <TableContainer className="mt-2 mb-4 rounded-b-lg">
-              <Table>
+              <Table className="w-full whitespace-nowrap">
                 <TableHeader>
                   <tr>
-                    <TableCell className="bg-white w-fit text-center">
+                    <TableHeaderCell className="bg-white w-fit text-center">
                       <span className="text-xs capitalize text-gray-700 mx-auto text-center">
                         {t("Number")}
                       </span>
-                    </TableCell>
-                    <TableCell className="bg-white text-right">
+                    </TableHeaderCell>
+                    <TableHeaderCell className="bg-white text-right">
                       <span className="text-xs capitalize text-gray-700">
                         {t("Item")}
                       </span>
-                    </TableCell>
-                    <TableCell className="text-xs bg-white capitalize text-center text-gray-700">
+                    </TableHeaderCell>
+                    <TableHeaderCell className="text-xs bg-white capitalize text-center text-gray-700">
                       {t("QTY")}
-                    </TableCell>
-                    <TableCell className="text-xs bg-white capitalize text-right text-gray-700">
+                    </TableHeaderCell>
+                    <TableHeaderCell className="text-xs bg-white capitalize text-right text-gray-700">
                       {t("Total")}
-                    </TableCell>
+                    </TableHeaderCell>
                   </tr>
                 </TableHeader>
                 <TableBody className="bg-white dark:bg-gray-800 divide-y divide-gray-100 text-serif text-sm">
@@ -383,25 +384,25 @@ const InvoiceForPrint = forwardRef(({ data, globalSetting }, ref) => {
           </div>}
 
           <TableContainer className="mt-2 mb-4 rounded-b-lg">
-            <Table>
+            <Table className="w-full whitespace-nowrap">
               <TableHeader>
                 <tr>
-                  <TableCell className="bg-white w-fit text-center">
+                  <TableHeaderCell className="bg-white w-fit text-center">
                     <span className="text-xs capitalize text-gray-700 mx-auto text-center">
                       {t("Number")}
                     </span>
-                  </TableCell>
-                  <TableCell className="bg-white text-right">
+                  </TableHeaderCell>
+                  <TableHeaderCell className="bg-white text-right">
                     <span className="text-xs capitalize text-gray-700">
                       {t("Item")}
                     </span>
-                  </TableCell>
-                  <TableCell className="text-xs bg-white capitalize text-center text-gray-700">
+                  </TableHeaderCell>
+                  <TableHeaderCell className="text-xs bg-white capitalize text-center text-gray-700">
                     {t("QTY")}
-                  </TableCell>
-                  <TableCell className="text-xs bg-white capitalize text-right text-gray-700">
+                  </TableHeaderCell>
+                  <TableHeaderCell className="text-xs bg-white capitalize text-right text-gray-700">
                     {t("Total")}
-                  </TableCell>
+                  </TableHeaderCell>
                 </tr>
               </TableHeader>
               <TableBody className="bg-white dark:bg-gray-800 divide-y divide-gray-100 text-serif text-sm px-1">

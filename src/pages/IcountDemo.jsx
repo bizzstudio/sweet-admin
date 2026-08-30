@@ -36,6 +36,7 @@ import { notifyError, notifySuccess } from "@/utils/toast";
 import PageTitle from "@/components/Typography/PageTitle";
 import BillingServices from "@/services/BillingServices";
 
+import TableHeaderCell from "@/components/table/TableHeaderCell";
 const shekel = (n) =>
   Number(n || 0).toLocaleString("he-IL", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -289,14 +290,14 @@ const IcountDemo = () => {
             )}
 
             <TableContainer className="mt-4">
-              <Table>
+              <Table className="w-full whitespace-nowrap admin-table">
                 <TableHeader>
                   <tr>
-                    <TableCell>פריט</TableCell>
-                    <TableCell className="text-center">כמות</TableCell>
-                    <TableCell className="text-center">מחיר ליחידה</TableCell>
-                    <TableCell className="text-center">מע"מ</TableCell>
-                    <TableCell className="text-left">סה"כ שורה</TableCell>
+                    <TableHeaderCell>פריט</TableHeaderCell>
+                    <TableHeaderCell className="text-center">כמות</TableHeaderCell>
+                    <TableHeaderCell className="text-center">מחיר ליחידה</TableHeaderCell>
+                    <TableHeaderCell className="text-center">מע"מ</TableHeaderCell>
+                    <TableHeaderCell className="text-left">סה"כ שורה</TableHeaderCell>
                   </tr>
                 </TableHeader>
                 <TableBody>
@@ -362,13 +363,13 @@ const IcountDemo = () => {
           <CardBody>
             <p className="font-semibold mb-3">מסמכי המשך</p>
             <TableContainer>
-              <Table>
+              <Table className="w-full whitespace-nowrap admin-table">
                 <TableHeader>
                   <tr>
-                    <TableCell>סוג</TableCell>
-                    <TableCell>מספר</TableCell>
-                    <TableCell>סכום</TableCell>
-                    <TableCell></TableCell>
+                    <TableHeaderCell>סוג</TableHeaderCell>
+                    <TableHeaderCell>מספר</TableHeaderCell>
+                    <TableHeaderCell>סכום</TableHeaderCell>
+                    <TableHeaderCell></TableHeaderCell>
                   </tr>
                 </TableHeader>
                 <TableBody>

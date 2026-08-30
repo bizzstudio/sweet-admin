@@ -13,17 +13,7 @@ import logoDark from "@/assets/img/logo/logo-color.png";
 import logoLight from "@/assets/img/logo/logo-dark.png";
 import { AdminContext } from "@/context/AdminContext";
 import SidebarSubMenu from "@/components/sidebar/SidebarSubMenu";
-
-// קישורים חיצוניים (outside) חייבים <a> ולא NavLink: react-router v5 מתייחס
-// ל-`to` כנתיב פנימי ומדביק לו את ה-basename, כך שכתובת מלאה נשברת.
-const OUTSIDE_LINKS = {
-  store: import.meta.env.VITE_APP_STORE_DOMAIN,
-  // ברירת המחדל היא לפי מוסכמת התת-תיקיות של שאר השירותים ב-srv2.
-  // אם אפליקציית הליקוט תעלה לכתובת אחרת — להגדיר VITE_APP_LIKUTAPP_DOMAIN ב-.env.
-  likutApp:
-    import.meta.env.VITE_APP_LIKUTAPP_DOMAIN ||
-    "https://srv2.bizzstudio.co.il/sweet-likut",
-};
+import OUTSIDE_LINKS from "@/routes/outsideLinks";
 
 const SidebarContent = () => {
   const { t } = useTranslation();
@@ -48,7 +38,8 @@ const SidebarContent = () => {
           className="w-full max-w-[190px] h-auto mx-auto"
         />
       </Link>
-      <ul className="mt-6">
+      {/* ‎<ul> עם תווית: קורא מסך מכריז "רשימה בת N פריטים" ומאפשר קפיצה */}
+      <ul className="mt-6" aria-label={t("mainNavigation")}>
         {sidebar.map((route) =>
           route.routes ? (
             <SidebarSubMenu route={route} key={route.name} />
@@ -62,6 +53,7 @@ const SidebarContent = () => {
               >
                 <route.icon className="w-5 h-5" aria-hidden="true" />
                 <span className="mr-4">{t(`${route.name}`)}</span>
+                <span className="sr-only"> ({t("opensInNewWindow", "נפתח בחלון חדש")})</span>
               </a>
             </li>
           ) : (
@@ -71,10 +63,13 @@ const SidebarContent = () => {
                 to={route.path}
                 target={`${route?.outside ? "_blank" : "_self"}`}
                 className="px-6 py-4 inline-flex items-center w-full text-sm font-semibold transition-colors duration-150 hover:text-customGreen-dark dark:hover:text-gray-200"
-                // activeClassName="text-customGreen dark:text-gray-100"
-                activeStyle={{
-                  color: "#0d9e6d",
-                }}
+                // הפריט הפעיל סומן קודם בצבע בלבד (‎#0d9e6d = 3.43:1 על לבן —
+                // מתחת ל-4.5:1 שהתקן דורש), כלומר גם לא קריא מספיק וגם מידע
+                // שנמסר בצבע בלבד. ‎.sidebar-link-active מוסיף משקל גופן ורקע,
+                // ו-‎aria-current מוסר את המידע גם לקורא מסך.
+                // ‎aria-current לא מועבר במפורש: ב-react-router v5 ברירת המחדל
+                // של NavLink היא "page" והוא מוחל רק כשהקישור פעיל.
+                activeClassName="sidebar-link-active"
                 rel="noreferrer"
               >
                 <Route path={route.path} exact={route.exact}>
@@ -84,7 +79,9 @@ const SidebarContent = () => {
                   ></span>
                 </Route>
                 {typeof route.icon === "string" ? (
-                  <img src={route.icon} alt={`${route.name} Icon`} className="w-5 h-5 fill-slate-400 stroke-slate-100" />
+                  // האייקון מלווה תווית טקסט לצידו — ‎alt="X Icon" רק מכפיל
+                  // את השם ומוסיף את המילה "Icon" באנגלית לכל פריט בתפריט.
+                  <img src={route.icon} alt="" className="w-5 h-5 fill-slate-400 stroke-slate-100" />
                 ) : (
                   <route.icon className="w-5 h-5" aria-hidden="true" />
                 )}

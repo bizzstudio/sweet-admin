@@ -180,7 +180,7 @@ const UnmatchedItemResolver = ({ orderId, items = [], onResolved }) => {
                             {product.title}
                           </span>
                           {product.sku && (
-                            <span className="text-xs text-gray-400">{product.sku}</span>
+                            <span className="text-xs text-gray-500">{product.sku}</span>
                           )}
                           {/* מלאי ומצב פרסום נדרשים כאן ולא במסך אחר: בחירת מוצר
                               שאזל או שמוסתר תיכשל שוב בהרצה החוזרת, והעובד היה

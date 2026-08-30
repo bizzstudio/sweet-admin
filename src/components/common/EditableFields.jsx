@@ -115,7 +115,7 @@ export const EditableField = ({
         <>
           {renderControl()}
           {hint ? (
-            <div className="mt-1 text-xs text-gray-400">{hint}</div>
+            <div className="mt-1 text-xs text-gray-500">{hint}</div>
           ) : null}
           <Error errorName={error} />
         </>

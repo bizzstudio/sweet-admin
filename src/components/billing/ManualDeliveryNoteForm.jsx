@@ -32,10 +32,12 @@ import {
 import { FiAlertTriangle, FiPlus, FiTrash2 } from "react-icons/fi";
 
 import ProductPicker from "@/components/billing/ProductPicker";
+import BarcodeInput from "@/components/billing/BarcodeInput";
 import BillingServices from "@/services/BillingServices";
 import CustomerServices from "@/services/CustomerServices";
 import { notifyError, notifySuccess } from "@/utils/toast";
 
+import TableHeaderCell from "@/components/table/TableHeaderCell";
 const SOURCE_LABELS = {
   customerPriceList: { text: "מחירון הלקוח", cls: "text-green-600" },
   catalog: { text: "מחיר קטלוג", cls: "text-yellow-600" },
@@ -158,6 +160,32 @@ const ManualDeliveryNoteForm = ({ orderId, customerId: rawFixedCustomer, onCreat
   const removeRow = (index) => {
     setRows((prev) => prev.filter((_, i) => i !== index));
     setPriced(null);
+  };
+
+  /**
+   * הוספת שורה מסריקת ברקוד.
+   *
+   * ממלא שורה ריקה קיימת לפני שהוא מוסיף חדשה — הטופס נפתח עם שורה ריקה
+   * אחת, ובלי זה הסריקה הראשונה הייתה משאירה אותה תלויה מתחת.
+   *
+   * מק"ט שכבר נמצא בטופס מקבל אזהרה ולא שורה שנייה: השרת חוסם ממילא שתי
+   * שורות לאותו מק"ט, ועדיף שזה ייאמר בסריקה ולא בהפקה.
+   */
+  const addByBarcode = (product) => {
+    if (!product?.sku) return;
+
+    setPriced(null);
+    setRows((prev) => {
+      if (prev.some((r) => String(r.sku) === String(product.sku))) {
+        notifyError(`${product.name} כבר נמצא בטופס`);
+        return prev;
+      }
+
+      const filled = { sku: String(product.sku), quantity: "", ordered: null, name: product.name, unitPrice: "" };
+      const emptyIndex = prev.findIndex((r) => !r.sku?.trim());
+      if (emptyIndex === -1) return [...prev, filled];
+      return prev.map((r, i) => (i === emptyIndex ? filled : r));
+    });
   };
 
   const validRows = useMemo(
@@ -347,6 +375,15 @@ const ManualDeliveryNoteForm = ({ orderId, customerId: rawFixedCustomer, onCreat
           יש לתארך אותה ליום המסירה בפועל.
         </p>
 
+        {/* הדרך המהירה למלא את הטופס: סורקים או מקלידים ברקוד, והשורה
+            נוספת. הבורר למטה נשאר למי שמחפש לפי שם */}
+        <div className="mb-4 max-w-sm">
+          <BarcodeInput
+            onPick={addByBarcode}
+            hint="סריקה או הקלדה של הברקוד ואז Enter — השורה תתווסף למטה"
+          />
+        </div>
+
         <p className="text-sm font-medium mb-2">שורות</p>
         {rows.map((row, i) => (
           <div key={i} className="flex flex-wrap gap-2 mb-2 items-center">
@@ -433,14 +470,14 @@ const ManualDeliveryNoteForm = ({ orderId, customerId: rawFixedCustomer, onCreat
         {priced && (
           <div className="mt-5">
             <TableContainer>
-              <Table>
+              <Table className="w-full whitespace-nowrap">
                 <TableHeader>
                   <tr>
-                    <TableCell>מוצר</TableCell>
-                    <TableCell className="text-center">משקל</TableCell>
-                    <TableCell className="text-left">מחיר יח'</TableCell>
-                    <TableCell className="text-left">סה"כ</TableCell>
-                    <TableCell>מקור המחיר</TableCell>
+                    <TableHeaderCell>מוצר</TableHeaderCell>
+                    <TableHeaderCell className="text-center">משקל</TableHeaderCell>
+                    <TableHeaderCell className="text-left">מחיר יח'</TableHeaderCell>
+                    <TableHeaderCell className="text-left">סה"כ</TableHeaderCell>
+                    <TableHeaderCell>מקור המחיר</TableHeaderCell>
                   </tr>
                 </TableHeader>
                 <TableBody>

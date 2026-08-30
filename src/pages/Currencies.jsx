@@ -30,6 +30,7 @@ import CheckBox from "@/components/form/others/CheckBox";
 import CurrencyTable from "@/components/currency/CurrencyTable";
 import NotFound from "@/components/table/NotFound";
 
+import TableHeaderCell from "@/components/table/TableHeaderCell";
 const Currencies = () => {
   const { toggleDrawer } = useContext(SidebarContext);
   const { allId, handleUpdateMany, handleDeleteMany } = useToggleDrawer();
@@ -126,10 +127,10 @@ const Currencies = () => {
       ) : (
         data.length !== 0 && (
           <TableContainer className="mb-8 rounded-b-lg">
-            <Table>
+            <Table className="w-full whitespace-nowrap admin-table">
               <TableHeader>
                 <tr>
-                  <TableCell>
+                  <TableHeaderCell>
                     <CheckBox
                       type="checkbox"
                       name="selectAll"
@@ -137,22 +138,22 @@ const Currencies = () => {
                       isChecked={isCheckAll}
                       handleClick={handleSelectAll}
                     />
-                  </TableCell>
-                  <TableCell className="text-center">
+                  </TableHeaderCell>
+                  <TableHeaderCell className="text-center">
                     {t("CurrenciesName")}
-                  </TableCell>
-                  {/* <TableCell className="text-center">{t("Currencyisocode")}</TableCell> */}
-                  <TableCell className="text-center">
+                  </TableHeaderCell>
+                  {/* <TableHeaderCell className="text-center">{t("Currencyisocode")}</TableHeaderCell> */}
+                  <TableHeaderCell className="text-center">
                     {t("CurrenciesSymbol")}
-                  </TableCell>
+                  </TableHeaderCell>
 
-                  <TableCell className="text-center">
+                  <TableHeaderCell className="text-center">
                     {t("CurrenciesEnabled")}
-                  </TableCell>
+                  </TableHeaderCell>
 
-                  <TableCell className="text-right">
+                  <TableHeaderCell className="text-right">
                     {t("CurrenciesActions")}
-                  </TableCell>
+                  </TableHeaderCell>
                 </tr>
               </TableHeader>
 

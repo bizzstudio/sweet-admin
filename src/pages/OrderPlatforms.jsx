@@ -291,20 +291,20 @@ const CustomerMapPanel = ({ platform, onDone }) => {
             >
               <div>
                 <span className="font-mono text-gray-500">{entry.keys?.join(" / ")}</span>
-                <span className="mx-2 text-gray-400">←</span>
+                <span className="mx-2 text-gray-500">←</span>
                 <span className="font-medium">
                   {entry.customer?.name
                     ? `${entry.customer.name} ${entry.customer.lastName || ""}`.trim()
                     : String(entry.customer)}
                 </span>
                 {entry.orderCount > 0 && (
-                  <span className="text-gray-400"> · {entry.orderCount} הזמנות</span>
+                  <span className="text-gray-500"> · {entry.orderCount} הזמנות</span>
                 )}
               </div>
               <button
                 onClick={() => detach(entry.customer?._id || entry.customer)}
                 disabled={busy}
-                className="text-gray-400 hover:text-red-600"
+                className="text-gray-500 hover:text-red-600"
                 title="בטל מיפוי"
               >
                 <FiSlash className="w-3.5 h-3.5" />
@@ -345,7 +345,7 @@ const CustomerMapPanel = ({ platform, onDone }) => {
             >
               <span>
                 {`${customer.name || ""} ${customer.lastName || ""}`.trim()}
-                <span className="text-gray-400"> · {customer.email || customer.phone || ""}</span>
+                <span className="text-gray-500"> · {customer.email || customer.phone || ""}</span>
               </span>
               <FiUserPlus className="w-3.5 h-3.5 text-green-600" />
             </button>

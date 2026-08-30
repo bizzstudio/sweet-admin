@@ -70,9 +70,9 @@ const CustomerPasswordField = ({
   };
 
   const readValue = hasHiddenPassword ? (
-    <span className="text-gray-400">מוגדרת — אינה ניתנת לצפייה</span>
+    <span className="text-gray-500">מוגדרת — אינה ניתנת לצפייה</span>
   ) : !password ? (
-    <span className="text-gray-400">לא הוגדרה</span>
+    <span className="text-gray-500">לא הוגדרה</span>
   ) : (
     <span className="flex flex-wrap items-center gap-2">
       <span className="font-mono tracking-wider">

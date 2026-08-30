@@ -1,6 +1,7 @@
 import React, { useContext } from "react";
 import Switch from "react-switch";
 import { useLocation } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 
 // Internal import
 import { SidebarContext } from "@/context/SidebarContext";
@@ -14,8 +15,9 @@ import { notifyError, notifySuccess } from "@/utils/toast";
 import AdminServices from "@/services/AdminServices";
 import PopupServices from "@/services/PopupServices";
 
-const ShowHideButton = ({ id, status, category, currencyStatusName }) => {
+const ShowHideButton = ({ id, status, category, currencyStatusName, title }) => {
   const location = useLocation();
+  const { t } = useTranslation();
   const { setIsUpdate } = useContext(SidebarContext);
 
   const handleChangeStatus = async (id) => {
@@ -117,9 +119,13 @@ const ShowHideButton = ({ id, status, category, currencyStatusName }) => {
   };
 
   return (
+    // react-switch מרנדר ‎role="switch" אבל בלי שם — בטבלה של 4,000 שורות
+    // קורא מסך הכריז 4,000 מתגים אנונימיים. ‎aria-label נותן לכל אחד שם,
+    // וכשמועבר ‎title גם את שם הפריט שאליו הוא שייך.
     <Switch
       onChange={() => handleChangeStatus(id)}
       checked={status === "show" ? true : false}
+      aria-label={`${t("PublishedTbl")}${title ? ` – ${title}` : ""}`}
       className="react-switch md:ml-0"
       uncheckedIcon={
         <div

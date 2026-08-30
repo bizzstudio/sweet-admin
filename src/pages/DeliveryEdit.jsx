@@ -57,7 +57,7 @@ const DeliveryEdit = () => {
                         {t("ThisDeliveryActive")}
                       </span>
                     ) : (
-                      <span className="text-red-400">
+                      <span className="text-red-600">
                         {t("ThisDeliveryInactive")}
                       </span>
                     )}

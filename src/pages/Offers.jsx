@@ -30,6 +30,7 @@ import useFilter from "@/hooks/useFilter";
 import useToggleDrawer from "@/hooks/useToggleDrawer";
 import OfferServices from "@/services/OfferServices";
 
+import TableHeaderCell from "@/components/table/TableHeaderCell";
 const Offers = () => {
   const { toggleDrawer, lang } = useContext(SidebarContext);
   const { data, loading, error } = useAsync(() => OfferServices.getAllOffers());
@@ -149,10 +150,10 @@ const Offers = () => {
         <span className="text-center mx-auto text-red-500">{error}</span>
       ) : serviceData?.length !== 0 ? (
         <TableContainer className="mb-8">
-          <Table>
+          <Table className="w-full whitespace-nowrap admin-table">
             <TableHeader>
               <tr>
-                <TableCell>
+                <TableHeaderCell>
                   <CheckBox
                     type="checkbox"
                     name="selectAll"
@@ -160,12 +161,12 @@ const Offers = () => {
                     handleClick={handleSelectAll}
                     isChecked={isCheckAll}
                   />
-                </TableCell>
-                <TableCell className="text-center">{t("Id")}</TableCell>
-                <TableCell className="text-center">{t("offerName")}</TableCell>
-                <TableCell className="text-center">{t("offerDetails")}</TableCell>
-                <TableCell className="text-center">{t("offerActive")}</TableCell>
-                <TableCell className="text-center">{t("ActionsTbl")}</TableCell>
+                </TableHeaderCell>
+                <TableHeaderCell className="text-center">{t("Id")}</TableHeaderCell>
+                <TableHeaderCell className="text-center">{t("offerName")}</TableHeaderCell>
+                <TableHeaderCell className="text-center">{t("offerDetails")}</TableHeaderCell>
+                <TableHeaderCell className="text-center">{t("offerActive")}</TableHeaderCell>
+                <TableHeaderCell className="text-center">{t("ActionsTbl")}</TableHeaderCell>
               </tr>
             </TableHeader>
 

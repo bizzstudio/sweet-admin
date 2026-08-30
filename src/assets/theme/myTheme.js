@@ -12,9 +12,9 @@ const myTheme = {
     icon: {
       base: "h-5 w-5",
       success: "text-emerald-400 dark:text-customBrown-light",
-      danger: "text-red-400 dark:text-red-300",
+      danger: "text-red-600 dark:text-red-300",
       warning: "text-yellow-400 dark:text-yellow-100",
-      neutral: "text-gray-400 dark:text-gray-500",
+      neutral: "text-gray-500 dark:text-gray-500",
       info: "text-blue-400 dark:text-blue-300",
     },
   },
@@ -210,7 +210,7 @@ const myTheme = {
     },
     // this is the button that lives inside the DropdownItem
     dropdownItem: {
-      base: "align-bottom inline-flex items-center justify-center gap-1.5 leading-5 transition-colors duration-150 font-medium focus:outline-none px-4 py-2 text-red-400 border border-red-300 dark:border-red-700 dark:hover:bg-red-700 dark:text-red-700 dark:hover:text-gray-200 rounded-lg hover:bg-red-500 hover:text-white hover:border-red-600",
+      base: "align-bottom inline-flex items-center justify-center gap-1.5 leading-5 transition-colors duration-150 font-medium focus:outline-none px-4 py-2 text-red-600 border border-red-300 dark:border-red-700 dark:hover:bg-red-700 dark:text-red-700 dark:hover:text-gray-200 rounded-lg hover:bg-red-500 hover:text-white hover:border-red-600",
       disabled: "opacity-50 cursor-not-allowed disabled:hover:bg-transparent",
     },
   },

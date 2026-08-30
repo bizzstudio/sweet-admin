@@ -62,7 +62,7 @@ const CodeEditor = ({
       >
         <pre
           aria-hidden="true"
-          className="absolute -left-[5px] top-0 px-3 py-2 text-gray-400 dark:text-gray-500 text-right select-none pointer-events-none z-10"
+          className="absolute -left-[5px] top-0 px-3 py-2 text-gray-500 dark:text-gray-500 text-right select-none pointer-events-none z-10"
           style={{ lineHeight: "1.5em" }}
         >
           {Array.from({ length: code.split("\n").length }, (_, i) => i + 1).join("\n")}

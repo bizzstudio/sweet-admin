@@ -41,6 +41,7 @@
   "Attribute": "Attribut",
   "Coupons": "Gutscheine",
   "OurStaff": "Unsere Angestelten",
+  "SalesStats": "Verkaufsdaten",
   "Customers": "Kunden",
   "International": "International",
   "Localization": "Lokalisierung",
@@ -1030,5 +1031,14 @@
   "Quotes": "Angebote",
   "InvoicesAndCollection": "Rechnungen & Inkasso",
   "Receipts": "Quittungen",
-  "IcountDemo": "iCount Demo"
+  "IcountDemo": "iCount Demo",
+  "skipToContent": "Zum Hauptinhalt springen",
+  "mainNavigation": "Hauptnavigation",
+  "subMenu": "Untermenü",
+  "openSidebar": "Seitenleiste öffnen",
+  "closeSidebar": "Seitenleiste schließen",
+  "opensInNewWindow": "wird in einem neuen Fenster geöffnet",
+  "lightMode": "Zum hellen Modus wechseln",
+  "darkMode": "Zum dunklen Modus wechseln",
+  "Notifications": "Benachrichtigungen"
 }

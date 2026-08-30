@@ -10,6 +10,7 @@ import {
   FiGift,
   FiClipboard,
   FiUserCheck,
+  FiPieChart,
 } from "react-icons/fi";
 import { FaRegWindowRestore } from "react-icons/fa6";
 import { GoDependabot } from "react-icons/go";
@@ -159,6 +160,17 @@ const sidebar = [
     path: "/our-staff",
     icon: FiUser,
     name: "OurStaff",
+  },
+
+  /*
+   * נתוני המכירות. היו כפתור בלוח הבקרה והועברו לכאן (30/08/26): המסך
+   * הראשי לא מציג סכומי מכירות ואינו מפנה אליהם, אבל המסך עצמו נשאר
+   * זמין למי שמחפש אותו.
+   */
+  {
+    path: "/dashboard-stats",
+    icon: FiPieChart,
+    name: "SalesStats",
   },
 
   // ⛔ הגדרות מוסתרות מהתפריט (הדף עצמו נשאר) - להחזרה: להסיר את ההערה

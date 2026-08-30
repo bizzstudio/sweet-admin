@@ -70,7 +70,7 @@ const Tab = ({ id, title, count, active, onSelect }) => (
   </button>
 );
 
-const Empty = ({ text }) => <p className="py-6 text-center text-sm text-gray-400">{text}</p>;
+const Empty = ({ text }) => <p className="py-6 text-center text-sm text-gray-500">{text}</p>;
 
 // כתובות המסמכים מגיעות מ-iCount ונשמרות אצלנו. מוצגות כקישור רק אם הן
 // http(s) — ערך אחר (javascript:, נתון פגום) יוצג כטקסט ולא כקישור לחיץ
@@ -351,7 +351,7 @@ const CustomerDocuments = ({ docs, customerId }) => {
         )}
       </div>
 
-      <p className="text-xs text-gray-400 flex items-center gap-1">
+      <p className="text-xs text-gray-500 flex items-center gap-1">
         <FiFileText /> תעודות משלוח והצעות מחיר נשמרות במערכת · חשבוניות, קבלות
         וזיכויים ב-iCount
       </p>

@@ -197,7 +197,7 @@ const ProductTable = ({
             {/* stock - כמות שנשארה במלאי */}
             <TableCell className='text-center'>
               {product?.stock >= 1000000 ? (
-                <span className="text-sm text-gray-400">מלאי בלתי מוגבל</span>
+                <span className="text-sm text-gray-500">מלאי בלתי מוגבל</span>
               ) : (
                 <span className={`text-sm font-semibold ${product?.stock > 0 ? "" : "text-red-500"}`}>
                   {product?.stock ?? 0}

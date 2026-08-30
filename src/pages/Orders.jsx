@@ -31,6 +31,7 @@ import TableLoading from "@/components/preloader/TableLoading";
 import spinnerLoadingImage from "@/assets/img/spinner.gif";
 import useUtilsFunction from "@/hooks/useUtilsFunction";
 
+import TableHeaderCell from "@/components/table/TableHeaderCell";
 const Orders = () => {
   const {
     time,
@@ -292,17 +293,17 @@ const Orders = () => {
         <span className="text-center mx-auto text-red-500">{error}</span>
       ) : serviceData?.length !== 0 ? (
         <TableContainer className="mb-8 dark:bg-gray-900">
-          <Table>
+          <Table className="w-full whitespace-nowrap admin-table">
             <TableHeader>
               <tr>
-                <TableCell className="text-center">{t("ActionTbl")}</TableCell>
-                <TableCell className="text-center">{t("InvoiceNo")}</TableCell>
-                <TableCell className="text-center">{t("orderCreation")}</TableCell>
-                <TableCell className="text-center">{t("orderUpdate")}</TableCell>
-                <TableCell className="text-center">{t("CustomerName")}</TableCell>
-                <TableCell className="text-center">{t("AmountTbl")}</TableCell>
-                <TableCell className="text-center">{t("OderStatusTbl")}</TableCell>
-                {/* <TableCell className="text-right">{t("InvoiceTbl")}</TableCell> */}
+                <TableHeaderCell className="text-center">{t("ActionTbl")}</TableHeaderCell>
+                <TableHeaderCell className="text-center">{t("InvoiceNo")}</TableHeaderCell>
+                <TableHeaderCell className="text-center">{t("orderCreation")}</TableHeaderCell>
+                <TableHeaderCell className="text-center">{t("orderUpdate")}</TableHeaderCell>
+                <TableHeaderCell className="text-center">{t("CustomerName")}</TableHeaderCell>
+                <TableHeaderCell className="text-center">{t("AmountTbl")}</TableHeaderCell>
+                <TableHeaderCell className="text-center">{t("OderStatusTbl")}</TableHeaderCell>
+                {/* <TableHeaderCell className="text-right">{t("InvoiceTbl")}</TableHeaderCell> */}
               </tr>
             </TableHeader>
 

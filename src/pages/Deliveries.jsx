@@ -35,6 +35,7 @@ import { SidebarContext } from "@/context/SidebarContext";
 import DeliveryTable from "@/components/delivery/DeliveryTable";
 import CheckBox from "@/components/form/others/CheckBox";
 
+import TableHeaderCell from "@/components/table/TableHeaderCell";
 const Deliveries = () => {
   const {
     toggleDrawer,
@@ -168,10 +169,10 @@ const Deliveries = () => {
         <span className="text-center mx-auto text-red-500">{error}</span>
       ) : serviceData?.length !== 0 ? (
         <TableContainer className="mb-8 rounded-b-lg">
-          <Table>
+          <Table className="w-full whitespace-nowrap admin-table">
             <TableHeader>
               <tr>
-                <TableCell>
+                <TableHeaderCell>
                   <CheckBox
                     type="checkbox"
                     name="selectAll"
@@ -179,13 +180,13 @@ const Deliveries = () => {
                     isChecked={isCheckAll}
                     handleClick={handleSelectAll}
                   />
-                </TableCell>
-                <TableCell className="text-center">{t("City")}</TableCell>
-                <TableCell className="text-center">{t("Price")}</TableCell>
-                <TableCell className="text-center">{t("MinimumOrder")}</TableCell>
-                <TableCell className="text-center">{t("Days")}</TableCell>
-                <TableCell className="text-center">{t("BiweeklyDelivery")}</TableCell>
-                <TableCell className="text-center">{t("Actions")}</TableCell>
+                </TableHeaderCell>
+                <TableHeaderCell className="text-center">{t("City")}</TableHeaderCell>
+                <TableHeaderCell className="text-center">{t("Price")}</TableHeaderCell>
+                <TableHeaderCell className="text-center">{t("MinimumOrder")}</TableHeaderCell>
+                <TableHeaderCell className="text-center">{t("Days")}</TableHeaderCell>
+                <TableHeaderCell className="text-center">{t("BiweeklyDelivery")}</TableHeaderCell>
+                <TableHeaderCell className="text-center">{t("Actions")}</TableHeaderCell>
               </tr>
             </TableHeader>
             <DeliveryTable

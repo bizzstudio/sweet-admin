@@ -166,7 +166,7 @@ const PlatformCustomerResolver = ({ incomingOrder, onResolved }) => {
             >
               <span>
                 {`${customer.name || ""} ${customer.lastName || ""}`.trim()}
-                <span className="text-gray-400">
+                <span className="text-gray-500">
                   {" "}
                   · {customer.email || customer.phone || ""}
                 </span>

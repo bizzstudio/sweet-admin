@@ -112,7 +112,7 @@ const CustomerDocumentsPage = () => {
           <h2 className="text-base font-medium text-gray-600 dark:text-gray-400">
             טעינת המסמכים נכשלה
           </h2>
-          <p className="mt-2 text-sm text-gray-400">{error}</p>
+          <p className="mt-2 text-sm text-gray-500">{error}</p>
         </div>
       ) : customerMissing ? (
         // לקוח שאינו קיים מחזיר מסמכים ריקים, ובלי ההבחנה הזו המסך היה

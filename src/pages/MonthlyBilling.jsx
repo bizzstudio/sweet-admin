@@ -30,6 +30,7 @@ import PageTitle from "@/components/Typography/PageTitle";
 import DemoModeBanner from "@/components/common/DemoModeBanner";
 import BillingServices from "@/services/BillingServices";
 
+import TableHeaderCell from "@/components/table/TableHeaderCell";
 const monthKey = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 
 /**
@@ -194,11 +195,20 @@ const MonthlyBilling = () => {
       };
     }
 
-    const netTotal = selectedNotes.reduce((s, n) => s + n.netTotal, 0);
-    // לקוח עם פיצול לפי קטגוריה מקבל חשבונית לכל קטגוריה שמופיעה בתעודות
-    // שנבחרו, ולכן המספר משתנה עם הבחירה
+    // הסכום שיופק בפועל: שורות + משלוח - הנחה. עד 30/08/26 המשלוח וההנחה
+    // לא נשלחו ל-iCount ולכן לא נספרו כאן; היום הם חלק מהחשבונית, ומספר
+    // שמתעלם מהם אינו מה שהלקוח יקבל.
+    const netTotal = selectedNotes.reduce(
+      (s, n) => s + n.netTotal + (n.shippingCost || 0) - (n.discount || 0),
+      0
+    );
+
+    // לקוח עם פיצול לפי קטגוריה מקבל חשבונית לכל קטגוריה *דומיננטית*.
+    // invoiceCategory מגיע מהשרת ומחושב שם (dominantCategory): הקיבוץ הוא
+    // ברמת התעודה ולא ברמת השורה, וספירת איחוד ה-categories הייתה מבטיחה
+    // יותר חשבוניות ממה שיופקו.
     const invoices = customerResult?.splitByCategory
-      ? new Set(selectedNotes.flatMap((n) => n.categories)).size
+      ? new Set(selectedNotes.map((n) => n.invoiceCategory || "כללי")).size
       : selectedNotes.length
         ? 1
         : 0;
@@ -383,10 +393,10 @@ const MonthlyBilling = () => {
           {/* לקוח בודד — טבלת התעודות עצמן, עם בחירה */}
           {singleCustomer && notes.length > 0 && (
             <TableContainer className="mb-5">
-              <Table>
+              <Table className="w-full whitespace-nowrap admin-table">
                 <TableHeader>
                   <tr>
-                    <TableCell>
+                    <TableHeaderCell>
                       <input
                         type="checkbox"
                         className="w-4 h-4"
@@ -394,14 +404,14 @@ const MonthlyBilling = () => {
                         onChange={toggleAll}
                         aria-label="בחר הכל"
                       />
-                    </TableCell>
-                    <TableCell>תעודה</TableCell>
-                    <TableCell>סוג</TableCell>
-                    <TableCell>הזמנה</TableCell>
-                    <TableCell>תאריך</TableCell>
-                    <TableCell>חודש חיוב</TableCell>
-                    <TableCell className="text-center">שורות</TableCell>
-                    <TableCell className="text-left">סכום לפני מע"מ</TableCell>
+                    </TableHeaderCell>
+                    <TableHeaderCell>תעודה</TableHeaderCell>
+                    <TableHeaderCell>סוג</TableHeaderCell>
+                    <TableHeaderCell>הזמנה</TableHeaderCell>
+                    <TableHeaderCell>תאריך</TableHeaderCell>
+                    <TableHeaderCell>חודש חיוב</TableHeaderCell>
+                    <TableHeaderCell className="text-center">שורות</TableHeaderCell>
+                    <TableHeaderCell className="text-left">סכום לפני מע"מ</TableHeaderCell>
                   </tr>
                 </TableHeader>
                 <TableBody>
@@ -422,7 +432,18 @@ const MonthlyBilling = () => {
                       <TableCell>{shortDate(n.issuedAt)}</TableCell>
                       <TableCell>{n.billingMonth || "—"}</TableCell>
                       <TableCell className="text-center">{n.itemCount}</TableCell>
-                      <TableCell className="text-left">{shekel(n.netTotal)} ₪</TableCell>
+                      <TableCell className="text-left">
+                        {shekel(n.netTotal + (n.shippingCost || 0) - (n.discount || 0))} ₪
+                        {/* הפירוט מוצג רק כשיש מה לפרט. בלעדיו הסכום כאן
+                            אינו מסתדר עם סכום השורות שבתעודה עצמה */}
+                        {(n.discount > 0 || n.shippingCost > 0) && (
+                          <span className="block text-xs text-gray-500">
+                            שורות {shekel(n.netTotal)}
+                            {n.shippingCost > 0 && ` · משלוח ${shekel(n.shippingCost)}`}
+                            {n.discount > 0 && ` · הנחה ${shekel(n.discount)}`}
+                          </span>
+                        )}
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -433,14 +454,15 @@ const MonthlyBilling = () => {
           {/* כל הלקוחות — הפירוט לפי חשבונית, בלי בחירה נקודתית */}
           {!singleCustomer && preview.invoicesCreated > 0 && (
             <TableContainer className="mb-5">
-              <Table>
+              <Table className="w-full whitespace-nowrap admin-table">
                 <TableHeader>
                   <tr>
-                    <TableCell>לקוח</TableCell>
-                    <TableCell>קטגוריה</TableCell>
-                    <TableCell className="text-center">תעודות</TableCell>
-                    <TableCell className="text-center">שורות</TableCell>
-                    <TableCell className="text-left">סכום לפני מע"מ</TableCell>
+                    <TableHeaderCell>לקוח</TableHeaderCell>
+                    <TableHeaderCell>קטגוריה</TableHeaderCell>
+                    <TableHeaderCell className="text-center">תעודות</TableHeaderCell>
+                    <TableHeaderCell className="text-center">שורות</TableHeaderCell>
+                    <TableHeaderCell className="text-left">הנחה / משלוח</TableHeaderCell>
+                    <TableHeaderCell className="text-left">סכום לפני מע"מ</TableHeaderCell>
                   </tr>
                 </TableHeader>
                 <TableBody>
@@ -450,7 +472,25 @@ const MonthlyBilling = () => {
                         <TableCell>{idx === 0 ? r.customerName : ""}</TableCell>
                         <TableCell>{inv.category || "—"}</TableCell>
                         <TableCell className="text-center">{inv.noteCount}</TableCell>
-                        <TableCell className="text-center">{inv.itemCount}</TableCell>
+                        <TableCell className="text-center">
+                          {inv.itemCount}
+                          {/* אחרי ריכוז זו שורה לקטגוריה ולא שורה למוצר.
+                              בלי הסימון הזה "3 שורות" על 12 תעודות נראה
+                              כאילו משהו נעלם */}
+                          {inv.summarized && inv.detailCount > inv.itemCount && (
+                            <span
+                              className="block text-xs text-gray-500"
+                              title={`${inv.detailCount} שורות מוצרים רוכזו ל-${inv.itemCount}`}
+                            >
+                              מרוכז מ-{inv.detailCount}
+                            </span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-left text-xs text-gray-500">
+                          {inv.discount > 0 && <div>-{shekel(inv.discount)} ₪ הנחה</div>}
+                          {inv.shipping > 0 && <div>+{shekel(inv.shipping)} ₪ משלוח</div>}
+                          {!inv.discount && !inv.shipping && "—"}
+                        </TableCell>
                         <TableCell className="text-left">{shekel(inv.netTotal)} ₪</TableCell>
                       </TableRow>
                     ))
@@ -574,15 +614,15 @@ const MonthlyBilling = () => {
             )}
 
             <TableContainer className="mt-4">
-              <Table>
+              <Table className="w-full whitespace-nowrap admin-table">
                 <TableHeader>
                   <tr>
-                    <TableCell>לקוח</TableCell>
-                    <TableCell>קטגוריה</TableCell>
-                    <TableCell>מספר חשבונית</TableCell>
-                    <TableCell className="text-center">תעודות</TableCell>
-                    <TableCell>נשלח במייל</TableCell>
-                    <TableCell></TableCell>
+                    <TableHeaderCell>לקוח</TableHeaderCell>
+                    <TableHeaderCell>קטגוריה</TableHeaderCell>
+                    <TableHeaderCell>מספר חשבונית</TableHeaderCell>
+                    <TableHeaderCell className="text-center">תעודות</TableHeaderCell>
+                    <TableHeaderCell>נשלח במייל</TableHeaderCell>
+                    <TableHeaderCell></TableHeaderCell>
                   </tr>
                 </TableHeader>
                 <TableBody>

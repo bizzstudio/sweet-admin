@@ -35,6 +35,7 @@ import NotFound from "@/components/table/NotFound";
 import BillingServices from "@/services/BillingServices";
 import { notifyError } from "@/utils/toast";
 
+import TableHeaderCell from "@/components/table/TableHeaderCell";
 const shekel = (n) =>
   Number(n || 0).toLocaleString("he-IL", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -192,15 +193,15 @@ const Receipts = () => {
         <NotFound title="לא נמצאו קבלות" />
       ) : (
         <TableContainer className="mb-8">
-          <Table>
+          <Table className="w-full whitespace-nowrap admin-table">
             <TableHeader>
               <tr>
-                <TableCell>קבלה</TableCell>
-                <TableCell>לקוח</TableCell>
-                <TableCell>תאריך תשלום</TableCell>
-                <TableCell>חשבוניות</TableCell>
-                <TableCell className="text-center">תעודות</TableCell>
-                <TableCell className="text-left">סכום (אומדן)</TableCell>
+                <TableHeaderCell>קבלה</TableHeaderCell>
+                <TableHeaderCell>לקוח</TableHeaderCell>
+                <TableHeaderCell>תאריך תשלום</TableHeaderCell>
+                <TableHeaderCell>חשבוניות</TableHeaderCell>
+                <TableHeaderCell className="text-center">תעודות</TableHeaderCell>
+                <TableHeaderCell className="text-left">סכום (אומדן)</TableHeaderCell>
               </tr>
             </TableHeader>
             <TableBody>

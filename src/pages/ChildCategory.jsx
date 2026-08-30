@@ -31,6 +31,7 @@ import useUtilsFunction from "@/hooks/useUtilsFunction";
 import MainDrawer from "@/components/drawer/MainDrawer";
 import CategoryDrawer from "@/components/drawer/CategoryDrawer";
 
+import TableHeaderCell from "@/components/table/TableHeaderCell";
 const ChildCategory = () => {
   const { id } = useParams();
   const [childCategory, setChildCategory] = useState([]);
@@ -192,10 +193,10 @@ const ChildCategory = () => {
         <span className="text-center mx-auto text-red-500">{error}</span>
       ) : serviceData?.length !== 0 ? (
         <TableContainer className="mb-8">
-          <Table>
+          <Table className="w-full whitespace-nowrap admin-table">
             <TableHeader>
               <tr>
-                <TableCell>
+                <TableHeaderCell>
                   <CheckBox
                     type="checkbox"
                     name="selectAll"
@@ -203,13 +204,13 @@ const ChildCategory = () => {
                     handleClick={handleSelectAll}
                     isChecked={isCheckAll}
                   />
-                </TableCell>
-                <TableCell className="text-center">{t("catIdTbl")}</TableCell>
-                <TableCell className="text-center">{t("Slug")}</TableCell>
-                <TableCell>{t("catIconTbl")}</TableCell>
-                <TableCell>{t("Name")}</TableCell>
-                <TableCell>{t("Description")}</TableCell>
-                <TableCell className="text-center">{t("catActionsTbl")}</TableCell>
+                </TableHeaderCell>
+                <TableHeaderCell className="text-center">{t("catIdTbl")}</TableHeaderCell>
+                <TableHeaderCell className="text-center">{t("Slug")}</TableHeaderCell>
+                <TableHeaderCell>{t("catIconTbl")}</TableHeaderCell>
+                <TableHeaderCell>{t("Name")}</TableHeaderCell>
+                <TableHeaderCell>{t("Description")}</TableHeaderCell>
+                <TableHeaderCell className="text-center">{t("catActionsTbl")}</TableHeaderCell>
               </tr>
             </TableHeader>
 

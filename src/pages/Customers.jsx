@@ -31,6 +31,7 @@ import CustomerPriceListModal from "@/components/customer/CustomerPriceListModal
 import BulkCustomerPriceListModal from "@/components/customer/BulkCustomerPriceListModal";
 import { SidebarContext } from "@/context/SidebarContext";
 
+import TableHeaderCell from "@/components/table/TableHeaderCell";
 const Customers = () => {
   const { data, loading, error } = useAsync(CustomerServices.getAllCustomers);
   const { setIsUpdate } = useContext(SidebarContext);
@@ -228,20 +229,20 @@ const Customers = () => {
         <span className="text-center mx-auto text-red-500">{error}</span>
       ) : serviceData?.length !== 0 ? (
         <TableContainer className="mb-8">
-          <Table>
+          <Table className="w-full whitespace-nowrap admin-table">
             <TableHeader>
               <tr>
-                <TableCell>{t("CustomersId")}</TableCell>
-                <TableCell>{t("CustomersJoiningDate")}</TableCell>
-                <TableCell>{t("CustomersName")}</TableCell>
-                <TableCell>{t("CustomersEmail")}</TableCell>
-                <TableCell>{t("CustomersPhone")}</TableCell>
-                <TableCell className="text-center">מחירון</TableCell>
-                <TableCell className="text-center">היסטוריה</TableCell>
-                <TableCell className="text-center">{t("CashierStatus")}</TableCell>
-                <TableCell className="text-right">
+                <TableHeaderCell>{t("CustomersId")}</TableHeaderCell>
+                <TableHeaderCell>{t("CustomersJoiningDate")}</TableHeaderCell>
+                <TableHeaderCell>{t("CustomersName")}</TableHeaderCell>
+                <TableHeaderCell>{t("CustomersEmail")}</TableHeaderCell>
+                <TableHeaderCell>{t("CustomersPhone")}</TableHeaderCell>
+                <TableHeaderCell className="text-center">מחירון</TableHeaderCell>
+                <TableHeaderCell className="text-center">היסטוריה</TableHeaderCell>
+                <TableHeaderCell className="text-center">{t("CashierStatus")}</TableHeaderCell>
+                <TableHeaderCell className="text-right">
                   {t("CustomersActions")}
-                </TableCell>
+                </TableHeaderCell>
               </tr>
             </TableHeader>
             <CustomerTable

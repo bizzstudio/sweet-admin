@@ -16,6 +16,13 @@ const ProductServices = {
     return requests.get("/products/lite");
   },
 
+  // חיפוש מוצר לפי ברקוד (הקלדה או סורק). מחזיר מערך — הברקוד אינו
+  // ייחודי במסד, ובחירה שקטה של אחד מכמה מוצרים הייתה מכניסה לתעודה
+  // את המוצר הלא נכון.
+  getProductByBarcode: async (barcode) => {
+    return requests.get(`/products/by-barcode/${encodeURIComponent(barcode)}`);
+  },
+
   getProductById: async (id) => {
     return requests.post(`/products/${id}`);
   },

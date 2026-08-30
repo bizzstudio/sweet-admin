@@ -24,18 +24,21 @@ import {
   TableRow,
   Pagination,
 } from "@windmill/react-ui";
-import { FiAlertTriangle, FiPlus, FiPrinter, FiTrash2, FiX } from "react-icons/fi";
+import { FiAlertTriangle, FiCopy, FiFileText, FiPlus, FiPrinter, FiTrash2, FiX } from "react-icons/fi";
+import { MdOutlineReceiptLong } from "react-icons/md";
 import { Link } from "react-router-dom";
 import useQueryParam from "@/hooks/useQueryParam";
 
 import PageTitle from "@/components/Typography/PageTitle";
 import ProductPicker from "@/components/billing/ProductPicker";
+import BarcodeInput from "@/components/billing/BarcodeInput";
 import TableLoading from "@/components/preloader/TableLoading";
 import NotFound from "@/components/table/NotFound";
 import BillingServices from "@/services/BillingServices";
 import CustomerServices from "@/services/CustomerServices";
 import { notifyError, notifySuccess } from "@/utils/toast";
 
+import TableHeaderCell from "@/components/table/TableHeaderCell";
 const LIMIT = 25;
 
 const STATUS_LABELS = {
@@ -73,6 +76,8 @@ const Quotes = () => {
   const [validDays, setValidDays] = useState(30);
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
+  // ההצעה שעליה רצה כרגע פעולה — כדי לנטרל את הכפתורים שלה בלבד
+  const [working, setWorking] = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -107,6 +112,27 @@ const Quotes = () => {
   const removeRow = (i) => {
     setRows((prev) => prev.filter((_, idx) => idx !== i));
     setPriced(null);
+  };
+
+  /**
+   * הוספת שורה מסריקת ברקוד. ממלא שורה ריקה קיימת לפני שמוסיף חדשה,
+   * ומעלה כמות של מוצר שכבר בהצעה במקום לפצל אותו לשתי שורות.
+   */
+  const addByBarcode = (product) => {
+    if (!product?.sku) return;
+    setPriced(null);
+    setRows((prev) => {
+      const existing = prev.findIndex((r) => String(r.sku) === String(product.sku));
+      if (existing !== -1) {
+        return prev.map((r, i) =>
+          i === existing ? { ...r, quantity: (Number(r.quantity) || 0) + 1 } : r
+        );
+      }
+      const filled = { sku: String(product.sku), quantity: 1 };
+      const emptyIndex = prev.findIndex((r) => !r.sku?.trim());
+      if (emptyIndex === -1) return [...prev, filled];
+      return prev.map((r, i) => (i === emptyIndex ? filled : r));
+    });
   };
 
   const validRows = rows.filter((r) => r.sku?.trim() && Number(r.quantity) > 0);
@@ -162,6 +188,56 @@ const Quotes = () => {
     }
   };
 
+  /**
+   * הפקת תעודת משלוח (או חשבונית) מההצעה, בלחיצה אחת.
+   *
+   * מאושר במפורש לפני השליחה: חשבונית היא מסמך מס שאי אפשר למחוק, ותעודה
+   * שנייה מאותה הצעה היא חיוב כפול. המפתח נוצר פעם אחת לכל לחיצה ומונע
+   * שתי תעודות מלחיצה כפולה.
+   */
+  const convert = async (quote, target) => {
+    const what = target === "invoice" ? "חשבונית מס" : "תעודת משלוח";
+    const extra =
+      target === "invoice"
+        ? "\n\nחשבונית מס נרשמת בספרים ואי אפשר למחוק אותה — רק להוציא זיכוי."
+        : "";
+    if (
+      !window.confirm(
+        `להפיק ${what} מהצעה ${quote.number} עבור ${quote.customerSnapshot?.name || "הלקוח"}?${extra}`
+      )
+    ) {
+      return;
+    }
+
+    setWorking(quote._id);
+    try {
+      const res = await BillingServices.convertQuote(quote._id, { target });
+      notifySuccess(res.message);
+      load();
+    } catch (err) {
+      notifyError(err?.response?.data?.message || err.message);
+      // ההמרה יכולה להיכשל *אחרי* שהתעודה נוצרה (החשבונית נכשלה) —
+      // ריענון הרשימה כדי שהמסך יראה את המצב האמיתי
+      load();
+    } finally {
+      setWorking(null);
+    }
+  };
+
+  const duplicate = async (quote) => {
+    setWorking(quote._id);
+    try {
+      const res = await BillingServices.duplicateQuote(quote._id, { validDays: 30 });
+      notifySuccess(res.message);
+      setPage(1);
+      load();
+    } catch (err) {
+      notifyError(err?.response?.data?.message || err.message);
+    } finally {
+      setWorking(null);
+    }
+  };
+
   const pricedTotal = (priced?.items || []).reduce((s, i) => s + i.lineTotal, 0);
   const catalogCount = priced?.quality?.catalog || 0;
 
@@ -208,6 +284,13 @@ const Quotes = () => {
                   onChange={(e) => setValidDays(e.target.value)}
                 />
               </Label>
+            </div>
+
+            <div className="mb-4 max-w-sm">
+              <BarcodeInput
+                onPick={addByBarcode}
+                hint="סריקה או הקלדה ואז Enter. ברקוד שכבר בהצעה מעלה את הכמות"
+              />
             </div>
 
             <p className="text-sm font-medium mb-2">פריטים</p>
@@ -261,14 +344,14 @@ const Quotes = () => {
             {priced && (
               <div className="mt-5">
                 <TableContainer>
-                  <Table>
+                  <Table className="w-full whitespace-nowrap admin-table">
                     <TableHeader>
                       <tr>
-                        <TableCell>מוצר</TableCell>
-                        <TableCell className="text-center">כמות</TableCell>
-                        <TableCell className="text-left">מחיר יח'</TableCell>
-                        <TableCell className="text-left">סה"כ</TableCell>
-                        <TableCell>מקור המחיר</TableCell>
+                        <TableHeaderCell>מוצר</TableHeaderCell>
+                        <TableHeaderCell className="text-center">כמות</TableHeaderCell>
+                        <TableHeaderCell className="text-left">מחיר יח'</TableHeaderCell>
+                        <TableHeaderCell className="text-left">סה"כ</TableHeaderCell>
+                        <TableHeaderCell>מקור המחיר</TableHeaderCell>
                       </tr>
                     </TableHeader>
                     <TableBody>
@@ -366,17 +449,17 @@ const Quotes = () => {
         <NotFound title="לא נמצאו הצעות מחיר" />
       ) : (
         <TableContainer className="mb-8">
-          <Table>
+          <Table className="w-full whitespace-nowrap admin-table">
             <TableHeader>
               <tr>
-                <TableCell>מספר</TableCell>
-                <TableCell>תאריך</TableCell>
-                <TableCell>לקוח</TableCell>
-                <TableCell className="text-center">שורות</TableCell>
-                <TableCell className="text-left">סכום</TableCell>
-                <TableCell>בתוקף עד</TableCell>
-                <TableCell>סטטוס</TableCell>
-                <TableCell></TableCell>
+                <TableHeaderCell>מספר</TableHeaderCell>
+                <TableHeaderCell>תאריך</TableHeaderCell>
+                <TableHeaderCell>לקוח</TableHeaderCell>
+                <TableHeaderCell className="text-center">שורות</TableHeaderCell>
+                <TableHeaderCell className="text-left">סכום</TableHeaderCell>
+                <TableHeaderCell>בתוקף עד</TableHeaderCell>
+                <TableHeaderCell>סטטוס</TableHeaderCell>
+                <TableHeaderCell></TableHeaderCell>
               </tr>
             </TableHeader>
             <TableBody>
@@ -400,20 +483,60 @@ const Quotes = () => {
                       <Badge type={label.type}>{label.text}</Badge>
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                         <Link
                           to={`/quote/${q._id}`}
                           className="text-blue-600 hover:underline flex items-center gap-1 text-sm"
                         >
                           מסמך <FiPrinter />
                         </Link>
+
+                        <button
+                          onClick={() => duplicate(q)}
+                          disabled={working === q._id}
+                          className="text-sm text-gray-600 dark:text-gray-300 hover:underline flex items-center gap-1 disabled:opacity-40"
+                          title="יצירת הצעה חדשה זהה לזו"
+                        >
+                          <FiCopy /> העתק
+                        </button>
+
+                        {/* הצעה שכבר הומרה מציגה את התעודה במקום את הכפתורים —
+                            הפקה שנייה מאותה הצעה היא חיוב כפול, והשרת חוסם אותה */}
+                        {q.convertedNote ? (
+                          <span className="text-xs text-green-700 dark:text-green-500">
+                            הופקה תעודה {q.convertedNoteNumber}
+                          </span>
+                        ) : (
+                          <>
+                            <button
+                              onClick={() => convert(q, "deliveryNote")}
+                              disabled={working === q._id}
+                              className="text-sm text-green-700 dark:text-green-500 hover:underline flex items-center gap-1 disabled:opacity-40"
+                              title="הפקת תעודת משלוח עם השורות והמחירים של ההצעה"
+                            >
+                              <FiFileText /> תעודה
+                            </button>
+                            <button
+                              onClick={() => convert(q, "invoice")}
+                              disabled={working === q._id}
+                              className="text-sm text-blue-700 dark:text-blue-400 hover:underline flex items-center gap-1 disabled:opacity-40"
+                              title="הפקת תעודה + חשבונית מס מיד"
+                            >
+                              <MdOutlineReceiptLong /> חשבונית
+                            </button>
+                          </>
+                        )}
+
+                        {/* סימון סטטוס בלי הפקת מסמך. נחוץ כשהלקוח אישר
+                            בעל פה והסחורה עדיין לא יצאה, או כשההצעה
+                            ירדה מהפרק — ולכן נשאר לצד כפתורי ההפקה */}
                         {q.status === "open" && (
                           <>
                             <button
                               onClick={() => setQuoteStatus(q, "accept")}
                               className="text-green-600 text-sm hover:underline"
                             >
-                              אושרה
+                              סמן כאושרה
                             </button>
                             <button
                               onClick={() => setQuoteStatus(q, "reject")}

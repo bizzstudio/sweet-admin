@@ -15,7 +15,7 @@ const PasswordCell = ({ password }) => {
   const [visible, setVisible] = useState(false);
 
   if (!password) {
-    return <span className="text-xs text-gray-400">—</span>;
+    return <span className="text-xs text-gray-500">—</span>;
   }
 
   return (
@@ -27,7 +27,7 @@ const PasswordCell = ({ password }) => {
         type="button"
         onClick={() => setVisible(!visible)}
         aria-label={visible ? t("HidePassword") : t("ShowPassword")}
-        className="text-gray-400 hover:text-customGreen-dark focus:outline-none"
+        className="text-gray-500 hover:text-customGreen-dark focus:outline-none"
       >
         {visible ? <FiEyeOff /> : <FiEye />}
       </button>
@@ -51,7 +51,7 @@ const PickerTable = ({ pickers, setServiceId }) => {
             <span className="font-mono text-xs" dir="ltr">
               {picker?.username || (
                 // מלקטים שנוצרו לפני שדה שם המשתמש מתחברים עדיין לפי טלפון.
-                <span className="font-sans text-gray-400">{t("LoginByPhone")}</span>
+                <span className="font-sans text-gray-500">{t("LoginByPhone")}</span>
               )}
             </span>
           </TableCell>
@@ -77,7 +77,7 @@ const PickerTable = ({ pickers, setServiceId }) => {
                 handleUpdate(picker._id);
                 setServiceId(picker._id);
               }}
-              className="p-2 cursor-pointer text-gray-400 hover:text-customGreen-dark focus:outline-none"
+              className="p-2 cursor-pointer text-gray-500 hover:text-customGreen-dark focus:outline-none"
             >
               <Tooltip id="edit" Icon={FiEdit} title={t("Edit")} bgColor="#10B981" />
             </button>

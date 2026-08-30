@@ -180,7 +180,7 @@ export default function ProductsInOffer({ products = [], setProducts, currency =
                             <button
                                 type="button"
                                 onClick={() => handleDelete(i)}
-                                className='h-12 cursor-pointer focus:outline-none transition-colors text-gray-400 hover:text-red-600 dark:hover:text-red-400'
+                                className='h-12 cursor-pointer focus:outline-none transition-colors text-gray-500 hover:text-red-600 dark:hover:text-red-400'
                             >
                                 <Tooltip
                                     id="delete"

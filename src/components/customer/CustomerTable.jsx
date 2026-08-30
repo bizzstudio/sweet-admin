@@ -78,7 +78,7 @@ const CustomerTable = ({
                       <span className="font-bold">{priceList.itemsCount}</span>
                     </Badge>
                   ) : (
-                    <span className="text-gray-400">מחירון</span>
+                    <span className="text-gray-500">מחירון</span>
                   )}
                 </button>
               </TableCell>
@@ -98,7 +98,7 @@ const CustomerTable = ({
                       <span className="font-bold">{history.itemsCount}</span>
                     </Badge>
                   ) : (
-                    <span className="text-gray-400">היסטוריה</span>
+                    <span className="text-gray-500">היסטוריה</span>
                   )}
                 </button>
               </TableCell>
@@ -112,7 +112,7 @@ const CustomerTable = ({
 
               <TableCell>
                 <div className="flex justify-right text-right">
-                  <div className="p-2 cursor-pointer text-gray-400 hover:text-customGreen-dark">
+                  <div className="p-2 cursor-pointer text-gray-500 hover:text-customGreen-dark">
                     {" "}
                     <Link to={`/customer-order/${user._id}`}>
                       <Tooltip

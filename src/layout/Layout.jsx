@@ -1,5 +1,6 @@
 import React, { useContext, Suspense, useEffect, lazy } from "react";
 import { Switch, Route, Redirect, useLocation } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 
 // Internal import
 import Main from "@/layout/Main";
@@ -11,6 +12,7 @@ import ThemeSuspense from "@/components/theme/ThemeSuspense";
 const Page404 = lazy(() => import("@/pages/404"));
 
 const Layout = () => {
+  const { t } = useTranslation();
   const { isSidebarOpen, closeSidebar, navBar } = useContext(SidebarContext);
   let location = useLocation();
 
@@ -25,6 +27,12 @@ const Layout = () => {
 
   return (
     <>
+      {/* דילוג על סרגל הצד — הרכיב הראשון בסדר ה-Tab. סרגל הניווט של הפאנל
+          מונה עשרות פריטים, והוא מרונדר מחדש בכל מעבר עמוד; בלי הדילוג כל
+          ניווט פנימי מתחיל בעשרות עצירות Tab לפני התוכן. */}
+      <a href="#admin-main-content" className="skip-to-content">
+        {t("skipToContent")}
+      </a>
       {!isOnline && (
         <div className="flex justify-center bg-red-600 text-white">
           You are in offline mode!{" "}

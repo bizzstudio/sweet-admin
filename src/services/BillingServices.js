@@ -85,6 +85,22 @@ const BillingServices = {
     return requests.patch(`/billing/delivery-notes/${id}/cancel`, { reason });
   },
 
+  // עריכת תעודה שעדיין לא חויבה. שדה שלא נשלח לא משתנה; תעודה שחויבה
+  // נדחית בשרת עם ההסבר (התיקון עובר דרך זיכוי).
+  updateDeliveryNote: async (id, body) => {
+    return requests.patch(`/billing/delivery-notes/${id}`, body);
+  },
+
+  // "עוד אחת בדיוק כמו זו". idempotencyKey מונע שתי תעודות מלחיצה כפולה
+  duplicateDeliveryNote: async (id, body = {}) => {
+    return requests.post(`/billing/delivery-notes/${id}/duplicate`, body);
+  },
+
+  // הפיכת תעודה בודדת לחשבונית מס, בלי להמתין לסגירת החודש
+  billDeliveryNote: async (id, body = {}) => {
+    return requests.post(`/billing/delivery-notes/${id}/bill`, body);
+  },
+
   // --- הדפסה ---
   // התעודה מודפסת אוטומטית ברגע שהיא נוצרת; שתי אלה קיימות למקרה שההדפסה
   // האוטומטית לא הגיעה ליעדה (מדפסת כבויה, המחשב במשרד לא דלוק).
@@ -133,6 +149,11 @@ const BillingServices = {
   // --- זיכוי וקבלה ---
   creditInvoice: async ({ icountDocNum, reason, reopenNotes = true }) => {
     return requests.post("/billing/credit", { icountDocNum, reason, reopenNotes });
+  },
+
+  // ריכוז התעודות שהחשבונית סגרה — הנספח המודפס שמצורף אליה
+  getInvoiceNotes: async (docNum) => {
+    return requests.get(`/billing/invoices/${encodeURIComponent(docNum)}/notes`);
   },
 
   // הסכום המחייב מ-iCount. נקרא לפני רישום תשלום, כי הרשימה מציגה אומדן
@@ -188,6 +209,18 @@ const BillingServices = {
 
   rejectQuote: async (id, reason) => {
     return requests.patch(`/billing/quotes/${id}/reject`, { reason });
+  },
+
+  duplicateQuote: async (id, body = {}) => {
+    return requests.post(`/billing/quotes/${id}/duplicate`, body);
+  },
+
+  // target: "deliveryNote" (ברירת מחדל) | "invoice"
+  //
+  // אין כאן idempotencyKey: השרת גוזר אותו מההצעה עצמה, כדי ששתי לחיצות
+  // נפרדות (או שני מסכים פתוחים) לא יוכלו להפיק שתי תעודות על אותה סחורה
+  convertQuote: async (id, { target } = {}) => {
+    return requests.post(`/billing/quotes/${id}/convert`, { target });
   },
 };
 

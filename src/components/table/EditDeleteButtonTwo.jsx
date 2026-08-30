@@ -1,4 +1,5 @@
 import { FiEdit, FiTrash2 } from "react-icons/fi";
+import { useTranslation } from "react-i18next";
 // Internal import
 import Tooltip from "@/components/tooltip/Tooltip";
 
@@ -8,29 +9,37 @@ const EditDeleteButtonTwo = ({
   handleRemoveVariant,
   attribute,
 }) => {
+  const { t } = useTranslation();
+
   return (
     <>
       <div className="flex justify-center text-right">
         {!attribute && (
+          // ‎onClick מנוטרל כאן, ולכן זו אינה פעולה כלל — ‎aria-hidden מונע
+          // מקורא מסך להכריז כפתור שאינו עושה דבר.
           <div
-            // onClick={() => handleEditVariant(variant)}
-            className="p-2 cursor-pointer text-gray-400 hover:text-customGreen-dark"
+            aria-hidden="true"
+            className="p-2 text-gray-500"
           >
-            <Tooltip id="edit" Icon={FiEdit} title="Edit" bgColor="#14b8a6" />
+            <Tooltip id="edit" Icon={FiEdit} title={t("Edit")} bgColor="#14b8a6" />
           </div>
         )}
 
-        <div
+        {/* ‎<div onClick> אינו מקבל פוקוס ואינו מגיב ל-Enter — פעולת המחיקה
+            הייתה בלתי נגישה במקלדת. */}
+        <button
+          type="button"
           onClick={() => handleRemoveVariant(variant, extra)}
-          className="p-2 cursor-pointer text-gray-400 hover:text-red-600"
+          aria-label={t("Delete")}
+          className="tap-target p-2 cursor-pointer text-gray-500 hover:text-red-600"
         >
           <Tooltip
             id="delete"
             Icon={FiTrash2}
-            title="Delete"
+            title={t("Delete")}
             bgColor="#EF4444"
           />
-        </div>
+        </button>
       </div>
     </>
   );

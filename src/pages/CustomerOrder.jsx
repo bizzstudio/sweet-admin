@@ -19,6 +19,7 @@ import PageTitle from "@/components/Typography/PageTitle";
 import Loading from "@/components/preloader/Loading";
 import CustomerOrderTable from "@/components/customer/CustomerOrderTable";
 
+import TableHeaderCell from "@/components/table/TableHeaderCell";
 const CustomerOrder = () => {
   const { id } = useParams();
   const { t } = useTranslation();
@@ -49,21 +50,21 @@ const CustomerOrder = () => {
 
       {data.length > 0 && !error && !loading ? (
         <TableContainer className="mb-8">
-          <Table>
+          <Table className="w-full whitespace-nowrap admin-table">
             <TableHeader>
               <tr>
-                <TableCell> {t("CustomerOrderId")} </TableCell>
-                <TableCell>{t("CustomerOrderTime")}</TableCell>
-                <TableCell>{t("CustomerShippingAddress")}</TableCell>
-                <TableCell>{t("Phone")} </TableCell>
-                <TableCell>{t("Amount")}</TableCell>
-                <TableCell className="text-center">
+                <TableHeaderCell> {t("CustomerOrderId")} </TableHeaderCell>
+                <TableHeaderCell>{t("CustomerOrderTime")}</TableHeaderCell>
+                <TableHeaderCell>{t("CustomerShippingAddress")}</TableHeaderCell>
+                <TableHeaderCell>{t("Phone")} </TableHeaderCell>
+                <TableHeaderCell>{t("Amount")}</TableHeaderCell>
+                <TableHeaderCell className="text-center">
                   {" "}
                   {t("CustomerOrderStatus")}{" "}
-                </TableCell>
-                <TableCell className="text-center">
+                </TableHeaderCell>
+                <TableHeaderCell className="text-center">
                   {t("CustomerOrderAction")}
-                </TableCell>
+                </TableHeaderCell>
               </tr>
             </TableHeader>
             <CustomerOrderTable orders={dataTable} />

@@ -30,6 +30,7 @@ import useToggleDrawer from "@/hooks/useToggleDrawer";
 import AttributeServices from "@/services/AttributeServices";
 import useUtilsFunction from "@/hooks/useUtilsFunction";
 
+import TableHeaderCell from "@/components/table/TableHeaderCell";
 const ChildAttributes = () => {
   let { id } = useParams();
 
@@ -160,10 +161,10 @@ const ChildAttributes = () => {
         <span className="text-center mx-auto text-red-500">{error}</span>
       ) : serviceData?.length !== 0 ? (
         <TableContainer className="mb-8">
-          <Table>
+          <Table className="w-full whitespace-nowrap admin-table">
             <TableHeader>
               <tr>
-                <TableCell>
+                <TableHeaderCell>
                   <CheckBox
                     type="checkbox"
                     name="selectAll"
@@ -171,12 +172,12 @@ const ChildAttributes = () => {
                     handleClick={handleSelectAll}
                     isChecked={isCheckAll}
                   />
-                </TableCell>
-                <TableCell>Id</TableCell>
-                <TableCell>Name</TableCell>
-                <TableCell>Type</TableCell>
-                <TableCell className="text-center">Status</TableCell>
-                <TableCell className="text-right">Actions</TableCell>
+                </TableHeaderCell>
+                <TableHeaderCell>Id</TableHeaderCell>
+                <TableHeaderCell>Name</TableHeaderCell>
+                <TableHeaderCell>Type</TableHeaderCell>
+                <TableHeaderCell className="text-center">Status</TableHeaderCell>
+                <TableHeaderCell className="text-right">Actions</TableHeaderCell>
               </tr>
             </TableHeader>
 

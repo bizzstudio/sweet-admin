@@ -22,10 +22,21 @@ const InputArea = ({
 
   return (
     <>
+      {/* ‎LabelArea מרנדר ‎<Label> ללא ‎htmlFor, ו-‎InputArea רינדר ‎<Input>
+          ללא ‎id — כלומר בכל 260 השדות של הפאנל אף תווית לא הייתה מקושרת
+          לשדה שלה. ויזואלית זה נראה תקין, אבל קורא מסך שנכנס לשדה הכריז
+          "עריכת טקסט" בלי לומר איזה שדה זה.
+
+          ‎id={name} מאפשר קישור אמיתי (‎LabelArea מקבל עכשיו ‎htmlFor), ו-
+          ‎aria-label נותן שם גם ב-167 מקומות הקריאה שעדיין לא הועברו — כך
+          שכל שדה מקבל שם מיידית בלי שינוי בכל אתר קריאה. */}
       <Input
         {...register(`${name}`, {
           required: required ? false : `${label} ${t("isRequired")}!`,
         })}
+        id={name}
+        aria-label={label}
+        aria-required={!required || undefined}
         defaultValue={defaultValue}
         type={type}
         step={step}

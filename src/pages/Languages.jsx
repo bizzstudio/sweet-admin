@@ -30,6 +30,7 @@ import { SidebarContext } from "@/context/SidebarContext";
 import LanguageDrawer from "@/components/drawer/LanguageDrawer";
 import MainDrawer from "@/components/drawer/MainDrawer";
 
+import TableHeaderCell from "@/components/table/TableHeaderCell";
 const Languages = () => {
   const { toggleDrawer } = useContext(SidebarContext);
 
@@ -130,10 +131,10 @@ const Languages = () => {
       ) : (
         data.length !== 0 && (
           <TableContainer className="mb-8 rounded-b-lg">
-            <Table>
+            <Table className="w-full whitespace-nowrap admin-table">
               <TableHeader>
                 <tr>
-                  <TableCell>
+                  <TableHeaderCell>
                     <CheckBox
                       type="checkbox"
                       name="selectAll"
@@ -141,17 +142,17 @@ const Languages = () => {
                       handleClick={handleSelectAll}
                       isChecked={isCheckAll}
                     />
-                  </TableCell>
-                  <TableCell>{t("LanguagesSr")}</TableCell>
-                  <TableCell>{t("LanguagesNname")}</TableCell>
-                  <TableCell>{t("LanguagesIsoCode")}</TableCell>
-                  <TableCell>{t("LanguagesFlag")}</TableCell>
-                  <TableCell className="text-center">
+                  </TableHeaderCell>
+                  <TableHeaderCell>{t("LanguagesSr")}</TableHeaderCell>
+                  <TableHeaderCell>{t("LanguagesNname")}</TableHeaderCell>
+                  <TableHeaderCell>{t("LanguagesIsoCode")}</TableHeaderCell>
+                  <TableHeaderCell>{t("LanguagesFlag")}</TableHeaderCell>
+                  <TableHeaderCell className="text-center">
                     {t("LanguagesPublished")}
-                  </TableCell>
-                  <TableCell className="text-right">
+                  </TableHeaderCell>
+                  <TableHeaderCell className="text-right">
                     {t("LanguagesActions")}
-                  </TableCell>
+                  </TableHeaderCell>
                 </tr>
               </TableHeader>
               <LanguageTable

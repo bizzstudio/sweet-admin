@@ -34,6 +34,7 @@ import PageTitle from "@/components/Typography/PageTitle";
 import TableLoading from "@/components/preloader/TableLoading";
 import PlatformCustomerResolver from "@/components/order/PlatformCustomerResolver";
 
+import TableHeaderCell from "@/components/table/TableHeaderCell";
 const RESULTS_PER_PAGE = 20;
 
 // רק מה שדורש פעולה מקבל לשונית משלו. הסטטוסים האחרים (נוצרה הזמנה, בעיבוד,
@@ -518,16 +519,16 @@ const IncomingOrders = () => {
             refreshing ? "opacity-50" : ""
           }`}
         >
-          <Table>
+          <Table className="w-full whitespace-nowrap admin-table">
             <TableHeader>
               <tr>
-                <TableCell>זמן</TableCell>
-                <TableCell>ערוץ</TableCell>
-                <TableCell>שולח</TableCell>
-                <TableCell>ההודעה</TableCell>
-                <TableCell>מה זוהה</TableCell>
-                <TableCell>סטטוס</TableCell>
-                <TableCell className="text-center">פעולות</TableCell>
+                <TableHeaderCell>זמן</TableHeaderCell>
+                <TableHeaderCell>ערוץ</TableHeaderCell>
+                <TableHeaderCell>שולח</TableHeaderCell>
+                <TableHeaderCell>ההודעה</TableHeaderCell>
+                <TableHeaderCell>מה זוהה</TableHeaderCell>
+                <TableHeaderCell>סטטוס</TableHeaderCell>
+                <TableHeaderCell className="text-center">פעולות</TableHeaderCell>
               </tr>
             </TableHeader>
             <TableBody>

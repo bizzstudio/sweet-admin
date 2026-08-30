@@ -37,7 +37,7 @@ const NoteRow = ({ note }) => {
   return (
     <div className="flex flex-wrap items-center justify-between gap-4 py-2">
       <div className="flex items-center gap-3">
-        <FiFileText className="text-2xl text-gray-400 shrink-0" />
+        <FiFileText className="text-2xl text-gray-500 shrink-0" />
         <div>
           <Link
             to={`/delivery-note/${note._id}`}

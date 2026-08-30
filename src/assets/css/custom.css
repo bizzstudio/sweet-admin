@@ -1814,3 +1814,143 @@ input[type="number"]::-webkit-outer-spin-button {
 .disnone {
   display: none;
 }
+
+/* ==========================================================================
+   שכבת נגישות גלובלית לפאנל הניהול (ת"י 5568 / WCAG 2.1 AA)
+   --------------------------------------------------------------------------
+   מקבילה לזו שבחנות (sweet-store/src/styles/custom.css). היא נוספת בסוף
+   הקובץ כדי לגבור על ‎outline:0 / ‎focus:outline-none שמפוזרים בקוד ומבטלים
+   לגמרי את סימון הפוקוס — הבעיה החמורה ביותר בפאנל שכולו עבודה בטפסים
+   ובטבלאות, כלומר עבודה מרובת מקלדת.
+   ========================================================================== */
+
+:root {
+  /* ‎#065f46 מול לבן = 8.9:1. הירוק של המותג (‎#008000) נותן 5.1:1 והוא תקין
+     לטקסט, אבל כטבעת פוקוס דקה עדיף גוון כהה יותר. */
+  --admin-focus-ring: #065f46;
+  --admin-focus-ring-dark: #6ee7b7;
+  /* במצב כהה טבעת כהה נעלמת על ‎gray-800; ירוק בהיר נותן שם 7.4:1 */
+}
+
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+summary:focus-visible,
+[tabindex]:focus-visible,
+[role="button"]:focus-visible,
+[role="tab"]:focus-visible,
+[role="menuitem"]:focus-visible,
+[role="option"]:focus-visible {
+  outline: 3px solid var(--admin-focus-ring) !important;
+  outline-offset: 2px !important;
+  border-radius: 4px;
+}
+
+.dark a:focus-visible,
+.dark button:focus-visible,
+.dark input:focus-visible,
+.dark select:focus-visible,
+.dark textarea:focus-visible,
+.dark [tabindex]:focus-visible {
+  outline-color: var(--admin-focus-ring-dark) !important;
+}
+
+/* פוקוס על רקע כהה/צבעוני (כפתור הפרופיל הירוק בהידר) — טבעת ירוקה כהה
+   נבלעת שם לגמרי, ולכן היא מוחלפת בלבנה עם הילה כהה מסביב.
+   המחלקה הזו הייתה בשימוש ב-components/header/Header.jsx בלי שהוגדרה כאן
+   כלל, כלומר הכפתור קיבל את הטבעת הכהה הרגילה — בלתי נראית על ירוק. */
+.focus-ring-light:focus-visible {
+  outline: 3px solid #ffffff !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 0 5px rgba(6, 95, 70, 0.55);
+}
+
+/* קישור "דלג לתוכן" — הפאנל הוא סרגל צד עם עשרות פריטים, ובלי דילוג משתמש
+   מקלדת עובר את כולם בכל טעינת עמוד מחדש. */
+.skip-to-content {
+  position: fixed;
+  top: 0;
+  right: 0;
+  z-index: 9999;
+  transform: translateY(-120%);
+  padding: 12px 24px;
+  background: #065f46;
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 16px;
+  border-bottom-left-radius: 10px;
+  text-decoration: underline;
+  transition: transform 0.15s ease-in-out;
+}
+
+.skip-to-content:focus {
+  transform: translateY(0);
+}
+
+main:focus,
+[data-skip-target]:focus {
+  outline: none;
+}
+
+/* שטח מגע מינימלי 44x44 (WCAG 2.5.5).
+   --------------------------------------------------------------------------
+   הגרסה הראשונה כאן השתמשה ב-‎::after שקוף שנמתח ל-44px מעבר לגבולות הכפתור,
+   כדי להגדיל את אזור הלחיצה בלי לשנות את המראה. זה פגם: הפסאודו-אלמנט הוא
+   ילד של הכפתור, ולכן כל לחיצה בשטח שלו נזקפת לכפתור — גם בחלק שגולש מעל
+   השכן. בשורת הפעולות של הטבלה בפאנל (עריכה / מחיקה, ‎p-2 ≈ 34px וצמודים)
+   הגלישה היא ~5px לכל צד, כלומר לחיצה בקצה "עריכה" הייתה מפעילה "מחיקה".
+
+   ‎min-width/min-height אמיתיים מגדילים את הכפתור עצמו, והפריסה מסתדרת
+   סביבו — אין חפיפה ואין גניבת לחיצות. המחיר: הכפתור באמת גדל, ולכן
+   המחלקה הוסרה משני מקומות שבהם הגדילה הייתה שוברת פריסה (שורת החיפוש
+   בהידר, שגובהה 32px, ופס הכמות בחלון התוצאות).
+
+   ‎display לא נקבע כאן בכוונה: חלק מהכפתורים כבר ‎flex, וקביעת ‎inline-flex
+   הייתה דורסת אותם (הקובץ נטען אחרי ‎@tailwind utilities). */
+.tap-target {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+/* פריט הניווט הפעיל בסרגל הצד. עד כה הוא סומן ב-‎activeStyle color בלבד
+   (‎#0d9e6d = 3.43:1 — מתחת לתקן לטקסט), כלומר גם לא קריא מספיק וגם מסתמך
+   על צבע כמידע יחיד. עכשיו נוסף משקל גופן ורקע.
+
+   ‎a.sidebar-link-active ולא ‎.sidebar-link-active: ‎tailwind.css נטען אחרי
+   הקובץ הזה (src/main.jsx), ובסלקטור בעל אותה ספציפיות מנצח מי שמאוחר יותר —
+   כלומר ‎.font-semibold שעל הקישור היה דורס את ‎font-weight כאן, והסימון היה
+   חוזר להיות צבע בלבד. הוספת שם התגית מעלה את הספציפיות ל-(0,1,1). */
+a.sidebar-link-active {
+  color: #065f46;
+  font-weight: 800;
+  background-color: rgba(6, 95, 70, 0.08);
+}
+
+.dark a.sidebar-link-active {
+  color: #6ee7b7;
+  background-color: rgba(110, 231, 183, 0.12);
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* פסים לסירוגין בטבלאות הפאנל. הטבלאות כאן רחבות (מוצרים, הזמנות, חשבוניות)
+   ובלי הפרדה ויזואלית קל להחליף שורה באמצע סריקה אופקית. */
+.admin-table tbody tr:nth-child(even) {
+  background-color: rgba(0, 0, 0, 0.02);
+}
+
+.dark .admin-table tbody tr:nth-child(even) {
+  background-color: rgba(255, 255, 255, 0.03);
+}

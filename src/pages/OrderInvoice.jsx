@@ -36,6 +36,7 @@ import DeliveryNoteAction from "@/components/billing/DeliveryNoteAction";
 import OrderItemsEditor from "@/components/order/OrderItemsEditor";
 import { SidebarContext } from "@/context/SidebarContext";
 
+import TableHeaderCell from "@/components/table/TableHeaderCell";
 const OrderInvoice = () => {
   const { t } = useTranslation();
   const { mode } = useContext(WindmillContext);
@@ -296,18 +297,18 @@ const OrderInvoice = () => {
                   </div>
 
                   <TableContainer className="my-4">
-                    <Table>
+                    <Table className="w-full whitespace-nowrap">
                       <TableHeader>
                         <tr>
-                          <TableCell>{t("Sr")}</TableCell>
-                          <TableCell>Product Title</TableCell>
-                          <TableCell className="text-center">
+                          <TableHeaderCell>{t("Sr")}</TableHeaderCell>
+                          <TableHeaderCell>Product Title</TableHeaderCell>
+                          <TableHeaderCell className="text-center">
                             {t("Quantity")}
-                          </TableCell>
-                          <TableCell className="text-center">
+                          </TableHeaderCell>
+                          <TableHeaderCell className="text-center">
                             {t("ItemPrice")}
-                          </TableCell>
-                          <TableCell className="text-right">{t("Amount")}</TableCell>
+                          </TableHeaderCell>
+                          <TableHeaderCell className="text-right">{t("Amount")}</TableHeaderCell>
                         </tr>
                       </TableHeader>
                       <Invoice

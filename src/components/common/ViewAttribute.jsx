@@ -49,7 +49,7 @@ const ViewAttribute = ({ attribute }) => {
 
       <div
         onClick={() => setOpenModal(true)}
-        className="flex justify-right text-right cursor-pointer text-gray-400 hover:text-customGreen-dark"
+        className="flex justify-right text-right cursor-pointer text-gray-500 hover:text-customGreen-dark"
       >
         {" "}
         <Tooltip

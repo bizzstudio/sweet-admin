@@ -18,6 +18,7 @@ import NotFound from "@/components/table/NotFound";
 import PageTitle from "@/components/Typography/PageTitle";
 import TableLoading from "@/components/preloader/TableLoading";
 
+import TableHeaderCell from "@/components/table/TableHeaderCell";
 function reasonLabel(t, reason) {
   if (reason === "no_delivery_days") return t("UndeliverableReasonNoDays");
   return t("UndeliverableReasonNoZone");
@@ -81,14 +82,14 @@ const UndeliverableAddresses = () => {
         <span className="text-center mx-auto text-red-500">{String(error)}</span>
       ) : rows.length > 0 ? (
         <TableContainer className="mb-8 rounded-b-lg">
-          <Table>
+          <Table className="w-full whitespace-nowrap admin-table">
             <TableHeader>
               <tr>
-                <TableCell className="text-center">{t("UndeliverableLogDate")}</TableCell>
-                <TableCell className="text-center">{t("UndeliverableCustomerName")}</TableCell>
-                <TableCell className="text-center">{t("UndeliverableCustomerPhone")}</TableCell>
-                <TableCell className="text-center">{t("UndeliverableCity")}</TableCell>
-                <TableCell className="text-center">{t("UndeliverableReason")}</TableCell>
+                <TableHeaderCell className="text-center">{t("UndeliverableLogDate")}</TableHeaderCell>
+                <TableHeaderCell className="text-center">{t("UndeliverableCustomerName")}</TableHeaderCell>
+                <TableHeaderCell className="text-center">{t("UndeliverableCustomerPhone")}</TableHeaderCell>
+                <TableHeaderCell className="text-center">{t("UndeliverableCity")}</TableHeaderCell>
+                <TableHeaderCell className="text-center">{t("UndeliverableReason")}</TableHeaderCell>
               </tr>
             </TableHeader>
             <TableBody>

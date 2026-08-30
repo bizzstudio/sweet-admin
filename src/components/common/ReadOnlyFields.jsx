@@ -20,7 +20,7 @@ export const Section = ({ title, note, children }) => (
     {title ? (
       <div className="mb-2 flex flex-wrap items-center gap-2 border-b border-gray-100 pb-1 dark:border-gray-600">
         <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200">{title}</h3>
-        {note ? <span className="text-xs text-gray-400">{note}</span> : null}
+        {note ? <span className="text-xs text-gray-500">{note}</span> : null}
       </div>
     ) : null}
     <div className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">{children}</div>
@@ -37,12 +37,12 @@ export const Panel = ({ title, icon, note, span = false, children }) => (
   >
     <div className="mb-4 flex flex-wrap items-center gap-2 border-b border-gray-100 pb-2 dark:border-gray-700">
       {icon ? (
-        <span className="text-base text-gray-400 dark:text-gray-500">{icon}</span>
+        <span className="text-base text-gray-500 dark:text-gray-500">{icon}</span>
       ) : null}
       <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200">
         {title}
       </h3>
-      {note ? <span className="text-xs text-gray-400">{note}</span> : null}
+      {note ? <span className="text-xs text-gray-500">{note}</span> : null}
     </div>
     <div className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">{children}</div>
   </section>

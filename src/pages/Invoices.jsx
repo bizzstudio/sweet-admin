@@ -29,7 +29,8 @@ import {
   TableHeader,
   TableRow,
 } from "@windmill/react-ui";
-import { FiAlertTriangle, FiCornerUpLeft, FiDollarSign, FiExternalLink } from "react-icons/fi";
+import { FiAlertTriangle, FiCornerUpLeft, FiDollarSign, FiExternalLink, FiList } from "react-icons/fi";
+import { Link } from "react-router-dom";
 import useQueryParam from "@/hooks/useQueryParam";
 
 import PageTitle from "@/components/Typography/PageTitle";
@@ -39,6 +40,7 @@ import NotFound from "@/components/table/NotFound";
 import BillingServices from "@/services/BillingServices";
 import { notifyError, notifySuccess } from "@/utils/toast";
 
+import TableHeaderCell from "@/components/table/TableHeaderCell";
 const shekel = (n) =>
   Number(n || 0).toLocaleString("he-IL", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -229,17 +231,17 @@ const Invoices = () => {
         <NotFound title="אין חשבוניות להצגה" />
       ) : (
         <TableContainer className="mb-8">
-          <Table>
+          <Table className="w-full whitespace-nowrap admin-table">
             <TableHeader>
               <tr>
-                <TableCell>חשבונית</TableCell>
-                <TableCell>לקוח</TableCell>
-                <TableCell>הופקה</TableCell>
-                <TableCell>לפירעון</TableCell>
-                <TableCell className="text-left">סכום כולל מע"מ</TableCell>
-                <TableCell className="text-center">תעודות</TableCell>
-                <TableCell>מצב</TableCell>
-                <TableCell></TableCell>
+                <TableHeaderCell>חשבונית</TableHeaderCell>
+                <TableHeaderCell>לקוח</TableHeaderCell>
+                <TableHeaderCell>הופקה</TableHeaderCell>
+                <TableHeaderCell>לפירעון</TableHeaderCell>
+                <TableHeaderCell className="text-left">סכום כולל מע"מ</TableHeaderCell>
+                <TableHeaderCell className="text-center">תעודות</TableHeaderCell>
+                <TableHeaderCell>מצב</TableHeaderCell>
+                <TableHeaderCell></TableHeaderCell>
               </tr>
             </TableHeader>
             <TableBody>
@@ -320,6 +322,17 @@ const Invoices = () => {
                           <FiDollarSign /> רשום תשלום
                         </button>
                       )}
+                      {/* הנספח שמצורף לחשבונית: כל תעודות המשלוח שהיא
+                          סגרה, עם התאריכים והסכומים. זה מה שהלקוח מצליב
+                          מול הניירות שקיבל */}
+                      <Link
+                        to={`/invoice-summary/${encodeURIComponent(inv.docNum)}`}
+                        className="text-blue-600 text-sm hover:underline flex items-center gap-1"
+                        title="ריכוז תעודות המשלוח שנסגרו בחשבונית"
+                      >
+                        <FiList /> ריכוז תעודות
+                      </Link>
+
                       <button
                         onClick={() => {
                           setReason("");

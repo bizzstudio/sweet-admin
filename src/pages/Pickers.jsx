@@ -22,6 +22,7 @@ import PickerTable from "@/components/picker/PickerTable";
 import MainDrawer from "@/components/drawer/MainDrawer";
 import PickerDrawer from "@/components/drawer/PickerDrawer";
 
+import TableHeaderCell from "@/components/table/TableHeaderCell";
 const Pickers = () => {
   const { toggleDrawer } = useContext(SidebarContext);
   const { t } = useTranslation();
@@ -71,15 +72,15 @@ const Pickers = () => {
         <span className="text-center mx-auto text-red-500">{error}</span>
       ) : pickers.length !== 0 ? (
         <TableContainer className="mb-8 dark:bg-gray-900">
-          <Table>
+          <Table className="w-full whitespace-nowrap admin-table">
             <TableHeader>
               <tr>
-                <TableCell className="text-center">{t("PickerName")}</TableCell>
-                <TableCell className="text-center">{t("Username")}</TableCell>
-                <TableCell className="text-center">{t("Password")}</TableCell>
-                <TableCell className="text-center">{t("phone")}</TableCell>
-                <TableCell className="text-center">{t("IsActive")}</TableCell>
-                <TableCell className="text-center">{t("Actions")}</TableCell>
+                <TableHeaderCell className="text-center">{t("PickerName")}</TableHeaderCell>
+                <TableHeaderCell className="text-center">{t("Username")}</TableHeaderCell>
+                <TableHeaderCell className="text-center">{t("Password")}</TableHeaderCell>
+                <TableHeaderCell className="text-center">{t("phone")}</TableHeaderCell>
+                <TableHeaderCell className="text-center">{t("IsActive")}</TableHeaderCell>
+                <TableHeaderCell className="text-center">{t("Actions")}</TableHeaderCell>
               </tr>
             </TableHeader>
 

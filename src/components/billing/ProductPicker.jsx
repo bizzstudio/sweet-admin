@@ -4,6 +4,13 @@
 // הקלדה חופשית. מק"ט שהוקלד ידנית ואינו קיים בקטלוג חוזר מהשרת כשורה
 // ללא מחיר וחוסם את ההפקה, ולכן עדיף שהמשתמש כלל לא יוכל להזין כזה.
 //
+// החיפוש עובד גם על הברקוד (product.erp.barcode — הברקוד של מנוע), כי
+// זה מה שמופיע על התעודות ועל המדף. השדה מוצג לצד המק"ט בכל שורה.
+//
+// הקובץ מייצא גם את מאגר הקטלוג המשותף (useCatalog / lookupBarcode), כדי
+// שהקלדת ברקוד תיפתר מיד מתוך הרשימה שכבר בזיכרון ולא בפנייה לשרת לכל
+// סריקה. ראה BarcodeInput.jsx.
+//
 // הקטלוג (4,320 מוצרים, ~320KB) נטען פעם אחת ומשותף לכל השורות במסך —
 // בקשה אחת ולא אחת לכל שורה. הסינון מתבצע בדפדפן, ומוצגות עד MAX_OPTIONS
 // תוצאות כדי שפתיחת הרשימה לא תרנדר אלפי שורות.
@@ -87,10 +94,45 @@ const shekel = (n) =>
     maximumFractionDigits: 2,
   });
 
+/**
+ * מאגר הקטלוג המשותף, לרכיבים אחרים (הקלדת ברקוד).
+ *
+ * מחזיר את אותו מצב שהבורר קורא, ומבטיח שהקטלוג נטען — כך שמסך עם שדה
+ * ברקוד בלבד, בלי אף בורר, עדיין יעבוד.
+ */
+export const useCatalog = () => {
+  const state = useSyncExternalStore(subscribe, () => catalogState);
+  useEffect(() => {
+    ensureCatalog();
+  }, []);
+  return state;
+};
+
+/**
+ * כל המוצרים שהברקוד שלהם תואם.
+ *
+ * מחזיר מערך ולא מוצר בודד: במסד יש 7 קבוצות של ברקוד כפול, ובחירה שקטה
+ * של אחד מהם הייתה מכניסה לתעודה את המוצר הלא נכון.
+ *
+ * ההשוואה מנרמלת אפסים מובילים, כי הערך נשמר במסד כמחרוזת בדיוק כפי
+ * שהגיע מהאקסל של מנוע ולא בפורמט אחיד.
+ */
+export const lookupBarcode = (products, code) => {
+  const text = String(code ?? "").trim();
+  if (!text) return [];
+
+  const normalized = /^\d+$/.test(text) ? String(Number(text)) : text;
+  return products.filter((p) => {
+    const bc = String(p.barcode || "").trim();
+    if (!bc) return false;
+    return bc === text || (/^\d+$/.test(bc) && String(Number(bc)) === normalized);
+  });
+};
+
 export default function ProductPicker({
   value,
   onChange,
-  placeholder = 'חיפוש מוצר לפי שם או מק"ט...',
+  placeholder = 'חיפוש מוצר לפי שם, ברקוד או מק"ט...',
   className = "",
 }) {
   const { mode } = useContext(WindmillContext);
@@ -119,7 +161,7 @@ export default function ProductPicker({
 
     const matches = [];
     for (const p of products) {
-      const haystack = `${p.name} ${p.sku}`.toLowerCase();
+      const haystack = `${p.name} ${p.sku} ${p.barcode || ""}`.toLowerCase();
       if (terms.every((t) => haystack.includes(t))) {
         matches.push(p);
         if (matches.length >= MAX_OPTIONS) break;
@@ -133,7 +175,7 @@ export default function ProductPicker({
       ? null
       : inputValue.trim()
       ? `מוצגות ${MAX_OPTIONS} התוצאות הראשונות — כדאי לדייק את החיפוש`
-      : `מוצגים ${MAX_OPTIONS} מוצרים מתוך ${products.length} — יש להקליד שם או מק"ט`;
+      : `מוצגים ${MAX_OPTIONS} מוצרים מתוך ${products.length} — יש להקליד שם, ברקוד או מק"ט`;
 
   const styles = useMemo(
     () => ({
@@ -197,15 +239,26 @@ export default function ProductPicker({
     if (meta?.context === "value") {
       return (
         <span>
-          {p.name} <span className="text-xs text-gray-500">({p.sku})</span>
+          {p.name}{" "}
+          <span className="text-xs text-gray-500 font-mono">
+            {p.barcode ? `ברקוד ${p.barcode}` : `מק"ט ${p.sku}`}
+          </span>
         </span>
       );
     }
     return (
       <div className="flex items-baseline justify-between gap-3">
         <span className="truncate">{p.name}</span>
-        <span className="text-xs text-gray-500 shrink-0 font-mono">
-          {p.sku} · {p.price > 0 ? `${shekel(p.price)} ₪` : "ללא מחיר קטלוג"}
+        {/* הברקוד ראשון ומודגש: הוא מה שמופיע על התעודה ועל החשבונית,
+            והוא מה שמצליבים מולו. המק"ט נשאר לצידו לזיהוי בקטלוג */}
+        <span className="text-xs shrink-0 font-mono text-gray-500">
+          {p.barcode && (
+            <span className="text-gray-700 dark:text-gray-300 font-semibold">
+              {p.barcode}
+            </span>
+          )}
+          {p.barcode ? " · " : ""}
+          {`מק"ט ${p.sku}`} · {p.price > 0 ? `${shekel(p.price)} ₪` : "ללא מחיר קטלוג"}
         </span>
       </div>
     );
@@ -222,7 +275,7 @@ export default function ProductPicker({
         getOptionValue={(p) => String(p.sku)}
         // לקוראי מסך ולהודעות הנגישות של react-select; התצוגה עצמה מגיעה
         // מ-formatOptionLabel
-        getOptionLabel={(p) => `${p.name} (${p.sku})`}
+        getOptionLabel={(p) => `${p.name} (ברקוד ${p.barcode || "—"}, מק"ט ${p.sku})`}
         formatOptionLabel={formatOptionLabel}
         components={SELECT_COMPONENTS}
         truncNote={truncNote}
