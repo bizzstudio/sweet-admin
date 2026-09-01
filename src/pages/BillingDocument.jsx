@@ -550,10 +550,13 @@ const BillingDocument = () => {
               <thead>
                 <tr className="bg-gray-100 border-b-2 border-gray-400">
                   <th className="text-right py-2 px-2">#</th>
-                  {/* הברקוד של מנוע — זה מה שמצליבים מולו, ולכן הוא
-                      העמודה הראשונה. המק"ט נשאר לצידו לזיהוי בקטלוג */}
-                  <th className="text-right py-2 px-2">ברקוד</th>
+                  {/* המק"ט הוא המזהה שעל התעודה — זו העמודה הראשונה,
+                      והיא מודגשת. הברקוד של מנוע נשאר לצידו כעזר להצלבה
+                      מול האריזה, אבל אינו המזהה הראשי של המסמך.
+                      ⚠️ ה-PDF שנשלח אוטומטית למדפסת מציג מק"ט בלבד
+                      (lib/printing/deliveryNotePdf.js) */}
                   <th className="text-right py-2 px-2">מק"ט</th>
+                  <th className="text-right py-2 px-2">ברקוד</th>
                   <th className="text-right py-2 px-2">תיאור</th>
                   <th className="text-center py-2 px-2">כמות</th>
                   {/* בתעודת משלוח המחירים מוצגים כי הן הבסיס לחשבונית
@@ -566,8 +569,8 @@ const BillingDocument = () => {
                 {(doc.items || []).map((item, i) => (
                   <tr key={i} className="border-b border-gray-200">
                     <td className="py-2 px-2">{i + 1}</td>
-                    <td className="py-2 px-2 font-semibold">{item.barcode || "—"}</td>
-                    <td className="py-2 px-2 text-gray-600">{item.sku || "—"}</td>
+                    <td className="py-2 px-2 font-semibold">{item.sku || "—"}</td>
+                    <td className="py-2 px-2 text-gray-600">{item.barcode || "—"}</td>
                     <td className="py-2 px-2">
                       {item.name}
                       {item.isVatFree && (

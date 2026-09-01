@@ -16,11 +16,23 @@ const ProductServices = {
     return requests.get("/products/lite");
   },
 
+  // אותה רשימה, עם מזהה וקטגוריה — למסך שיוך הקטגוריות. השדות האלה אינם
+  // חוזרים לבוררי המוצר, כדי לא לנפח את הקטלוג שנטען בכל מסך חיוב
+  getProductsForCategoryAssign: async () => {
+    return requests.get("/products/lite?withCategory=1");
+  },
+
   // חיפוש מוצר לפי ברקוד (הקלדה או סורק). מחזיר מערך — הברקוד אינו
   // ייחודי במסד, ובחירה שקטה של אחד מכמה מוצרים הייתה מכניסה לתעודה
   // את המוצר הלא נכון.
   getProductByBarcode: async (barcode) => {
     return requests.get(`/products/by-barcode/${encodeURIComponent(barcode)}`);
+  },
+
+  // העברת מוצרים לקטגוריה אחרת. שדה יחיד שניתן לשינוי — בניגוד ל-
+  // updateManyProducts שמקבל כל שדה שנשלח אליו
+  bulkChangeCategory: async ({ ids, category }) => {
+    return requests.patch("/products/bulk-category", { ids, category });
   },
 
   getProductById: async (id) => {

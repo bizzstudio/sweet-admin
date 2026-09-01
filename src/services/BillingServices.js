@@ -178,6 +178,17 @@ const BillingServices = {
     return requests.get(`/billing/customer/${customerId}/documents`);
   },
 
+  // --- דוחות ---
+  // דוח רכישות לקוחות: {source, customers, products, totals}.
+  // params: {source: "orders"|"notes", from, to, customer, kind}
+  // kind רלוונטי לתעודות בלבד — השרת דוחה אותו עם source=orders
+  getCustomerPurchaseReport: async (params = {}) => {
+    const q = new URLSearchParams(
+      Object.entries(params).filter(([, v]) => v !== undefined && v !== "" && v !== null)
+    ).toString();
+    return requests.get(`/billing/reports/customer-purchases${q ? `?${q}` : ""}`);
+  },
+
   getCustomerOpenInvoices: async (customerId) => {
     return requests.get(`/billing/customer/${customerId}/open-invoices`);
   },

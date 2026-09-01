@@ -20,7 +20,10 @@ const ERP_FORM_FIELDS = {
   erpAgent: { key: "agent" },
   erpPoints: { key: "points", numeric: true },
   erpDiscountPercent: { key: "discountPercent", numeric: true },
-  erpCumulativePurchase: { key: "cumulativePurchase", numeric: true },
+  // ⛔ "קנייה מצטברת" (cumulativePurchase) הוסרה מהמיפוי יחד עם האריח
+  // שהציג אותה (31/08/26). המפה הזו חייבת להכיל *רק* שדות שהטופס מרנדר:
+  // שדה מספרי שנשאר כאן בלי קלט נשלח כ-null ומוחק במסד ערך שהיבוא הביא.
+  // להחזרה: להחזיר את השורה כאן ואת האריח ב-CustomerErpPanel.
   erpCredit: { key: "credit", numeric: true },
   erpOpeningBalance: { key: "openingBalance", numeric: true },
   erpPriceLevel: { key: "priceLevel", numeric: true },

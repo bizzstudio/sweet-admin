@@ -89,6 +89,15 @@ const phoneDigits = (value) => {
 const looksLikePhoneQuery = (value) =>
   /^[+(]?\d[\d\s()+.\-]*$/.test(stripBidiMarks(value).trim());
 
+// מספר הלקוח מההנהח"ש, מנורמל להשוואה. אפסים מובילים אינם עקביים בקובץ
+// שממנו הוא מיובא ("0553" ו-"553" הם אותו לקוח), אבל מספר שכולו אפסים
+// אינו מתרוקן — (?=\d) מוודא שנשארת לפחות ספרה אחת
+const customerNumberKey = (customer) =>
+  String(customer?.erp?.customerNumber ?? "")
+    .trim()
+    .replace(/^0+(?=\d)/, "")
+    .toLowerCase();
+
 // שם לקוח נשמר כמחרוזת, אבל שם עובד (Admin) נשמר כאובייקט רב-לשוני {he,en}.
 // אותו סינון משרת את שני העמודים, ולכן שתי הצורות מומרות לטקסט לחיפוש.
 // כל השפות נכללות כדי שעובד עם שם אנגלי יימצא גם כשהממשק בעברית
@@ -289,20 +298,37 @@ const useFilter = (data) => {
     // בלבד יציג את כל הרשומות במקום להריץ סינון שלא מתאים לאף אחת
     const term = stripBidiMarks(searchUser).trim().toLowerCase();
     if (term) {
-      const termDigits = looksLikePhoneQuery(term) ? phoneDigits(term) : "";
-      services = services.filter(
-        (search) => {
-          const fullName =
-            `${searchableText(search?.name)} ${searchableText(search?.lastName)}`
-              .replace(/\s+/g, " ")
-              .trim()
-              .toLowerCase();
-          if (fullName.includes(term)) return true;
-          if (searchableText(search?.email).toLowerCase().includes(term))
-            return true;
-          // הטלפון מושווה בספרות בלבד, ולכן נמצא גם כשהוא נשמר בלי אפס מוביל
-          return !!termDigits && phoneDigits(search?.phone).includes(termDigits);
-        });
+      // ── חיפוש לפי מספר לקוח ──
+      //
+      // התאמה מדויקת למספר הלקוח גוברת על כל שאר ההתאמות ומחזירה אותו לבדו.
+      // הסיבה: מספר לקוח הוא 3-4 ספרות, והוא נבלע כרצף בתוך מספרי טלפון —
+      // חיפוש "553" היה מחזיר את לקוח 553 יחד עם כל מי שהרצף הזה מופיע
+      // בטלפון שלו. הקלדת מספר לקוח נועדה להעלות לקוח אחד.
+      //
+      // ההשוואה היא שוויון ולא הכלה, אחרת "553" היה מביא גם את 1553 ו-5530.
+      const numberTerm = term.replace(/^0+(?=\d)/, "");
+      const numberMatches = services.filter(
+        (search) => customerNumberKey(search) === numberTerm
+      );
+
+      if (numberMatches.length) {
+        services = numberMatches;
+      } else {
+        const termDigits = looksLikePhoneQuery(term) ? phoneDigits(term) : "";
+        services = services.filter(
+          (search) => {
+            const fullName =
+              `${searchableText(search?.name)} ${searchableText(search?.lastName)}`
+                .replace(/\s+/g, " ")
+                .trim()
+                .toLowerCase();
+            if (fullName.includes(term)) return true;
+            if (searchableText(search?.email).toLowerCase().includes(term))
+              return true;
+            // הטלפון מושווה בספרות בלבד, ולכן נמצא גם כשהוא נשמר בלי אפס מוביל
+            return !!termDigits && phoneDigits(search?.phone).includes(termDigits);
+          });
+      }
     }
     // Coupon filtering
     if (searchCoupon) {

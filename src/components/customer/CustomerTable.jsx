@@ -35,9 +35,12 @@ const CustomerTable = ({
 
           return (
             <TableRow key={user._id}>
+              {/* מספר הלקוח מההנהח"ש הוא המזהה שמדברים בו מול הלקוחה ובקובצי
+                  האקסל, ולכן הוא מוצג כאן. הפירור מה-_id נשאר כגיבוי ללקוח
+                  שנרשם בחנות ואין לו מספר */}
               <TableCell>
                 <span className="font-semibold uppercase text-xs">
-                  {user?._id?.substring(20, 24)}
+                  {user?.erp?.customerNumber || user?._id?.substring(20, 24)}
                 </span>
               </TableCell>
 

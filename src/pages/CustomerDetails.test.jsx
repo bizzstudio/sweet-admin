@@ -278,6 +278,34 @@ describe("צפייה בלקוח — עריכה בתוך העמוד", () => {
     expect(container.querySelectorAll("input").length).toBe(0);
   });
 
+  // הלקוחה ביקשה שלא לראות בכרטיס את הקנייה המצטברת (31/08/26). הערך עצמו
+  // נשאר במסד ומגיע מהיבוא — מה שנבדק כאן הוא שהוא לא מוצג, ובעיקר שהשמירה
+  // לא מוחקת אותו: שדה מספרי שנעלם מהטופס היה נשלח כ-null ודורס את המסד
+  it("אינו מציג קנייה מצטברת - לא בקריאה ולא בעריכה", async () => {
+    await loadPage();
+    expect(container.textContent).not.toContain("קנייה מצטברת");
+    expect(container.textContent).not.toContain("קניה מצטברת");
+
+    await clickButton("עריכת לקוח");
+    expect(container.textContent).not.toContain("קנייה מצטברת");
+    expect(fieldByLabel("קנייה מצטברת")).toBeNull();
+  });
+
+  it("שמירה אינה מאפסת את הקנייה המצטברת שאינה מוצגת", async () => {
+    await loadPage();
+    await clickButton("עריכת לקוח");
+    await typeInto(fieldByLabel("איש קשר"), "יעל");
+    await clickButton("שמירה");
+
+    const [, sentData] = CustomerServices.updateCustomer.mock.calls[0];
+    // השדה פשוט אינו נשלח, והשרת (שממזג שדה-שדה) משאיר את מה שיש במסד
+    expect(sentData.erp.cumulativePurchase).toBeUndefined();
+    // שאר שדות ההנהח"ש ממשיכים להישלח כרגיל
+    expect(sentData.erp.openingBalance).toBe(0);
+    expect(sentData.erp.credit).toBe(0);
+    expect(sentData.erp.points).toBe(310.611);
+  });
+
   it("ללקוח חנות (בלי נתוני הנהח\"ש) לא נשלח erp ריק שיסמן אותו כלקוח מהיבוא", async () => {
     const storeCustomer = { ...CUSTOMER, erp: undefined };
     CustomerServices.getCustomerDetails.mockResolvedValue(storeCustomer);

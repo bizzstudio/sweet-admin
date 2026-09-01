@@ -11,6 +11,8 @@ const DashboardStats = lazy(() => import("@/pages/DashboardStats"));
 const Products = lazy(() => import("@/pages/Products"));
 const ProductDetails = lazy(() => import("@/pages/ProductDetails"));
 const Category = lazy(() => import("@/pages/Category"));
+// שיוך מוצרים לקטגוריה באצווה — אייוש קטגוריות כמו "כיבוד"
+const CategoryAssign = lazy(() => import("@/pages/CategoryAssign"));
 // ⛔ מבצעים כבויים (הקוד נשמר) - להחזרה: להסיר את ההערה כאן ובמסלול למטה
 // const Offers = lazy(() => import("@/pages/Offers"));
 const ChildCategory = lazy(() => import("@/pages/ChildCategory"));
@@ -60,6 +62,8 @@ const InvoiceNotesSummary = lazy(() => import("@/pages/InvoiceNotesSummary"));
 const Invoices = lazy(() => import("@/pages/Invoices"));
 const IcountDemo = lazy(() => import("@/pages/IcountDemo"));
 const Receipts = lazy(() => import("@/pages/Receipts"));
+// דוח רכישות לקוחות — מה קנו ובאילו תעודות
+const PurchaseReports = lazy(() => import("@/pages/PurchaseReports"));
 
 /*
 //  * ⚠ These are internal routes!
@@ -113,6 +117,10 @@ const routes = [
   {
     path: "/categories",
     component: Category,
+  },
+  {
+    path: "/categories/assign",
+    component: CategoryAssign,
   },
   // ⛔ מבצעים כבויים (לא נמחקו) - להחזרה: להסיר את ההערה
   // {
@@ -213,6 +221,10 @@ const routes = [
   {
     path: "/receipts",
     component: Receipts,
+  },
+  {
+    path: "/reports/purchases",
+    component: PurchaseReports,
   },
   // מסך הדגמה — פעיל רק כשהשרת מחובר לחשבון דמו (ICOUNT_MODE=demo)
   {

@@ -55,6 +55,11 @@ const TILE_META = {
     accent: "amber",
     desc: "הקטגוריות שהמוצרים משויכים אליהן: יצירה, שינוי שם, שיוך לקטגוריית אב, ופרסום או הסתרה בחנות.",
   },
+  CategoryAssign: {
+    icon: FiLayers,
+    accent: "amber",
+    desc: "העברת מוצרים בין קטגוריות באצווה. הקטגוריה קובעת את הפיצול בחשבונית החודשית — שורת ריכוז נפרדת לכל אחת.",
+  },
   Customers: {
     icon: FiUsers,
     accent: "green",
@@ -94,6 +99,11 @@ const TILE_META = {
     icon: MdOutlineReceiptLong,
     accent: "purple",
     desc: "הקבלות שהופקו: איזו חשבונית שולמה ומתי, פתיחת הקבלה ב-iCount והוצאת זיכוי עליה.",
+  },
+  PurchaseReports: {
+    icon: FiFileText,
+    accent: "purple",
+    desc: "מה כל לקוח קנה בטווח תאריכים: פירוט התעודות שלו, ומה נמכר לפי מוצר. ניתן לייצוא לאקסל.",
   },
   Quotes: {
     icon: MdOutlineRequestQuote,

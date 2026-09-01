@@ -11,6 +11,7 @@ import {
   FiClipboard,
   FiUserCheck,
   FiPieChart,
+  FiFileText,
 } from "react-icons/fi";
 import { FaRegWindowRestore } from "react-icons/fa6";
 import { GoDependabot } from "react-icons/go";
@@ -43,6 +44,10 @@ const sidebar = [
       {
         path: "/categories",
         name: "Categories",
+      },
+      {
+        path: "/categories/assign",
+        name: "CategoryAssign",
       },
       // ⛔ תכונות, קופונים ומבצעים כבויים (לא נמחקו) - להחזרה: להסיר את ההערה
       // {
@@ -155,6 +160,22 @@ const sidebar = [
   //   icon: FiGift,
   //   name: "Lotteries",
   // },
+
+  /*
+   * דוחות. כרגע דוח אחד — "מה קנו" לפי לקוח ולפי מוצר — אבל הוא יושב
+   * בקבוצה משלו ולא תחת "חיוב": חיוב הוא מה שמפיקים, ודוח הוא מה
+   * שקוראים, והחיפוש אחריו מתחיל במילה "דוחות".
+   */
+  {
+    icon: FiFileText,
+    name: "Reports",
+    routes: [
+      {
+        path: "/reports/purchases",
+        name: "PurchaseReports",
+      },
+    ],
+  },
 
   {
     path: "/our-staff",

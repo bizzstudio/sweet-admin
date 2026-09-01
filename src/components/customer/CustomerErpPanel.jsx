@@ -25,14 +25,19 @@ export const CustomerErpStats = ({ customer, editing = false, register }) => {
   if (!erp) return null;
 
   const stats = [
-    { label: "קנייה מצטברת", name: "erpCumulativePurchase", value: erp.cumulativePurchase, money: true },
+    // ⛔ "קנייה מצטברת" הוסרה מהתצוגה (31/08/26, בקשת הלקוחה). הערך עצמו
+    // עדיין מיובא מאקסל ההנהח"ש ונשמר ב-erp.cumulativePurchase — רק אינו
+    // מוצג ואינו ניתן לעריכה כאן. להחזרה: להסיר את ההערה מהשורה הבאה.
+    // { label: "קנייה מצטברת", name: "erpCumulativePurchase", value: erp.cumulativePurchase, money: true },
     { label: "יתרת פתיחה", name: "erpOpeningBalance", value: erp.openingBalance, money: true },
     { label: "אשראי", name: "erpCredit", value: erp.credit, money: true },
     { label: "נקודות", name: "erpPoints", value: erp.points },
   ];
 
+  // שלושה אריחים מאז שהקנייה המצטברת הוסרה — grid-cols-4 היה משאיר
+  // משבצת ריקה בקצה
   return (
-    <div className="mb-5 grid grid-cols-2 gap-4 lg:grid-cols-4">
+    <div className="mb-5 grid grid-cols-2 gap-4 lg:grid-cols-3">
       {stats.map((stat) =>
         editing ? (
           <div

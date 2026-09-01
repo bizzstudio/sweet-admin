@@ -10,7 +10,13 @@ import {
   TableFooter,
   TableHeader,
 } from "@windmill/react-ui";
-import React, { useCallback, useContext, useEffect, useState } from "react";
+import React, {
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { useTranslation } from "react-i18next";
 import { FiDollarSign } from "react-icons/fi";
 
@@ -88,6 +94,22 @@ const Customers = () => {
     loadHistories();
   }, [loadHistories]);
 
+  // ── שורות הייצוא ──
+  //
+  // רשימת הלקוחות מהשרת מחזיקה את מספר הלקוח בתוך אובייקט erp מקונן, ו-
+  // export-from-json כותב אובייקט לתא אחד כ-JSON. הייצוא מקבל לכן שורות
+  // שטוחות, שבהן מספר הלקוח הוא עמודה משלו כמו שאר השדות
+  const exportRows = useMemo(
+    () =>
+      Array.isArray(data)
+        ? data.map(({ erp, ...rest }) => ({
+            ...rest,
+            customerNumber: erp?.customerNumber || "",
+          }))
+        : data,
+    [data]
+  );
+
   // console.log('customer',data)
 
   // יבוא ה-JSON הוסר מהעמוד לטובת יבוא האקסל, ולכן אין צורך בשדות הקובץ מההוק
@@ -160,7 +182,7 @@ const Customers = () => {
                   onExcelImport מחליף את יבוא ה-JSON שמחק את כל הלקוחות */}
               <UploadManyTwo
                 title="Customers"
-                exportData={data}
+                exportData={exportRows}
                 onExcelImport={() => setIsExcelModalOpen(true)}
               />
             </div>
