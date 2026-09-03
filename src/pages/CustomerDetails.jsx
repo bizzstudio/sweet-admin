@@ -191,6 +191,18 @@ const CustomerDetails = () => {
                       required
                       register={register}
                       error={errors.email}
+                      hint="הכתובת המרכזית: התחברות לחנות וחשבוניות"
+                    />
+                    {/* המייל המשני. שדה תצוגה בלבד - המערכת לא שולחת אליו
+                        דבר, ולכן הוא גם לא חייב להיות ייחודי */}
+                    <EditableField
+                      editing
+                      label="מייל איש קשר"
+                      name="contactEmail"
+                      type="email"
+                      register={register}
+                      error={errors.contactEmail}
+                      hint="לרישום בלבד — לא נשלחות אליו הודעות"
                     />
                     <EditableField
                       editing
@@ -238,6 +250,12 @@ const CustomerDetails = () => {
                         text(customer.email)
                       )}
                     </Contact>
+                    {customer.contactEmail ? (
+                      <Contact icon={<FiMail />}>
+                        {customer.contactEmail}{" "}
+                        <span className="text-gray-400">(איש קשר)</span>
+                      </Contact>
+                    ) : null}
                     <Contact icon={<FiPhone />}>{text(customer.phone)}</Contact>
                     {addressLine ? (
                       <Contact icon={<FiMapPin />}>{addressLine}</Contact>

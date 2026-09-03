@@ -31,11 +31,11 @@ import useQueryParam from "@/hooks/useQueryParam";
 
 import PageTitle from "@/components/Typography/PageTitle";
 import ProductPicker from "@/components/billing/ProductPicker";
+import CustomerPicker from "@/components/billing/CustomerPicker";
 import BarcodeInput from "@/components/billing/BarcodeInput";
 import TableLoading from "@/components/preloader/TableLoading";
 import NotFound from "@/components/table/NotFound";
 import BillingServices from "@/services/BillingServices";
-import CustomerServices from "@/services/CustomerServices";
 import { notifyError, notifySuccess } from "@/utils/toast";
 
 import TableHeaderCell from "@/components/table/TableHeaderCell";
@@ -69,7 +69,6 @@ const Quotes = () => {
   const [customerFilter, setCustomerFilter] = useQueryParam("customer");
 
   const [building, setBuilding] = useState(false);
-  const [customers, setCustomers] = useState([]);
   const [customerId, setCustomerId] = useState("");
   const [rows, setRows] = useState([{ sku: "", quantity: 1 }]);
   const [priced, setPriced] = useState(null);
@@ -95,13 +94,6 @@ const Quotes = () => {
   useEffect(() => {
     load();
   }, [load]);
-
-  useEffect(() => {
-    if (!building || customers.length) return;
-    CustomerServices.getAllCustomers({ searchText: "" })
-      .then((res) => setCustomers(Array.isArray(res) ? res : res?.customers || []))
-      .catch(() => setCustomers([]));
-  }, [building, customers.length]);
 
   const updateRow = (i, field, value) => {
     setRows((prev) => prev.map((r, idx) => (idx === i ? { ...r, [field]: value } : r)));
@@ -139,7 +131,7 @@ const Quotes = () => {
 
   const doPrice = async () => {
     if (!customerId) return notifyError("יש לבחור לקוח");
-    if (!validRows.length) return notifyError("יש להזין לפחות מק\"ט אחד עם כמות");
+    if (!validRows.length) return notifyError("יש להזין לפחות מוצר אחד עם כמות");
 
     try {
       const res = await BillingServices.priceItems({
@@ -255,23 +247,18 @@ const Quotes = () => {
         <Card className="min-w-0 shadow-xs overflow-hidden bg-white dark:bg-gray-800 mb-6">
           <CardBody>
             <div className="flex flex-wrap gap-4 mb-4">
+              {/* הקלדה של השם או של מספר הלקוח מגיעה אליו ישירות — ברשימה
+                  נפתחת רגילה היה צריך לגלול דרך מאות לקוחות */}
               <Label className="flex-1 min-w-[240px]">
                 <span>לקוח</span>
-                <Select
+                <CustomerPicker
                   className="mt-1"
                   value={customerId}
-                  onChange={(e) => {
-                    setCustomerId(e.target.value);
+                  onChange={(id) => {
+                    setCustomerId(id);
                     setPriced(null);
                   }}
-                >
-                  <option value="">— בחרי לקוח —</option>
-                  {customers.map((c) => (
-                    <option key={c._id} value={c._id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </Select>
+                />
               </Label>
 
               <Label className="w-40">
@@ -347,6 +334,9 @@ const Quotes = () => {
                   <Table className="w-full whitespace-nowrap admin-table">
                     <TableHeader>
                       <tr>
+                        {/* הברקוד לצד השם — זה המזהה שיודפס על המסמך,
+                            וכך אפשר להצליב עוד לפני ההפקה */}
+                        <TableHeaderCell>ברקוד</TableHeaderCell>
                         <TableHeaderCell>מוצר</TableHeaderCell>
                         <TableHeaderCell className="text-center">כמות</TableHeaderCell>
                         <TableHeaderCell className="text-left">מחיר יח'</TableHeaderCell>
@@ -359,6 +349,9 @@ const Quotes = () => {
                         const src = SOURCE_LABELS[item.source] || SOURCE_LABELS.catalog;
                         return (
                           <TableRow key={i}>
+                            <TableCell className="font-mono text-xs">
+                              {item.barcode || item.sku || "—"}
+                            </TableCell>
                             <TableCell>{item.name}</TableCell>
                             <TableCell className="text-center">{item.quantity}</TableCell>
                             <TableCell className="text-left">{shekel(item.unitPrice)}</TableCell>
@@ -389,7 +382,7 @@ const Quotes = () => {
 
                 {priced.quality.hasMissing && (
                   <p className="mt-3 text-sm text-red-600 flex items-center gap-2">
-                    <FiAlertTriangle /> יש מק"טים ללא מחיר — יש לתקן לפני הפקה
+                    <FiAlertTriangle /> יש מוצרים ללא מחיר — יש לתקן לפני הפקה
                   </p>
                 )}
 
@@ -471,7 +464,16 @@ const Quotes = () => {
                     <TableCell>
                       {new Date(q.createdAt).toLocaleDateString("he-IL")}
                     </TableCell>
-                    <TableCell>{q.customerSnapshot?.name || "—"}</TableCell>
+                    <TableCell>
+                      {q.customerSnapshot?.name || "—"}
+                      {/* מספר הלקוח לצד השם — לקוחות עם שמות דומים
+                          נבדלים בו, וזה גם מה שמקלידים בחיפוש */}
+                      {q.customerSnapshot?.customerNumber && (
+                        <span className="block text-xs text-gray-500 font-mono">
+                          לקוח {q.customerSnapshot.customerNumber}
+                        </span>
+                      )}
+                    </TableCell>
                     <TableCell className="text-center">{q.items?.length || 0}</TableCell>
                     <TableCell className="text-left">{shekel(q.total)} ₪</TableCell>
                     <TableCell>

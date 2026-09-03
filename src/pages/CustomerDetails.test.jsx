@@ -72,6 +72,7 @@ const CUSTOMER = {
   name: "אווינסד",
   lastName: "",
   email: "anat@evinced.com",
+  contactEmail: "yael@evinced.com",
   phone: "0547205887",
   isCashier: false,
   inBlackList: false,
@@ -276,6 +277,39 @@ describe("צפייה בלקוח — עריכה בתוך העמוד", () => {
     // אחרי שמירה מוצלחת העמוד חוזר למצב קריאה
     await flush();
     expect(container.querySelectorAll("input").length).toBe(0);
+  });
+
+  // ללקוח שני מיילים: הראשי (התחברות + חשבוניות) ומייל איש קשר שהוא
+  // רישום בלבד. מה שנבדק כאן הוא ששניהם נראים ונערכים בנפרד, כדי שלא
+  // יחזור המצב שבו מייל איש הקשר משמש בטעות ככתובת שאליה נשלחות חשבוניות
+  it("מציג ועורך את מייל איש הקשר בנפרד מהמייל הראשי", async () => {
+    await loadPage();
+
+    expect(container.textContent).toContain("anat@evinced.com");
+    expect(container.textContent).toContain("yael@evinced.com");
+
+    await clickButton("עריכת לקוח");
+    expect(fieldByLabel("אימייל")?.value).toBe("anat@evinced.com");
+    expect(fieldByLabel("מייל איש קשר")?.value).toBe("yael@evinced.com");
+
+    await typeInto(fieldByLabel("מייל איש קשר"), "ronen@evinced.com");
+    await clickButton("שמירה");
+
+    const [, sentData] = CustomerServices.updateCustomer.mock.calls[0];
+    // המייל הראשי לא זז בעקבות עריכת מייל איש הקשר
+    expect(sentData.email).toBe("anat@evinced.com");
+    expect(sentData.contactEmail).toBe("ronen@evinced.com");
+  });
+
+  it("ניקוי מייל איש הקשר נשלח כערך ריק ולא מושמט", async () => {
+    await loadPage();
+    await clickButton("עריכת לקוח");
+
+    await typeInto(fieldByLabel("מייל איש קשר"), "");
+    await clickButton("שמירה");
+
+    const [, sentData] = CustomerServices.updateCustomer.mock.calls[0];
+    expect(sentData.contactEmail).toBe("");
   });
 
   // הלקוחה ביקשה שלא לראות בכרטיס את הקנייה המצטברת (31/08/26). הערך עצמו

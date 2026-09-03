@@ -21,7 +21,6 @@ import {
   CardBody,
   Input,
   Label,
-  Select,
   Table,
   TableBody,
   TableCell,
@@ -32,9 +31,9 @@ import {
 import { FiAlertTriangle, FiPlus, FiTrash2 } from "react-icons/fi";
 
 import ProductPicker from "@/components/billing/ProductPicker";
+import CustomerPicker from "@/components/billing/CustomerPicker";
 import BarcodeInput from "@/components/billing/BarcodeInput";
 import BillingServices from "@/services/BillingServices";
-import CustomerServices from "@/services/CustomerServices";
 import { notifyError, notifySuccess } from "@/utils/toast";
 
 import TableHeaderCell from "@/components/table/TableHeaderCell";
@@ -78,7 +77,6 @@ const customerIdOf = (value) =>
 const ManualDeliveryNoteForm = ({ orderId, customerId: rawFixedCustomer, onCreated, onCancel }) => {
   const fixedCustomer = customerIdOf(rawFixedCustomer);
 
-  const [customers, setCustomers] = useState([]);
   const [customerId, setCustomerId] = useState(fixedCustomer);
   const [rows, setRows] = useState([emptyRow()]);
   const [manualReference, setManualReference] = useState("");
@@ -91,15 +89,6 @@ const ManualDeliveryNoteForm = ({ orderId, customerId: rawFixedCustomer, onCreat
   const [loading, setLoading] = useState(Boolean(orderId));
   const [saving, setSaving] = useState(false);
   const [idempotencyKey, setIdempotencyKey] = useState(newKey);
-
-  // רשימת הלקוחות נדרשת רק לתעודה עצמאית. כשהלקוח נקבע מההזמנה אין טעם
-  // למשוך 769 רשומות רק כדי להציג שם אחד
-  useEffect(() => {
-    if (fixedCustomer) return;
-    CustomerServices.getAllCustomers({ searchText: "" })
-      .then((res) => setCustomers(Array.isArray(res) ? res : res?.customers || []))
-      .catch(() => setCustomers([]));
-  }, [fixedCustomer]);
 
   // טעינת השורות הממתינות מההזמנה
   useEffect(() => {
@@ -302,24 +291,19 @@ const ManualDeliveryNoteForm = ({ orderId, customerId: rawFixedCustomer, onCreat
         </div>
 
         <div className="flex flex-wrap gap-4 mb-5">
+          {/* הבורר נטען רק לתעודה עצמאית: כשהלקוח נקבע מההזמנה אין טעם
+              למשוך את כל רשימת הלקוחות רק כדי להציג שם אחד */}
           {!fixedCustomer && (
             <Label className="flex-1 min-w-[240px]">
               <span>לקוח</span>
-              <Select
+              <CustomerPicker
                 className="mt-1"
                 value={customerId}
-                onChange={(e) => {
-                  setCustomerId(e.target.value);
+                onChange={(id) => {
+                  setCustomerId(id);
                   setPriced(null);
                 }}
-              >
-                <option value="">— בחרי לקוח —</option>
-                {customers.map((c) => (
-                  <option key={c._id} value={c._id}>
-                    {c.name}
-                  </option>
-                ))}
-              </Select>
+              />
             </Label>
           )}
 
@@ -473,6 +457,9 @@ const ManualDeliveryNoteForm = ({ orderId, customerId: rawFixedCustomer, onCreat
               <Table className="w-full whitespace-nowrap">
                 <TableHeader>
                   <tr>
+                    {/* הברקוד לצד השם — זה המזהה שיודפס על התעודה,
+                        וכך אפשר להצליב עוד לפני ההפקה */}
+                    <TableHeaderCell>ברקוד</TableHeaderCell>
                     <TableHeaderCell>מוצר</TableHeaderCell>
                     <TableHeaderCell className="text-center">משקל</TableHeaderCell>
                     <TableHeaderCell className="text-left">מחיר יח'</TableHeaderCell>
@@ -488,6 +475,9 @@ const ManualDeliveryNoteForm = ({ orderId, customerId: rawFixedCustomer, onCreat
                         : SOURCE_LABELS[item.source] || SOURCE_LABELS.catalog;
                     return (
                       <TableRow key={i}>
+                        <TableCell className="font-mono text-xs">
+                          {item.barcode || item.sku || "—"}
+                        </TableCell>
                         <TableCell>{item.name}</TableCell>
                         <TableCell className="text-center">{item.quantity}</TableCell>
                         <TableCell className="text-left">{shekel(item.unitPrice)}</TableCell>
@@ -534,7 +524,7 @@ const ManualDeliveryNoteForm = ({ orderId, customerId: rawFixedCustomer, onCreat
 
             {priced.quality?.hasMissing && (
               <p className="mt-3 text-sm text-red-600 flex items-center gap-2">
-                <FiAlertTriangle /> יש מק"טים ללא מחיר — יש להזין מחיר יח' ידני
+                <FiAlertTriangle /> יש מוצרים ללא מחיר — יש להזין מחיר יח' ידני
                 לפני ההפקה
               </p>
             )}

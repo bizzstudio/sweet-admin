@@ -93,6 +93,11 @@ const OrderServices = {
     return requests.put(`/orders/${id}/items`, body);
   },
 
+  // "הזמנה חוזרת" — יוצר הזמנה חדשה מהעתק של הזמנה קיימת ומחזיר אותה
+  duplicateOrder: async (id, body) => {
+    return requests.post(`/orders/${id}/duplicate`, body || {});
+  },
+
   deleteOrder: async (id) => {
     return requests.delete(`/orders/${id}`);
   },

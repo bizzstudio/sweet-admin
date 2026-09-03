@@ -147,6 +147,9 @@ const useCustomerSubmit = (id, options = {}) => {
         name: data.name,
         lastName: data.lastName,
         email: data.email,
+        // המייל המשני של איש הקשר. תצוגה בלבד - השרת לא שולח אליו דבר,
+        // וכל מה שיוצא ללקוח הולך ל-email
+        contactEmail: data.contactEmail || "",
         phone: data.phone,
         address: {
           ...(baseCustomer?.address || {}),
@@ -217,6 +220,7 @@ const useCustomerSubmit = (id, options = {}) => {
       setValue("lastName", res.lastName || "");
       setValue("phone", res.phone || "");
       setValue("email", res.email || "");
+      setValue("contactEmail", res.contactEmail || "");
       setValue("street", res?.address?.street || "");
       setValue("houseNumber", res?.address?.houseNumber || "");
       setValue("apartmentNumber", res?.address?.apartmentNumber || "");

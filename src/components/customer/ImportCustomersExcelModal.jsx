@@ -116,11 +116,13 @@ const ImportCustomersExcelModal = ({ isOpen, onClose, onImported }) => {
     setIsImporting(true);
     setProgress({ done: 0, total: rows.length });
 
-    // הדוח מציג רק כמה הועלו, כמה עודכנו, כמה נכשלו ומי נכשל
+    // הדוח מציג כמה הועלו, כמה עודכנו, כמה נכשלו ומי נכשל, וכמה נוצרו
+    // בלי כתובת מייל אמיתית
     const totals = {
       created: 0,
       updated: 0,
       skipped: 0,
+      placeholderEmails: 0,
       errors: [],
     };
 
@@ -134,6 +136,7 @@ const ImportCustomersExcelModal = ({ isOpen, onClose, onImported }) => {
         totals.created += res?.created || 0;
         totals.updated += res?.updated || 0;
         totals.skipped += res?.skipped || 0;
+        totals.placeholderEmails += res?.placeholderEmails || 0;
         totals.errors.push(...(res?.errors || []));
 
         setProgress({
@@ -148,6 +151,7 @@ const ImportCustomersExcelModal = ({ isOpen, onClose, onImported }) => {
         created: totals.created,
         updated: totals.updated,
         failed: totals.skipped,
+        placeholderEmails: totals.placeholderEmails,
         failures: totals.errors,
       });
 
@@ -242,6 +246,17 @@ const ImportCustomersExcelModal = ({ isOpen, onClose, onImported }) => {
               value={report.failed}
               tone={report.failed > 0 ? "text-orange-500" : ""}
             />
+            {/* לקוח שאין לו מייל בעמודת "דואר אלקטרוני" נוצר עם מזהה פנימי
+                (erp-<מספר>@import.local) ולא ניתן לשלוח אליו חשבונית. מייל
+                שמופיע בעמודת "איש קשר" אינו ממלא את מקומו - הוא נשמר כמייל
+                איש קשר בלבד. הספירה מוצגת כדי שהמצב הזה לא יתגלה רק בסוף החודש */}
+            {report.placeholderEmails > 0 && (
+              <Row
+                label="נוצרו בלי כתובת מייל"
+                value={report.placeholderEmails}
+                tone="text-orange-500"
+              />
+            )}
             {report.failures.length > 0 && (
               <div className="mt-3 max-h-40 overflow-y-auto text-xs">
                 {report.failures.slice(0, MAX_FAILURE_LIST).map((failure, index) => (

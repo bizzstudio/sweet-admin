@@ -29,7 +29,14 @@ import {
   TableHeader,
   TableRow,
 } from "@windmill/react-ui";
-import { FiAlertTriangle, FiCornerUpLeft, FiDollarSign, FiExternalLink, FiList } from "react-icons/fi";
+import {
+  FiAlertTriangle,
+  FiCornerUpLeft,
+  FiDollarSign,
+  FiEdit2,
+  FiExternalLink,
+  FiList,
+} from "react-icons/fi";
 import { Link } from "react-router-dom";
 import useQueryParam from "@/hooks/useQueryParam";
 
@@ -333,6 +340,17 @@ const Invoices = () => {
                         <FiList /> ריכוז תעודות
                       </Link>
 
+                      {/* תיקון: זיכוי + תעודות מתוקנות + חשבונית חדשה,
+                          במסך אחד. חשבונית מס אינה ניתנת לעריכה, ולכן
+                          "עריכה" כאן היא תמיד הפקה מחדש */}
+                      <Link
+                        to={`/invoice-reissue/${encodeURIComponent(inv.docNum)}`}
+                        className="text-yellow-600 text-sm hover:underline flex items-center gap-1"
+                        title="זיכוי, תיקון התעודות והפקת חשבונית חדשה"
+                      >
+                        <FiEdit2 /> תיקון והפקה מחדש
+                      </Link>
+
                       <button
                         onClick={() => {
                           setReason("");
@@ -498,6 +516,16 @@ const Invoices = () => {
               תופק חשבונית זיכוי ב-iCount שתירשם בספרים ותגיע לרואה החשבון.
               {creditFor?.notes?.length} תעודות המשלוח יחזרו למצב פתוח וייכללו
               בסגירת החודש הבאה.
+            </p>
+            <p className="mt-2 text-red-700 dark:text-red-400">
+              אם המטרה היא לתקן את החשבונית ולא לבטלה — עדיף{" "}
+              <Link
+                to={`/invoice-reissue/${encodeURIComponent(creditFor?.docNum || "")}`}
+                className="underline font-semibold"
+              >
+                תיקון והפקה מחדש
+              </Link>
+              , שמפיק גם את החשבונית החדשה באותה פעולה.
             </p>
           </div>
 

@@ -1,12 +1,13 @@
 // בדיקות לטבלת השורות של המסמך המודפס (תעודת משלוח / הצעת מחיר).
 //
 // מה שהן שומרות עליו:
-// 1. המזהה הראשי על הנייר הוא המק"ט — הוא העמודה הראשונה אחרי המספר הסידורי,
-//    והברקוד בא אחריו. הברקוד אינו ייחודי במסד (7 קבוצות של ברקוד כפול,
-//    למשל 110 = "חלב גד" וגם "בלון הליום"), ולכן מסמך שמוביל בברקוד אינו
-//    ניתן להצלבה חד-משמעית. ראה sweet-backend/utils/barcode.js.
-// 2. שורה שאין לה ברקוד עדיין מציגה את המק"ט שלה — כלומר ה-"—" נופל
-//    בעמודה המשנית ולא במזהה הראשי.
+// 1. המזהה הראשי על הנייר הוא הברקוד — הוא העמודה הראשונה אחרי המספר
+//    הסידורי, והמק"ט בא אחריו. זה מה שמופיע על האריזה ועל המדף, וזה מה
+//    שמצליבים מולו.
+// 2. המק"ט לא נמחק. הברקוד אינו ייחודי במסד (7 קבוצות של ברקוד כפול,
+//    למשל 110 = "חלב גד" וגם "בלון הליום"), ולכן העמודה שלצידו היא מה
+//    שמכריע בין השניים; ושורה בלי ברקוד תקין מזוהה בו בלבד.
+//    ראה sweet-backend/utils/barcode.js.
 // 3. מספר העמודות בכותרת ובשורות זהה. הטבלה נערכה ידנית פעם אחת, וחוסר
 //    התאמה כזה מזיז את כל המחירים עמודה אחת הצידה על נייר שיוצא ללקוח.
 //
@@ -127,24 +128,24 @@ afterEach(async () => {
 });
 
 describe("המסמך המודפס — עמודות הזיהוי", () => {
-  it('המק"ט הוא המזהה הראשון, והברקוד אחריו', async () => {
+  it("הברקוד הוא המזהה הראשון, והמק\"ט אחריו", async () => {
     await render();
 
     const headers = headerTexts();
     expect(headers[0]).toBe("#");
-    expect(headers[1]).toBe('מק"ט');
-    expect(headers[2]).toBe("ברקוד");
-    // הברקוד לא נמחק — הוא נשאר ככלי הצלבה מול האריזה
-    expect(headers).toContain("ברקוד");
+    expect(headers[1]).toBe("ברקוד");
+    expect(headers[2]).toBe('מק"ט');
+    // המק"ט לא נמחק — הוא מה שמכריע כששני מוצרים נושאים אותו ברקוד
+    expect(headers).toContain('מק"ט');
   });
 
-  it('ערכי השורה יושבים תחת הכותרת שלהם, והמק"ט הוא המודגש', async () => {
+  it("ערכי השורה יושבים תחת הכותרת שלהם, והברקוד הוא המודגש", async () => {
     await render();
 
     const cells = rowCells(0);
     expect(cells[0].textContent).toBe("1");
-    expect(cells[1].textContent).toBe("116"); // מק"ט
-    expect(cells[2].textContent).toBe("110"); // ברקוד
+    expect(cells[1].textContent).toBe("110"); // ברקוד
+    expect(cells[2].textContent).toBe("116"); // מק"ט
     expect(cells[3].textContent).toContain("חלב גד 1 ליטר");
 
     // ההדגשה היא מה שמסמן ללקוח לפי מה להצליב
@@ -152,12 +153,12 @@ describe("המסמך המודפס — עמודות הזיהוי", () => {
     expect(cells[2].className).not.toContain("font-semibold");
   });
 
-  it('שורה בלי ברקוד עדיין מציגה את המק"ט שלה', async () => {
+  it("שורה בלי ברקוד תקין עדיין מזוהה במק\"ט שלה", async () => {
     await render();
 
     const cells = rowCells(1);
-    expect(cells[1].textContent).toBe("4423");
-    expect(cells[2].textContent).toBe("—");
+    expect(cells[1].textContent).toBe("—");
+    expect(cells[2].textContent).toBe("4423");
   });
 
   it("מספר העמודות בכותרת ובשורות זהה", async () => {
@@ -180,7 +181,7 @@ describe("המסמך המודפס — עמודות הזיהוי", () => {
 
     await render("/quote/q1", "/quote/:id");
 
-    expect(headerTexts().slice(0, 3)).toEqual(["#", 'מק"ט', "ברקוד"]);
+    expect(headerTexts().slice(0, 3)).toEqual(["#", "ברקוד", 'מק"ט']);
     // הצעת מחיר אינה נשלחת להדפסה אוטומטית ולכן אינה נשאלת על מצב הדפסה
     expect(BillingServices.getDeliveryNotePrintStatus).not.toHaveBeenCalled();
   });

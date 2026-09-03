@@ -7,6 +7,7 @@ import { Link } from "react-router-dom";
 import useUtilsFunction from "@/hooks/useUtilsFunction";
 import PrintReceipt from "@/components/form/others/PrintReceipt";
 import SelectStatus from "@/components/form/selectOption/SelectStatus";
+import ReorderButton from "@/components/order/ReorderButton";
 
 const OrderTable = ({ orders, isCashierOrders = false }) => {
   // console.log('globalSetting',globalSetting)
@@ -22,11 +23,15 @@ const OrderTable = ({ orders, isCashierOrders = false }) => {
     `${order?.user_info?.name || ""} ${order?.user_info?.lastName || ""}`.trim() ||
     "לא זמין";
 
-  // תא הפעולות - מוצג בתחילת השורה בהזמנות רגילות ובסופה בהזמנות קופה
+  // תא הפעולות - מוצג בתחילת השורה בהזמנות רגילות ובסופה בהזמנות קופה.
+  //
+  // "הזמנה חוזרת" מוצגת בהזמנות רגילות בלבד: הזמנת קופה היא מסמך של מכירה
+  // שכבר נגבתה בקופה (מודל ומסלול נפרדים), ואין לה מסלול יצירה חוזר.
   const actionCell = (order) => (
     <TableCell className="text-center">
       <div className="flex justify-center items-center">
         <PrintReceipt orderId={order._id} isCashierOrder={isCashierOrders} />
+        {!isCashierOrders && <ReorderButton order={order} />}
       </div>
     </TableCell>
   );

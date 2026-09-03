@@ -1334,5 +1334,14 @@
   "opensInNewWindow": "opens in a new window",
   "lightMode": "Switch to light mode",
   "darkMode": "Switch to dark mode",
-  "Notifications": "Notifications"
+  "Notifications": "Notifications",
+  "Reorder": "Reorder",
+  "ReorderModalH2": "Create a repeat order from order {{invoice}} of {{userName}}?",
+  "ReorderModalBody": "A new order will be created with the same products and quantities, in \"Processing\" status, and stock will be updated. Products that no longer exist or are unavailable are not copied, and the original order's coupon is not copied.",
+  "ReorderConfirmBtn": "Yes, Create Repeat Order",
+  "ReorderCreated": "Repeat order {{invoice}} created",
+  "ReorderDropped": "Products not copied",
+  "ReorderPriceChanged": "Prices changed since the original order (the original price was copied)",
+  "ReorderStockShort": "Insufficient stock — the order was created anyway",
+  "ReorderStockShortLine": "{{name}}: ordered {{requested}}, in stock {{inStock}}"
 }

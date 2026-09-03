@@ -1042,5 +1042,14 @@
   "opensInNewWindow": "wird in einem neuen Fenster geöffnet",
   "lightMode": "Zum hellen Modus wechseln",
   "darkMode": "Zum dunklen Modus wechseln",
-  "Notifications": "Benachrichtigungen"
+  "Notifications": "Benachrichtigungen",
+  "Reorder": "Nachbestellung",
+  "ReorderModalH2": "Nachbestellung aus Bestellung {{invoice}} von {{userName}} erstellen?",
+  "ReorderModalBody": "Es wird eine neue Bestellung mit denselben Produkten und Mengen im Status \"In Bearbeitung\" erstellt, und der Bestand wird aktualisiert. Nicht mehr vorhandene oder nicht verfügbare Produkte werden nicht kopiert, und der Gutschein der urspünglichen Bestellung wird nicht kopiert.",
+  "ReorderConfirmBtn": "Ja, Nachbestellung erstellen",
+  "ReorderCreated": "Nachbestellung {{invoice}} erstellt",
+  "ReorderDropped": "Nicht kopierte Produkte",
+  "ReorderPriceChanged": "Seit der ursprünglichen Bestellung geänderte Preise (der ursprüngliche Preis wurde kopiert)",
+  "ReorderStockShort": "Nicht genügend Bestand — die Bestellung wurde trotzdem erstellt",
+  "ReorderStockShortLine": "{{name}}: bestellt {{requested}}, auf Lager {{inStock}}"
 }

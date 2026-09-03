@@ -60,6 +60,8 @@ const BillingDocument = lazy(() => import("@/pages/BillingDocument"));
 // נספח "ריכוז תעודות" שמצורף לחשבונית החודשית
 const InvoiceNotesSummary = lazy(() => import("@/pages/InvoiceNotesSummary"));
 const Invoices = lazy(() => import("@/pages/Invoices"));
+// תיקון חשבונית והפקתה מחדש — זיכוי, תיקון התעודות, חשבונית חדשה
+const InvoiceReissue = lazy(() => import("@/pages/InvoiceReissue"));
 const IcountDemo = lazy(() => import("@/pages/IcountDemo"));
 const Receipts = lazy(() => import("@/pages/Receipts"));
 // דוח רכישות לקוחות — מה קנו ובאילו תעודות
@@ -243,6 +245,10 @@ const routes = [
   {
     path: "/invoice-summary/:docNum",
     component: InvoiceNotesSummary,
+  },
+  {
+    path: "/invoice-reissue/:docNum",
+    component: InvoiceReissue,
   },
   // ⛔ קופונים כבויים (לא נמחקו) - להחזרה: להסיר את ההערה
   // {

@@ -429,9 +429,24 @@ const BillingDocument = () => {
                   )
                 </>
               )}
-              . לתיקון יש להוציא חשבונית זיכוי במסך החשבוניות — הזיכוי מחזיר
-              את התעודה למצב פתוח, ואז אפשר לערוך אותה ולסגור מחדש.
+              . לתיקון יש להוציא חשבונית זיכוי — הזיכוי מחזיר את התעודה
+              למצב פתוח, ואז אפשר לערוך אותה ולסגור מחדש. שלושת השלבים
+              ביחד נמצאים במסך התיקון.
             </p>
+            {doc.billing?.icountDocNum && (
+              <Button
+                className="mt-3"
+                size="small"
+                layout="outline"
+                onClick={() =>
+                  history.push(
+                    `/invoice-reissue/${encodeURIComponent(doc.billing.icountDocNum)}`
+                  )
+                }
+              >
+                <FiEdit2 className="ml-1" /> תיקון החשבונית והפקה מחדש
+              </Button>
+            )}
           </CardBody>
         </Card>
       )}
@@ -550,13 +565,14 @@ const BillingDocument = () => {
               <thead>
                 <tr className="bg-gray-100 border-b-2 border-gray-400">
                   <th className="text-right py-2 px-2">#</th>
-                  {/* המק"ט הוא המזהה שעל התעודה — זו העמודה הראשונה,
-                      והיא מודגשת. הברקוד של מנוע נשאר לצידו כעזר להצלבה
-                      מול האריזה, אבל אינו המזהה הראשי של המסמך.
-                      ⚠️ ה-PDF שנשלח אוטומטית למדפסת מציג מק"ט בלבד
-                      (lib/printing/deliveryNotePdf.js) */}
-                  <th className="text-right py-2 px-2">מק"ט</th>
+                  {/* הברקוד הוא המזהה שעל התעודה — זו העמודה הראשונה,
+                      והיא מודגשת. זה מה שמופיע על האריזה ועל המדף, וזה מה
+                      שהלקוח מצליב מולו. המק"ט נשאר לצידו לזיהוי בקטלוג,
+                      ומשמש כמזהה היחיד בשורה שאין לה ברקוד תקין.
+                      ⚠️ אותה פריסה קיימת ב-lib/printing/deliveryNotePdf.js
+                      עבור ההדפסה האוטומטית — שינוי כאן צריך להגיע גם לשם. */}
                   <th className="text-right py-2 px-2">ברקוד</th>
+                  <th className="text-right py-2 px-2">מק"ט</th>
                   <th className="text-right py-2 px-2">תיאור</th>
                   <th className="text-center py-2 px-2">כמות</th>
                   {/* בתעודת משלוח המחירים מוצגים כי הן הבסיס לחשבונית
@@ -569,8 +585,8 @@ const BillingDocument = () => {
                 {(doc.items || []).map((item, i) => (
                   <tr key={i} className="border-b border-gray-200">
                     <td className="py-2 px-2">{i + 1}</td>
-                    <td className="py-2 px-2 font-semibold">{item.sku || "—"}</td>
-                    <td className="py-2 px-2 text-gray-600">{item.barcode || "—"}</td>
+                    <td className="py-2 px-2 font-semibold">{item.barcode || "—"}</td>
+                    <td className="py-2 px-2 text-gray-600">{item.sku || "—"}</td>
                     <td className="py-2 px-2">
                       {item.name}
                       {item.isVatFree && (

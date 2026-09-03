@@ -1404,5 +1404,14 @@
   "opensInNewWindow": "נפתח בחלון חדש",
   "lightMode": "מעבר למצב בהיר",
   "darkMode": "מעבר למצב כהה",
-  "Notifications": "התראות"
+  "Notifications": "התראות",
+  "Reorder": "הזמנה חוזרת",
+  "ReorderModalH2": "ליצור הזמנה חוזרת מהזמנה {{invoice}} של {{userName}}?",
+  "ReorderModalBody": "תיווצר הזמנה חדשה עם אותם מוצרים וכמויות, בסטטוס \"טופלה\", והמלאי יעודכן. מוצר שאינו קיים או אינו זמין לא יועתק, וקופון מההזמנה המקורית אינו מועתק.",
+  "ReorderConfirmBtn": "כן, צור הזמנה חוזרת",
+  "ReorderCreated": "נוצרה הזמנה חוזרת מספר {{invoice}}",
+  "ReorderDropped": "מוצרים שלא הועתקו",
+  "ReorderPriceChanged": "מחירים שהשתנו מאז ההזמנה המקורית (הועתק המחיר המקורי)",
+  "ReorderStockShort": "מלאי חסר — ההזמנה נוצרה בכל זאת",
+  "ReorderStockShortLine": "{{name}}: הוזמנו {{requested}}, במלאי {{inStock}}"
 }

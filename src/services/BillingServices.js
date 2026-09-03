@@ -151,9 +151,27 @@ const BillingServices = {
     return requests.post("/billing/credit", { icountDocNum, reason, reopenNotes });
   },
 
-  // ריכוז התעודות שהחשבונית סגרה — הנספח המודפס שמצורף אליה
-  getInvoiceNotes: async (docNum) => {
-    return requests.get(`/billing/invoices/${encodeURIComponent(docNum)}/notes`);
+  // ריכוז התעודות שהחשבונית סגרה — הנספח המודפס שמצורף אליה.
+  // withItems מוסיף את שורות התעודות, למסך התיקון
+  getInvoiceNotes: async (docNum, { withItems } = {}) => {
+    return requests.get(
+      `/billing/invoices/${encodeURIComponent(docNum)}/notes${withItems ? "?items=1" : ""}`
+    );
+  },
+
+  // תיקון חשבונית והפקתה מחדש. פעולה אחת שמפיקה שני מסמכי מס: זיכוי על
+  // החשבונית הישנה וחשבונית חדשה על התעודות המתוקנות.
+  //
+  // edits: [{noteId, items?, shippingCost?, discount?, issuedAt?,
+  //          manualReference?, notes?, remove?}]. תעודה שלא נשלחה נכנסת
+  // לחשבונית החדשה כמו שהיא.
+  reissueInvoice: async (docNum, { reason, edits, allowPaid, emailDocument }) => {
+    return requests.post(`/billing/invoices/${encodeURIComponent(docNum)}/reissue`, {
+      reason,
+      edits,
+      allowPaid,
+      ...(typeof emailDocument === "boolean" ? { emailDocument } : {}),
+    });
   },
 
   // הסכום המחייב מ-iCount. נקרא לפני רישום תשלום, כי הרשימה מציגה אומדן
