@@ -26,6 +26,16 @@ const CustomerPriceListServices = {
     return requests.post(`/customer-price-list/${customerId}`, body);
   },
 
+  // שמירת מחירים בודדים במחירון (מיזוג, שאר השורות נשארות): {items: [{sku, price}]}
+  upsertItems: async (customerId, body) => {
+    return requests.put(`/customer-price-list/${customerId}/items`, body);
+  },
+
+  // הסרת מוצרים בודדים — הם חוזרים למחיר הקטלוג: {skus: [...]}
+  removeItems: async (customerId, body) => {
+    return requests.post(`/customer-price-list/${customerId}/items/remove`, body);
+  },
+
   deletePriceList: async (customerId) => {
     return requests.delete(`/customer-price-list/${customerId}`);
   },

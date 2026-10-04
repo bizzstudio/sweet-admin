@@ -312,6 +312,75 @@ describe("צפייה בלקוח — עריכה בתוך העמוד", () => {
     expect(sentData.contactEmail).toBe("");
   });
 
+  // התקלה שדווחה (04/10/26): ערך שאינו כתובת מייל בשדה "מייל איש קשר" (שם,
+  // טלפון) נחסם בבועה של הדפדפן, שנעלמת מיד ולא אומרת בעברית מה לתקן.
+  // השמירה צריכה להיחסם בהודעה ברורה ליד השדה - ולא לצאת לשרת
+  it("ערך שאינו מייל במייל איש קשר נחסם בהודעה בעברית ליד השדה", async () => {
+    await loadPage();
+    await clickButton("עריכת לקוח");
+
+    await typeInto(fieldByLabel("מייל איש קשר"), "יעל כהן");
+    await clickButton("שמירה");
+
+    expect(CustomerServices.updateCustomer).not.toHaveBeenCalled();
+    expect(container.textContent).toContain("מייל איש קשר אינו כתובת מייל תקינה");
+    expect(notifyError).toHaveBeenCalled();
+    // נשארים במצב עריכה עם מה שהוקלד, כדי שאפשר יהיה לתקן
+    expect(fieldByLabel("מייל איש קשר")?.value).toBe("יעל כהן");
+  });
+
+  // השרת דוחה את המזהה הפנימי של היבוא כמייל איש קשר; עדיף לעצור כבר כאן
+  it("המזהה הפנימי של היבוא אינו מתקבל כמייל איש קשר", async () => {
+    await loadPage();
+    await clickButton("עריכת לקוח");
+
+    await typeInto(fieldByLabel("מייל איש קשר"), "erp-12@import.local");
+    await clickButton("שמירה");
+
+    expect(CustomerServices.updateCustomer).not.toHaveBeenCalled();
+  });
+
+  // רווח שנגרר בהעתק-הדבק לא אמור לחסום שמירה ולא להישמר
+  it("רווחים סביב המיילים מוסרים לפני השליחה", async () => {
+    await loadPage();
+    await clickButton("עריכת לקוח");
+
+    await typeInto(fieldByLabel("מייל איש קשר"), "  ronen@evinced.com ");
+    await typeInto(fieldByLabel("אימייל"), " anat@evinced.com  ");
+    await clickButton("שמירה");
+
+    const [, sentData] = CustomerServices.updateCustomer.mock.calls[0];
+    expect(sentData.contactEmail).toBe("ronen@evinced.com");
+    expect(sentData.email).toBe("anat@evinced.com");
+  });
+
+  // המייל הראשי של לקוח מיבוא בלי מייל הוא המזהה הפנימי. הוא חייב לעבור,
+  // אחרת אי אפשר לשמור שום שינוי אחר בכרטיס של הלקוחות האלה
+  it("מייל ראשי פנימי של היבוא אינו חוסם שמירה", async () => {
+    CustomerServices.getCustomerDetails.mockResolvedValue({
+      ...CUSTOMER,
+      email: "erp-12@import.local",
+    });
+    await loadPage();
+    await clickButton("עריכת לקוח");
+
+    await typeInto(fieldByLabel("איש קשר"), "יעל");
+    await clickButton("שמירה");
+
+    expect(CustomerServices.updateCustomer).toHaveBeenCalledTimes(1);
+  });
+
+  it("מייל ראשי שאינו כתובת נחסם בהודעה בעברית", async () => {
+    await loadPage();
+    await clickButton("עריכת לקוח");
+
+    await typeInto(fieldByLabel("אימייל"), "anat");
+    await clickButton("שמירה");
+
+    expect(CustomerServices.updateCustomer).not.toHaveBeenCalled();
+    expect(container.textContent).toContain("אימייל אינו כתובת מייל תקינה");
+  });
+
   // הלקוחה ביקשה שלא לראות בכרטיס את הקנייה המצטברת (31/08/26). הערך עצמו
   // נשאר במסד ומגיע מהיבוא — מה שנבדק כאן הוא שהוא לא מוצג, ובעיקר שהשמירה
   // לא מוחקת אותו: שדה מספרי שנעלם מהטופס היה נשלח כ-null ודורס את המסד

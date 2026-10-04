@@ -193,6 +193,18 @@ describe("CustomerDocumentsPage", () => {
     );
   });
 
+  it("טאב הצעות המחיר מציע הצעה חדשה ללקוח, גם כשאין לו הצעות", async () => {
+    BillingServices.getCustomerDocuments.mockResolvedValue(DOCS);
+
+    await render();
+    await clickTab("הצעות מחיר");
+
+    const newQuote = [...container.querySelectorAll("#doc-panel-quotes a")].find((a) =>
+      a.textContent.includes("הצעת מחיר חדשה ללקוח")
+    );
+    expect(newQuote?.getAttribute("href")).toBe("/quotes?customer=c1&new=1");
+  });
+
   it("טאב הקבלות מציג את התקבול ואת החשבונית שנסגרה", async () => {
     BillingServices.getCustomerDocuments.mockResolvedValue(DOCS);
 

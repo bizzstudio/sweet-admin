@@ -36,12 +36,15 @@ import {
   FiEdit2,
   FiExternalLink,
   FiList,
+  FiPlus,
+  FiX,
 } from "react-icons/fi";
 import { Link } from "react-router-dom";
 import useQueryParam from "@/hooks/useQueryParam";
 
 import PageTitle from "@/components/Typography/PageTitle";
 import DemoModeBanner from "@/components/common/DemoModeBanner";
+import ManualDeliveryNoteForm from "@/components/billing/ManualDeliveryNoteForm";
 import TableLoading from "@/components/preloader/TableLoading";
 import NotFound from "@/components/table/NotFound";
 import BillingServices from "@/services/BillingServices";
@@ -71,6 +74,7 @@ const Invoices = () => {
   const [payFor, setPayFor] = useState(null);
   const [creditFor, setCreditFor] = useState(null);
   const [working, setWorking] = useState(false);
+  const [building, setBuilding] = useState(false);
   // הסכום המחייב מ-iCount, או null אם לא נטען (iCount לא זמין)
   const [icountTotal, setIcountTotal] = useState(null);
   const [loadingTotal, setLoadingTotal] = useState(false);
@@ -174,9 +178,26 @@ const Invoices = () => {
 
   return (
     <>
-      <PageTitle>חשבוניות וגבייה</PageTitle>
+      <div className="flex items-center justify-between my-6">
+        <PageTitle style={{ margin: 0 }}>חשבוניות וגבייה</PageTitle>
+        <Button onClick={() => setBuilding((v) => !v)}>
+          {building ? <FiX className="ml-2" /> : <FiPlus className="ml-2" />}
+          {building ? "ביטול" : "חשבונית חדשה"}
+        </Button>
+      </div>
 
       <DemoModeBanner />
+
+      {building && (
+        <ManualDeliveryNoteForm
+          asInvoice
+          onCancel={() => setBuilding(false)}
+          onCreated={() => {
+            setBuilding(false);
+            load();
+          }}
+        />
+      )}
 
       <Card className="min-w-0 shadow-xs overflow-hidden bg-white dark:bg-gray-800 mb-5">
         <CardBody>

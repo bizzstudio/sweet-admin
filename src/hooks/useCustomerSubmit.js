@@ -146,10 +146,12 @@ const useCustomerSubmit = (id, options = {}) => {
       const customerData = {
         name: data.name,
         lastName: data.lastName,
-        email: data.email,
+        // trim: השדות הם טקסט ולא type="email" (ראה CustomerDetails), ולכן
+        // הדפדפן כבר לא מסיר רווח שנגרר בהעתק-הדבק
+        email: String(data.email || "").trim(),
         // המייל המשני של איש הקשר. תצוגה בלבד - השרת לא שולח אליו דבר,
         // וכל מה שיוצא ללקוח הולך ל-email
-        contactEmail: data.contactEmail || "",
+        contactEmail: String(data.contactEmail || "").trim(),
         phone: data.phone,
         address: {
           ...(baseCustomer?.address || {}),
@@ -211,6 +213,11 @@ const useCustomerSubmit = (id, options = {}) => {
       if (!inline) closeDrawer();
     }
   };
+
+  // שמירה שנחסמה בבדיקות הטופס. ההודעה המפורטת כבר מוצגת מתחת לשדה, אבל
+  // השדה יכול לשבת בכרטיס אחר בעמוד - בלי ההודעה הזו נראה שהכפתור לא עובד
+  const onInvalid = () =>
+    notifyError("השינויים לא נשמרו: יש שדה לא תקין, מסומן באדום.");
 
   // מילוי הטופס מרשומת לקוח. מוחזק בפונקציה אחת כדי ששני מקורות הנתונים -
   // הבקשה שהמגירה שולחת והלקוח שכבר נטען בעמוד - ימלאו בדיוק אותם שדות
@@ -341,6 +348,7 @@ const useCustomerSubmit = (id, options = {}) => {
     register,
     handleSubmit,
     onSubmit,
+    onInvalid,
     // setValue נחוץ לכפתור "יצירת סיסמה אקראית" בכרטיס הלקוח, שכותב ערך
     // לשדה בלי שהמשתמש הקליד אותו
     setValue,

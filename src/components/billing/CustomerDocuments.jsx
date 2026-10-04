@@ -19,7 +19,7 @@
 import React, { useState } from "react";
 import { Badge } from "@windmill/react-ui";
 import { Link } from "react-router-dom";
-import { FiExternalLink, FiFileText } from "react-icons/fi";
+import { FiExternalLink, FiFileText, FiPlus } from "react-icons/fi";
 
 const shekel = (n) =>
   Number(n || 0).toLocaleString("he-IL", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -327,6 +327,15 @@ const CustomerDocuments = ({ docs, customerId }) => {
         aria-labelledby="doc-tab-quotes"
         hidden={active !== "quotes"}
       >
+        {/* מכאן ישר לבונה ההצעות, כשהלקוח כבר נבחר בו — בלי לחפש אותו שוב */}
+        <div className="mb-3 flex justify-start">
+          <Link
+            to={`/quotes?customer=${customerId}&new=1`}
+            className="inline-flex items-center gap-1 rounded-md bg-mainColor px-3 py-1.5 text-sm font-medium text-white transition-colors duration-150 hover:bg-mainColor-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-mainColor-light focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-800"
+          >
+            <FiPlus /> הצעת מחיר חדשה ללקוח
+          </Link>
+        </div>
         {quotes.items.length === 0 ? (
           <Empty text="טרם הופקו הצעות מחיר" />
         ) : (

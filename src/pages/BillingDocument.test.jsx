@@ -186,3 +186,109 @@ describe("המסמך המודפס — עמודות הזיהוי", () => {
     expect(BillingServices.getDeliveryNotePrintStatus).not.toHaveBeenCalled();
   });
 });
+
+// תעודת משלוח יוצאת תמיד ב"מקור" + "העתק" — גם בהדפסה הידנית מהמסך, כמו
+// ב-PDF של ההדפסה האוטומטית. ההעתק מוסתר במסך ומופיע רק בהדפסה.
+describe("המסמך המודפס — מקור והעתק", () => {
+  const headings = () => [...container.querySelectorAll("h2")].map((h) => h.textContent);
+
+  it("תעודת משלוח: מקור גלוי, והעתק בעמוד נפרד שמוצג רק בהדפסה", async () => {
+    await render();
+
+    expect(headings()).toEqual(["תעודת משלוח — מקור", "תעודת משלוח — העתק"]);
+
+    const copyWrapper = container.querySelectorAll("h2")[1].closest(".print\\:block");
+    expect(copyWrapper).not.toBeNull();
+    expect(copyWrapper.className).toContain("hidden");
+    expect(copyWrapper.style.breakBefore).toBe("page");
+    // ההעתק זהה למקור בתוכן — אותן שורות
+    expect(copyWrapper.querySelectorAll("table")[0].querySelectorAll("tbody tr").length).toBe(
+      NOTE.items.length
+    );
+  });
+
+  it("הצעת מחיר: עותק אחד, בלי כותרת מקור/העתק", async () => {
+    BillingServices.getQuote.mockResolvedValue({
+      ...NOTE,
+      createdAt: NOTE.issuedAt,
+      billing: undefined,
+    });
+
+    await render("/quote/q1", "/quote/:id");
+
+    expect(headings()).toEqual(["הצעת מחיר"]);
+  });
+});
+
+// בקשות הלקוחה מ-04/10/2026: טלפון איש קשר, הערות בראש המסמך (מתחת לאיש
+// הקשר ולא בתחתית), שעת הפקה, וחשבונית מפורטת על תעודה בודדת.
+// ⚠️ אותם כללים ב-lib/printing/deliveryNotePdf.js
+describe("המסמך המודפס — פרטי איש קשר, הערות ושעת הפקה", () => {
+  const sheet = () => container.querySelector('[dir="rtl"]');
+
+  const WITH_DETAILS = {
+    ...NOTE,
+    createdAt: "2026-08-20T09:32:00.000Z",
+    notes: "להשאיר אצל השומר",
+    customerSnapshot: {
+      ...NOTE.customerSnapshot,
+      contactPerson: "רינה",
+      contactPhone: "052-1234567",
+    },
+  };
+
+  it("טלפון איש הקשר מופיע מתחת לאיש הקשר", async () => {
+    BillingServices.getDeliveryNote.mockResolvedValue(WITH_DETAILS);
+    await render();
+
+    const text = sheet().textContent;
+    expect(text).toContain("טלפון: 052-1234567");
+    expect(text.indexOf("איש קשר: רינה")).toBeLessThan(text.indexOf("טלפון: 052-1234567"));
+  });
+
+  it("בלי טלפון אין שורת טלפון יתומה", async () => {
+    await render();
+    expect(sheet().textContent).not.toContain("טלפון:");
+  });
+
+  it("ההערות בראש המסמך — אחרי איש הקשר ולפני טבלת השורות", async () => {
+    BillingServices.getDeliveryNote.mockResolvedValue(WITH_DETAILS);
+    await render();
+
+    const text = sheet().textContent;
+    const notesAt = text.indexOf("להשאיר אצל השומר");
+    expect(notesAt).toBeGreaterThan(text.indexOf("טלפון: 052-1234567"));
+    expect(notesAt).toBeLessThan(text.indexOf("חלב גד 1 ליטר"));
+    // ומופיעות פעם אחת בלבד — לא גם בתחתית
+    expect(text.split("להשאיר אצל השומר").length - 1).toBe(1);
+  });
+
+  it("שעת ההפקה מוצגת ליד התאריך", async () => {
+    BillingServices.getDeliveryNote.mockResolvedValue(WITH_DETAILS);
+    await render();
+    expect(sheet().textContent).toMatch(/(שעת הפקה|הופקה): .*\d{2}:\d{2}/);
+  });
+
+  it("תעודה שהופקה ביום אחר מתאריכה מציגה גם את תאריך ההפקה", async () => {
+    BillingServices.getDeliveryNote.mockResolvedValue({
+      ...WITH_DETAILS,
+      createdAt: "2026-08-25T09:32:00.000Z",
+    });
+    await render();
+    expect(sheet().textContent).toMatch(/הופקה: \S+ \d{2}:\d{2}/);
+  });
+
+  it("כפתור החיוב מפיק חשבונית מפורטת", async () => {
+    await render();
+    expect(container.textContent).toContain("הפק חשבונית מפורטת");
+  });
+
+  it("תעודה שחויבה מציגה מתי הופקה החשבונית", async () => {
+    BillingServices.getDeliveryNote.mockResolvedValue({
+      ...NOTE,
+      billing: { status: "billed", icountDocNum: "7001", billedAt: "2026-08-21T10:05:00.000Z" },
+    });
+    await render();
+    expect(container.textContent).toMatch(/7001 ב-\S+ בשעה \d{2}:\d{2}/);
+  });
+});

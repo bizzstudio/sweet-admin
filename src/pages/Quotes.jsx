@@ -67,9 +67,14 @@ const Quotes = () => {
 
   // סינון לפי לקוח מה-URL, כמו בתעודות המשלוח
   const [customerFilter, setCustomerFilter] = useQueryParam("customer");
+  // new=1 מגיע מהכפתור "הצעת מחיר חדשה ללקוח" בכרטיס הלקוח: הבונה נפתח
+  // מיד, והלקוח שבסינון כבר נבחר בו
+  const [openNew, setOpenNew] = useQueryParam("new");
 
-  const [building, setBuilding] = useState(false);
-  const [customerId, setCustomerId] = useState("");
+  const [building, setBuilding] = useState(() => openNew === "1");
+  const [customerId, setCustomerId] = useState(() =>
+    openNew === "1" ? customerFilter : ""
+  );
   const [rows, setRows] = useState([{ sku: "", quantity: 1 }]);
   const [priced, setPriced] = useState(null);
   const [validDays, setValidDays] = useState(30);
@@ -94,6 +99,12 @@ const Quotes = () => {
   useEffect(() => {
     load();
   }, [load]);
+
+  // new נמחק מהכתובת אחרי השימוש: רענון הדף או חזרה אליו לא יפתחו את
+  // הבונה שוב. סינון הלקוח נשאר
+  useEffect(() => {
+    if (openNew) setOpenNew(null);
+  }, [openNew, setOpenNew]);
 
   const updateRow = (i, field, value) => {
     setRows((prev) => prev.map((r, idx) => (idx === i ? { ...r, [field]: value } : r)));
@@ -237,7 +248,13 @@ const Quotes = () => {
     <>
       <div className="flex items-center justify-between my-6">
         <PageTitle style={{ margin: 0 }}>הצעות מחיר</PageTitle>
-        <Button onClick={() => setBuilding((v) => !v)}>
+        <Button
+          onClick={() => {
+            // ברשימה המסוננת ללקוח, הצעה חדשה היא כמעט תמיד עבורו
+            if (!building && !customerId && customerFilter) setCustomerId(customerFilter);
+            setBuilding((v) => !v);
+          }}
+        >
           {building ? <FiX className="ml-2" /> : <FiPlus className="ml-2" />}
           {building ? "ביטול" : "הצעה חדשה"}
         </Button>

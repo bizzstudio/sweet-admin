@@ -36,6 +36,25 @@ const shekel = (n) =>
 
 const hebDate = (d) => (d ? new Date(d).toLocaleDateString("he-IL") : "—");
 
+const hebTime = (d) =>
+  new Date(d).toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" });
+
+/**
+ * מתי המסמך הופק בפועל (createdAt) — בקשת הלקוחה מ-04/10/2026.
+ *
+ * תאריך המסמך (issuedAt) נבחר ביד בתעודה ידנית ויכול להיות יום אחר, ולכן
+ * השעה נלקחת מרגע היצירה, וכשהיום שונה מוצג גם התאריך.
+ *
+ * ⚠️ אותו כלל ב-sweet-backend/lib/printing/deliveryNotePdf.js (producedLine).
+ */
+const producedLine = (doc, docDate) => {
+  const at = doc.createdAt || docDate;
+  if (!at) return "";
+  return hebDate(at) === hebDate(docDate)
+    ? `שעת הפקה: ${hebTime(at)}`
+    : `הופקה: ${hebDate(at)} ${hebTime(at)}`;
+};
+
 // מפתח נגד שליחה כפולה. randomUUID אינו זמין בהקשר לא מאובטח (http בלי TLS)
 const newIdempotencyKey = () =>
   globalThis.crypto?.randomUUID?.() ||
@@ -233,11 +252,18 @@ const BillingDocument = () => {
     }
   };
 
-  /** הפיכת התעודה לחשבונית מס עכשיו, בלי להמתין לסגירת החודש. */
+  /**
+   * הפיכת התעודה לחשבונית מס עכשיו, בלי להמתין לסגירת החודש.
+   *
+   * החשבונית מפורטת — כל מוצר בשורה משלו — גם אצל לקוח שהחשבונית החודשית
+   * שלו מרוכזת. ההחלטה בשרת (billDeliveryNote → detailed).
+   */
   const handleBill = async () => {
     if (
       !window.confirm(
-        `להפיק חשבונית מס על תעודה ${doc.number}?\n\n` +
+        `להפיק חשבונית מס מפורטת על תעודה ${doc.number}` +
+          `${doc.orderNumber ? ` (הזמנה ${doc.orderNumber})` : ""}?\n\n` +
+          `כל מוצר יופיע בחשבונית בשורה משלו.\n` +
           `חשבונית מס נרשמת בספרים ואי אפשר למחוק אותה — רק להוציא זיכוי.`
       )
     ) {
@@ -307,6 +333,192 @@ const BillingDocument = () => {
     total: Number(doc.total || doc.subTotal || 0),
   };
 
+  // גיליון אחד של המסמך. תעודת משלוח מודפסת תמיד בשני עותקים — "מקור"
+  // ללקוח ו"העתק" שחוזר חתום — וכך גם ההדפסה האוטומטית בשרת
+  // (DELIVERY_NOTE_COPIES ב-lib/printing/deliveryNotePdf.js).
+  const renderSheet = (copyLabel) => (
+    <div dir="rtl" className="bg-white text-gray-900 p-8">
+      <div className="flex justify-between items-start border-b-2 border-gray-800 pb-4">
+        <div>
+          <h1 className="text-2xl font-bold">{company.name}</h1>
+          {company.vatNumber && <p className="text-sm">ח.פ {company.vatNumber}</p>}
+          {company.address && <p className="text-sm">{company.address}</p>}
+          {company.phone && <p className="text-sm">טל' {company.phone}</p>}
+          {company.email && <p className="text-sm">{company.email}</p>}
+        </div>
+
+        <div className="text-left">
+          <h2 className="text-xl font-bold">
+              {title}
+              {copyLabel ? ` — ${copyLabel}` : ""}
+            </h2>
+          <p className="text-3xl font-bold mt-1">{doc.number}</p>
+          <p className="text-sm mt-2">
+            תאריך: {hebDate(isQuote ? doc.createdAt : doc.issuedAt)}
+          </p>
+          <p className="text-sm">
+            {producedLine(doc, isQuote ? doc.createdAt : doc.issuedAt)}
+          </p>
+          {isQuote && doc.validUntil && (
+            <p className="text-sm">בתוקף עד: {hebDate(doc.validUntil)}</p>
+          )}
+          {!isQuote && doc.orderNumber && (
+            <p className="text-sm">הזמנה: {doc.orderNumber}</p>
+          )}
+          {/* מספר הפתק מהפנקס הידני — זה מה שמאפשר להצליב את המסמך
+              המודפס מול מה שהלקוח קיבל ביד ביום המסירה */}
+          {doc.manualReference && (
+            <p className="text-sm">תעודה ידנית: {doc.manualReference}</p>
+          )}
+        </div>
+      </div>
+
+      <div className="mt-5 pb-4 border-b border-gray-300">
+        <p className="text-sm font-semibold text-gray-500">לכבוד</p>
+        <p className="text-lg font-semibold">{doc.customerSnapshot?.name || "—"}</p>
+        {doc.customerSnapshot?.customerNumber && (
+          <p className="text-sm">מס' לקוח: {doc.customerSnapshot.customerNumber}</p>
+        )}
+        {doc.customerSnapshot?.vatId && (
+          <p className="text-sm">ח.פ: {doc.customerSnapshot.vatId}</p>
+        )}
+        {doc.customerSnapshot?.address && (
+          <p className="text-sm">
+            {doc.customerSnapshot.address}
+            {doc.customerSnapshot.city ? `, ${doc.customerSnapshot.city}` : ""}
+          </p>
+        )}
+        {doc.customerSnapshot?.contactPerson && (
+          <p className="text-sm">איש קשר: {doc.customerSnapshot.contactPerson}</p>
+        )}
+        {doc.customerSnapshot?.contactPhone && (
+          <p className="text-sm">טלפון: {doc.customerSnapshot.contactPhone}</p>
+        )}
+
+        {/* ההערות בראש המסמך, מתחת לאיש הקשר ולא בתחתית — בקשת הלקוחה
+            (04/10/2026): זה מה שהנהג והמקבל צריכים לראות לפני הסחורה.
+            ⚠️ אותו מיקום ב-lib/printing/deliveryNotePdf.js */}
+        {doc.notes && (
+          <div className="mt-3 rounded border border-gray-400 bg-gray-50 px-3 py-2">
+            <p className="text-sm font-bold">הערות</p>
+            <p className="text-sm whitespace-pre-wrap">{doc.notes}</p>
+          </div>
+        )}
+      </div>
+
+      <table className="w-full mt-5 text-sm">
+        <thead>
+          <tr className="bg-gray-100 border-b-2 border-gray-400">
+            <th className="text-right py-2 px-2">#</th>
+            {/* הברקוד הוא המזהה שעל התעודה — זו העמודה הראשונה,
+                והיא מודגשת. זה מה שמופיע על האריזה ועל המדף, וזה מה
+                שהלקוח מצליב מולו. המק"ט נשאר לצידו לזיהוי בקטלוג,
+                ומשמש כמזהה היחיד בשורה שאין לה ברקוד תקין.
+                ⚠️ אותה פריסה קיימת ב-lib/printing/deliveryNotePdf.js
+                עבור ההדפסה האוטומטית — שינוי כאן צריך להגיע גם לשם. */}
+            <th className="text-right py-2 px-2">ברקוד</th>
+            <th className="text-right py-2 px-2">מק"ט</th>
+            <th className="text-right py-2 px-2">תיאור</th>
+            <th className="text-center py-2 px-2">כמות</th>
+            {/* בתעודת משלוח המחירים מוצגים כי הן הבסיס לחשבונית
+                החודשית, והלקוח מצליב מולן */}
+            <th className="text-left py-2 px-2">מחיר יח'</th>
+            <th className="text-left py-2 px-2">סה"כ</th>
+          </tr>
+        </thead>
+        <tbody>
+          {(doc.items || []).map((item, i) => (
+            <tr key={i} className="border-b border-gray-200">
+              <td className="py-2 px-2">{i + 1}</td>
+              <td className="py-2 px-2 font-semibold">{item.barcode || "—"}</td>
+              <td className="py-2 px-2 text-gray-600">{item.sku || "—"}</td>
+              <td className="py-2 px-2">
+                {item.name}
+                {item.isVatFree && (
+                  <span className="text-xs text-gray-500"> (פטור ממע"מ)</span>
+                )}
+              </td>
+              <td className="text-center py-2 px-2">{item.quantity}</td>
+              <td className="text-left py-2 px-2">{shekel(item.unitPrice)}</td>
+              <td className="text-left py-2 px-2">{shekel(item.lineTotal)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      <div className="flex justify-start mt-5">
+        <table className="text-sm w-72">
+          <tbody>
+            <tr>
+              <td className="py-1">סה"כ פריטים</td>
+              <td className="text-left py-1">{shekel(totals.net)} ₪</td>
+            </tr>
+            {totals.shipping > 0 && (
+              <tr>
+                <td className="py-1">משלוח</td>
+                <td className="text-left py-1">{shekel(totals.shipping)} ₪</td>
+              </tr>
+            )}
+            {totals.discount > 0 && (
+              <tr>
+                <td className="py-1">
+                  הנחה
+                  {/* האחוז מוצג ליד הסכום כדי שהלקוח יוכל לבדוק אותו.
+                      כשיש גם הנחה ידנית וגם אחוז, השורה מפרטת רק את
+                      החלק שהאחוז יצר */}
+                  {Number(doc.customerDiscount) > 0 && Number(doc.discountPercent) > 0 && (
+                    <span className="text-xs text-gray-500">
+                      {" "}
+                      (כולל {doc.discountPercent}% הנחת לקוח —{" "}
+                      {shekel(doc.customerDiscount)} ₪)
+                    </span>
+                  )}
+                </td>
+                <td className="text-left py-1">-{shekel(totals.discount)} ₪</td>
+              </tr>
+            )}
+            <tr className="border-t border-gray-300">
+              <td className="py-1">סה"כ לפני מע"מ</td>
+              <td className="text-left py-1">{shekel(totals.beforeVat)} ₪</td>
+            </tr>
+            <tr>
+              <td className="py-1">מע"מ 18%</td>
+              <td className="text-left py-1">{shekel(totals.vat)} ₪</td>
+            </tr>
+            <tr className="border-t-2 border-gray-800 font-bold text-base">
+              <td className="py-2">סה"כ לתשלום</td>
+              <td className="text-left py-2">{shekel(totals.total)} ₪</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div className="mt-8 pt-4 border-t border-gray-300 text-xs text-gray-500">
+        {isQuote ? (
+          <p>
+            הצעת מחיר זו אינה מהווה חשבונית מס. המחירים אינם כוללים מע"מ,
+            והמע"מ מתווסף בחשבונית.
+          </p>
+        ) : (
+          <>
+            <p>
+              תעודת משלוח זו אינה מהווה חשבונית מס. חשבונית מרכזת תופק
+              בסוף החודש.
+            </p>
+            <div className="mt-8 flex justify-between">
+              <div className="w-56 border-t border-gray-400 pt-1 text-center">
+                חתימת המוסר
+              </div>
+              <div className="w-56 border-t border-gray-400 pt-1 text-center">
+                חתימת המקבל
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+
   return (
     <>
       <div className="flex flex-wrap items-center justify-between gap-3 my-6">
@@ -349,7 +561,7 @@ const BillingDocument = () => {
           {isOpen && (
             <Button layout="outline" onClick={handleBill} disabled={Boolean(busy)}>
               <MdOutlineReceiptLong className="ml-2" />
-              {busy === "bill" ? "מפיק..." : "הפוך לחשבונית"}
+              {busy === "bill" ? "מפיק..." : "הפק חשבונית מפורטת"}
             </Button>
           )}
 
@@ -414,6 +626,8 @@ const BillingDocument = () => {
               <span className="font-mono font-semibold">
                 {doc.billing?.icountDocNum}
               </span>
+              {doc.billing?.billedAt &&
+                ` ב-${hebDate(doc.billing.billedAt)} בשעה ${hebTime(doc.billing.billedAt)}`}
               {doc.billing?.icountDocUrl && (
                 <>
                   {" "}
@@ -511,173 +725,15 @@ const BillingDocument = () => {
         <CardBody>
           {/* בכוונה עם צבעים קבועים ולא tokens של מצב כהה: זה מה שיוצא
               למדפסת, וטקסט בהיר על רקע לבן נעלם */}
-          <div ref={printRef} dir="rtl" className="bg-white text-gray-900 p-8">
-            <div className="flex justify-between items-start border-b-2 border-gray-800 pb-4">
-              <div>
-                <h1 className="text-2xl font-bold">{company.name}</h1>
-                {company.vatNumber && <p className="text-sm">ח.פ {company.vatNumber}</p>}
-                {company.address && <p className="text-sm">{company.address}</p>}
-                {company.phone && <p className="text-sm">טל' {company.phone}</p>}
-                {company.email && <p className="text-sm">{company.email}</p>}
-              </div>
-
-              <div className="text-left">
-                <h2 className="text-xl font-bold">{title}</h2>
-                <p className="text-3xl font-bold mt-1">{doc.number}</p>
-                <p className="text-sm mt-2">
-                  תאריך: {hebDate(isQuote ? doc.createdAt : doc.issuedAt)}
-                </p>
-                {isQuote && doc.validUntil && (
-                  <p className="text-sm">בתוקף עד: {hebDate(doc.validUntil)}</p>
-                )}
-                {!isQuote && doc.orderNumber && (
-                  <p className="text-sm">הזמנה: {doc.orderNumber}</p>
-                )}
-                {/* מספר הפתק מהפנקס הידני — זה מה שמאפשר להצליב את המסמך
-                    המודפס מול מה שהלקוח קיבל ביד ביום המסירה */}
-                {doc.manualReference && (
-                  <p className="text-sm">תעודה ידנית: {doc.manualReference}</p>
-                )}
-              </div>
-            </div>
-
-            <div className="mt-5 pb-4 border-b border-gray-300">
-              <p className="text-sm font-semibold text-gray-500">לכבוד</p>
-              <p className="text-lg font-semibold">{doc.customerSnapshot?.name || "—"}</p>
-              {doc.customerSnapshot?.customerNumber && (
-                <p className="text-sm">מס' לקוח: {doc.customerSnapshot.customerNumber}</p>
-              )}
-              {doc.customerSnapshot?.vatId && (
-                <p className="text-sm">ח.פ: {doc.customerSnapshot.vatId}</p>
-              )}
-              {doc.customerSnapshot?.address && (
-                <p className="text-sm">
-                  {doc.customerSnapshot.address}
-                  {doc.customerSnapshot.city ? `, ${doc.customerSnapshot.city}` : ""}
-                </p>
-              )}
-              {doc.customerSnapshot?.contactPerson && (
-                <p className="text-sm">איש קשר: {doc.customerSnapshot.contactPerson}</p>
-              )}
-            </div>
-
-            <table className="w-full mt-5 text-sm">
-              <thead>
-                <tr className="bg-gray-100 border-b-2 border-gray-400">
-                  <th className="text-right py-2 px-2">#</th>
-                  {/* הברקוד הוא המזהה שעל התעודה — זו העמודה הראשונה,
-                      והיא מודגשת. זה מה שמופיע על האריזה ועל המדף, וזה מה
-                      שהלקוח מצליב מולו. המק"ט נשאר לצידו לזיהוי בקטלוג,
-                      ומשמש כמזהה היחיד בשורה שאין לה ברקוד תקין.
-                      ⚠️ אותה פריסה קיימת ב-lib/printing/deliveryNotePdf.js
-                      עבור ההדפסה האוטומטית — שינוי כאן צריך להגיע גם לשם. */}
-                  <th className="text-right py-2 px-2">ברקוד</th>
-                  <th className="text-right py-2 px-2">מק"ט</th>
-                  <th className="text-right py-2 px-2">תיאור</th>
-                  <th className="text-center py-2 px-2">כמות</th>
-                  {/* בתעודת משלוח המחירים מוצגים כי הן הבסיס לחשבונית
-                      החודשית, והלקוח מצליב מולן */}
-                  <th className="text-left py-2 px-2">מחיר יח'</th>
-                  <th className="text-left py-2 px-2">סה"כ</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(doc.items || []).map((item, i) => (
-                  <tr key={i} className="border-b border-gray-200">
-                    <td className="py-2 px-2">{i + 1}</td>
-                    <td className="py-2 px-2 font-semibold">{item.barcode || "—"}</td>
-                    <td className="py-2 px-2 text-gray-600">{item.sku || "—"}</td>
-                    <td className="py-2 px-2">
-                      {item.name}
-                      {item.isVatFree && (
-                        <span className="text-xs text-gray-500"> (פטור ממע"מ)</span>
-                      )}
-                    </td>
-                    <td className="text-center py-2 px-2">{item.quantity}</td>
-                    <td className="text-left py-2 px-2">{shekel(item.unitPrice)}</td>
-                    <td className="text-left py-2 px-2">{shekel(item.lineTotal)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-
-            <div className="flex justify-start mt-5">
-              <table className="text-sm w-72">
-                <tbody>
-                  <tr>
-                    <td className="py-1">סה"כ פריטים</td>
-                    <td className="text-left py-1">{shekel(totals.net)} ₪</td>
-                  </tr>
-                  {totals.shipping > 0 && (
-                    <tr>
-                      <td className="py-1">משלוח</td>
-                      <td className="text-left py-1">{shekel(totals.shipping)} ₪</td>
-                    </tr>
-                  )}
-                  {totals.discount > 0 && (
-                    <tr>
-                      <td className="py-1">
-                        הנחה
-                        {/* האחוז מוצג ליד הסכום כדי שהלקוח יוכל לבדוק אותו.
-                            כשיש גם הנחה ידנית וגם אחוז, השורה מפרטת רק את
-                            החלק שהאחוז יצר */}
-                        {Number(doc.customerDiscount) > 0 && Number(doc.discountPercent) > 0 && (
-                          <span className="text-xs text-gray-500">
-                            {" "}
-                            (כולל {doc.discountPercent}% הנחת לקוח —{" "}
-                            {shekel(doc.customerDiscount)} ₪)
-                          </span>
-                        )}
-                      </td>
-                      <td className="text-left py-1">-{shekel(totals.discount)} ₪</td>
-                    </tr>
-                  )}
-                  <tr className="border-t border-gray-300">
-                    <td className="py-1">סה"כ לפני מע"מ</td>
-                    <td className="text-left py-1">{shekel(totals.beforeVat)} ₪</td>
-                  </tr>
-                  <tr>
-                    <td className="py-1">מע"מ 18%</td>
-                    <td className="text-left py-1">{shekel(totals.vat)} ₪</td>
-                  </tr>
-                  <tr className="border-t-2 border-gray-800 font-bold text-base">
-                    <td className="py-2">סה"כ לתשלום</td>
-                    <td className="text-left py-2">{shekel(totals.total)} ₪</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            {doc.notes && (
-              <div className="mt-5 pt-3 border-t border-gray-300">
-                <p className="text-sm font-semibold">הערות</p>
-                <p className="text-sm whitespace-pre-wrap">{doc.notes}</p>
+          <div ref={printRef}>
+            {renderSheet(isQuote ? null : "מקור")}
+            {/* ההעתק קיים רק בהדפסה — במסך מספיק עותק אחד. break-before
+                מתחיל אותו בעמוד חדש */}
+            {!isQuote && (
+              <div className="hidden print:block" style={{ breakBefore: "page" }}>
+                {renderSheet("העתק")}
               </div>
             )}
-
-            <div className="mt-8 pt-4 border-t border-gray-300 text-xs text-gray-500">
-              {isQuote ? (
-                <p>
-                  הצעת מחיר זו אינה מהווה חשבונית מס. המחירים אינם כוללים מע"מ,
-                  והמע"מ מתווסף בחשבונית.
-                </p>
-              ) : (
-                <>
-                  <p>
-                    תעודת משלוח זו אינה מהווה חשבונית מס. חשבונית מרכזת תופק
-                    בסוף החודש.
-                  </p>
-                  <div className="mt-8 flex justify-between">
-                    <div className="w-56 border-t border-gray-400 pt-1 text-center">
-                      חתימת המוסר
-                    </div>
-                    <div className="w-56 border-t border-gray-400 pt-1 text-center">
-                      חתימת המקבל
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
           </div>
         </CardBody>
       </Card>

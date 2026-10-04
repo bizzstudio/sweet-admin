@@ -42,7 +42,11 @@ import PageTitle from "@/components/Typography/PageTitle";
 import useAsync from "@/hooks/useAsync";
 import useCustomerSubmit from "@/hooks/useCustomerSubmit";
 import CustomerServices from "@/services/CustomerServices";
-import { isPlaceholderEmail } from "@/utils/customerFormat";
+import {
+  isPlaceholderEmail,
+  validateContactEmail,
+  validatePrimaryEmail,
+} from "@/utils/customerFormat";
 import { text } from "@/utils/displayFormat";
 
 // שורת דרך קשר בכותרת: אייקון + ערך. min-w-0 ושבירת מילים כדי שמייל ארוך
@@ -72,6 +76,7 @@ const CustomerDetails = () => {
     register,
     handleSubmit,
     onSubmit,
+    onInvalid,
     errors,
     isSubmitting,
     isFormLoading,
@@ -119,7 +124,7 @@ const CustomerDetails = () => {
       ) : (
         <form
           autoComplete="off"
-          onSubmit={onlySaveButtonSubmits(handleSubmit(onSubmit))}
+          onSubmit={onlySaveButtonSubmits(handleSubmit(onSubmit, onInvalid))}
         >
           <div className="mb-5 rounded-lg bg-white p-6 text-right dark:bg-gray-800">
             <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
@@ -187,7 +192,11 @@ const CustomerDetails = () => {
                       editing
                       label="אימייל"
                       name="email"
-                      type="email"
+                      // טקסט ולא type="email": בדיקת הדפדפן חוסמת את השמירה
+                      // בבועה שלא אומרת מה לתקן. הבדיקה נעשית ב-validate,
+                      // וההודעה מוצגת בעברית מתחת לשדה
+                      inputMode="email"
+                      validate={validatePrimaryEmail}
                       required
                       register={register}
                       error={errors.email}
@@ -199,7 +208,8 @@ const CustomerDetails = () => {
                       editing
                       label="מייל איש קשר"
                       name="contactEmail"
-                      type="email"
+                      inputMode="email"
+                      validate={validateContactEmail}
                       register={register}
                       error={errors.contactEmail}
                       hint="לרישום בלבד — לא נשלחות אליו הודעות"

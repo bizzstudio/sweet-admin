@@ -13,6 +13,10 @@
 // כשמגיעים מהזמנה, השורות נטענות מראש (pending-manual) ורק מה שעדיין לא
 // הוקלד בתעודה קודמת מוצע. כשמפיקים תעודה עצמאית בוחרים לקוח ובונים שורות
 // מאפס — משלוח פירות שאין מולו הזמנה במערכת.
+//
+// asInvoice — "חשבונית חדשה" ממסך החשבוניות. אותו טופס בדיוק, והשרת יוצר
+// את התעודה ומחייב אותה מיד (billNow). חשבונית נבנית תמיד מתעודה, ולכן אין
+// כאן מסלול שני שעוקף את הגנת החיוב הכפול.
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -34,6 +38,7 @@ import ProductPicker from "@/components/billing/ProductPicker";
 import CustomerPicker from "@/components/billing/CustomerPicker";
 import BarcodeInput from "@/components/billing/BarcodeInput";
 import BillingServices from "@/services/BillingServices";
+import CustomerPriceListServices from "@/services/CustomerPriceListServices";
 import { notifyError, notifySuccess } from "@/utils/toast";
 
 import TableHeaderCell from "@/components/table/TableHeaderCell";
@@ -61,7 +66,8 @@ const newKey = () =>
   globalThis.crypto?.randomUUID?.() ||
   `dn-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 
-const emptyRow = () => ({ sku: "", quantity: "", ordered: null, name: "", unitPrice: "" });
+// ‏savePrice: לשמור את המחיר הידני גם במחירון הלקוח, כדי שיתפוס מהתעודה הבאה
+const emptyRow = () => ({ sku: "", quantity: "", ordered: null, name: "", unitPrice: "", savePrice: false });
 
 // שדה הלקוח בהזמנה מגיע לפעמים כמזהה ולפעמים כאובייקט מאוכלס, תלוי במסך
 // שקרא. שליחת אובייקט לשרת הייתה נכשלת על "מזהה לקוח לא תקין"
@@ -71,10 +77,17 @@ const customerIdOf = (value) =>
 /**
  * @param {string}   [orderId]      - הזמנה שממנה נטענות השורות הממתינות
  * @param {string}   [customerId]   - לקוח קבוע מראש (כשמגיעים מהזמנה)
+ * @param {boolean}  [asInvoice]    - להפיק חשבונית מס מיד, ולא רק תעודה
  * @param {function} onCreated      - נקרא עם התעודה שנוצרה
  * @param {function} onCancel
  */
-const ManualDeliveryNoteForm = ({ orderId, customerId: rawFixedCustomer, onCreated, onCancel }) => {
+const ManualDeliveryNoteForm = ({
+  orderId,
+  customerId: rawFixedCustomer,
+  asInvoice = false,
+  onCreated,
+  onCancel,
+}) => {
   const fixedCustomer = customerIdOf(rawFixedCustomer);
 
   const [customerId, setCustomerId] = useState(fixedCustomer);
@@ -86,6 +99,9 @@ const ManualDeliveryNoteForm = ({ orderId, customerId: rawFixedCustomer, onCreat
   const [discount, setDiscount] = useState(0);
 
   const [priced, setPriced] = useState(null);
+  // asInvoice: התעודה נוצרה והחיוב נכשל. מכאן הטופס נעול — שליחה חוזרת שלו
+  // הייתה מחייבת את התעודה הקיימת עם השורות הישנות גם אם בינתיים תוקנו
+  const [unbilledNote, setUnbilledNote] = useState(null);
   const [loading, setLoading] = useState(Boolean(orderId));
   const [saving, setSaving] = useState(false);
   const [idempotencyKey, setIdempotencyKey] = useState(newKey);
@@ -116,6 +132,7 @@ const ManualDeliveryNoteForm = ({ orderId, customerId: rawFixedCustomer, onCreat
                 ordered: i.quantity,
                 name: i.name,
                 unitPrice: "",
+                savePrice: false,
               }))
             : [emptyRow()]
         );
@@ -139,11 +156,27 @@ const ManualDeliveryNoteForm = ({ orderId, customerId: rawFixedCustomer, onCreat
   }, [orderId]);
 
   const updateRow = (index, field, value) => {
-    setRows((prev) => prev.map((r, i) => (i === index ? { ...r, [field]: value } : r)));
+    setRows((prev) =>
+      prev.map((r, i) => {
+        if (i !== index) return r;
+        const next = { ...r, [field]: value };
+        // סימון "לשמור במחירון" שייך למחיר ולמוצר שעליהם סומן. בלי האיפוס,
+        // מחיר שנמחק והוקלד מחדש, או מוצר שהוחלף בשורה, היו נשמרים למחירון
+        // עם סימון ישן שכבר לא נראה על המסך
+        if (field === "sku" || (field === "unitPrice" && !(Number(value) > 0))) {
+          next.savePrice = false;
+        }
+        return next;
+      })
+    );
     // כל שינוי מבטל את התמחור שהוצג: מחיר שנשאר על המסך אחרי ששונתה
     // הכמות הוא בדיוק המספר שמישהו יאשר בלי לשים לב
     setPriced(null);
   };
+
+  // הסימון אינו משנה את התעודה עצמה, ולכן אינו מבטל את התמחור שהוצג
+  const toggleSavePrice = (index, checked) =>
+    setRows((prev) => prev.map((r, i) => (i === index ? { ...r, savePrice: checked } : r)));
 
   const addRow = () => setRows((prev) => [...prev, emptyRow()]);
   const removeRow = (index) => {
@@ -170,7 +203,7 @@ const ManualDeliveryNoteForm = ({ orderId, customerId: rawFixedCustomer, onCreat
         return prev;
       }
 
-      const filled = { sku: String(product.sku), quantity: "", ordered: null, name: product.name, unitPrice: "" };
+      const filled = { sku: String(product.sku), quantity: "", ordered: null, name: product.name, unitPrice: "", savePrice: false };
       const emptyIndex = prev.findIndex((r) => !r.sku?.trim());
       if (emptyIndex === -1) return [...prev, filled];
       return prev.map((r, i) => (i === emptyIndex ? filled : r));
@@ -194,7 +227,7 @@ const ManualDeliveryNoteForm = ({ orderId, customerId: rawFixedCustomer, onCreat
 
   const doPrice = async () => {
     if (!customerId) return notifyError("יש לבחור לקוח");
-    if (!validRows.length) return notifyError("יש להזין לפחות שורה אחת עם משקל");
+    if (!validRows.length) return notifyError(noRowsMessage);
 
     // מחושב פעם אחת: payloadItems בונה מערך חדש בכל קריאה, וקריאה בתוך
     // ה-map הייתה בונה אותו מחדש לכל שורה
@@ -232,10 +265,40 @@ const ManualDeliveryNoteForm = ({ orderId, customerId: rawFixedCustomer, onCreat
     }
   };
 
+  // מחירים ידניים שסומנו "לשמור לפעם הבאה" נכתבים למחירון הלקוח. כישלון כאן
+  // אינו מבטל את התעודה שכבר הופקה — רק אומר במפורש שהמחירון לא עודכן
+  const savePricesToPriceList = async (targetCustomer) => {
+    const items = validRows
+      .filter((r) => r.savePrice && Number(r.unitPrice) > 0)
+      .map((r) => ({ sku: r.sku.trim(), price: Number(r.unitPrice) }));
+    if (!items.length || !targetCustomer) return;
+
+    try {
+      const res = await CustomerPriceListServices.upsertItems(customerIdOf(targetCustomer), { items });
+      notifySuccess(res.message);
+    } catch (err) {
+      notifyError(
+        `התעודה הופקה, אבל המחיר לא נשמר במחירון: ${err?.response?.data?.message || err.message}`
+      );
+    }
+  };
+
   const doCreate = async () => {
     // כשהתעודה קשורה להזמנה השרת גוזר את הלקוח ממנה, ולכן אין צורך בבחירה
     if (!customerId && !orderId) return notifyError("יש לבחור לקוח");
-    if (!validRows.length) return notifyError("יש להזין לפחות שורה אחת עם משקל");
+    if (!validRows.length) return notifyError(noRowsMessage);
+    if (
+      asInvoice &&
+      !window.confirm(
+        "להפיק חשבונית מס ללקוח?\n\n" +
+          (priced
+            ? `סה"כ לפני מע"מ: ${shekel(noteTotal)} ₪\n\n`
+            : "המחירים ייקבעו לפי מחירון הלקוח — כדי לראות סכום לפני ההפקה, לחצו \"חשב מחירים\".\n\n") +
+          "חשבונית מס נרשמת בספרים ואי אפשר למחוק אותה — רק להוציא זיכוי."
+      )
+    ) {
+      return;
+    }
 
     setSaving(true);
     try {
@@ -249,13 +312,42 @@ const ManualDeliveryNoteForm = ({ orderId, customerId: rawFixedCustomer, onCreat
         shippingCost: Number(shippingCost) || 0,
         discount: Number(discount) || 0,
         idempotencyKey,
+        billNow: asInvoice || undefined,
       });
 
       notifySuccess(res.message);
+      // אחרי ההפקה ולא לפניה: מחיר שנשמר למחירון כשההפקה נכשלה היה משנה
+      // ללקוח את המחיר בלי שום תעודה שמסבירה למה
+      await savePricesToPriceList(res.note?.customer || customerId);
       // מפתח חדש לטופס הבא, אחרת תעודה שנייה לאותו לקוח הייתה חוזרת עם
       // התעודה הראשונה במקום להיווצר
       setIdempotencyKey(newKey());
       onCreated?.(res.note);
+    } catch (err) {
+      notifyError(err?.response?.data?.message || err.message);
+
+      // השרת מחזיר note רק כשהתעודה נוצרה והחשבונית לא. הניסיון החוזר
+      // מחייב את התעודה הזו בדיוק (billDeliveryNote), והמפתח מתחדש כדי
+      // שאף שליחה של הטופס לא תיפול עליה בטעות
+      const created = err?.response?.data?.note;
+      if (asInvoice && created?._id) {
+        setUnbilledNote(created);
+        setIdempotencyKey(newKey());
+        await savePricesToPriceList(created.customer || customerId);
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const retryBill = async () => {
+    setSaving(true);
+    try {
+      const res = await BillingServices.billDeliveryNote(unbilledNote._id);
+      notifySuccess(res.message);
+      const note = unbilledNote;
+      setUnbilledNote(null);
+      onCreated?.(note);
     } catch (err) {
       notifyError(err?.response?.data?.message || err.message);
     } finally {
@@ -263,11 +355,47 @@ const ManualDeliveryNoteForm = ({ orderId, customerId: rawFixedCustomer, onCreat
     }
   };
 
+  const noRowsMessage = asInvoice
+    ? "יש להזין לפחות שורה אחת עם כמות"
+    : "יש להזין לפחות שורה אחת עם משקל";
+
+  const createLabel = saving ? "מפיק..." : asInvoice ? "הפק חשבונית מס" : "הפק תעודת משלוח";
+
   const pricedTotal = (priced?.items || []).reduce((s, i) => s + i.lineTotal, 0);
   const noteTotal = pricedTotal + (Number(shippingCost) || 0) - (Number(discount) || 0);
   // השרת דוחה הנחה שגדולה מסכום התעודה. עדיף לחסום כאן מאשר לתת למשתמשת
   // למלא טופס שלם ולקבל שגיאה בהפקה
   const discountTooBig = priced && noteTotal < 0;
+
+  if (unbilledNote) {
+    return (
+      <Card className="min-w-0 shadow-xs bg-white dark:bg-gray-800 my-5 border-r-4 border-red-500">
+        <CardBody>
+          <h3 className="font-semibold text-lg flex items-center gap-2">
+            <FiAlertTriangle className="text-red-600" /> החשבונית לא הופקה
+          </h3>
+          <p className="text-sm mt-2">
+            תעודת משלוח {unbilledNote.number} נוצרה, אבל הפקת החשבונית ב-iCount
+            נכשלה. התעודה פתוחה ותחויב בסגירת החודש אם לא תופק עכשיו.
+          </p>
+          <p className="text-sm text-gray-500 mt-1">
+            לתיקון שורות או מחירים — יש לערוך את התעודה במסך תעודות משלוח,
+            ולהפיק ממנה חשבונית שם.
+          </p>
+          <div className="mt-4 flex justify-end gap-2">
+            {onCancel && (
+              <Button layout="outline" onClick={onCancel} disabled={saving}>
+                סגירה
+              </Button>
+            )}
+            <Button onClick={retryBill} disabled={saving}>
+              {saving ? "מפיק..." : "נסה שוב להפיק חשבונית"}
+            </Button>
+          </div>
+        </CardBody>
+      </Card>
+    );
+  }
 
   if (loading) {
     return (
@@ -283,10 +411,13 @@ const ManualDeliveryNoteForm = ({ orderId, customerId: rawFixedCustomer, onCreat
     <Card className="min-w-0 shadow-xs bg-white dark:bg-gray-800 my-5 border-r-4 border-green-500">
       <CardBody>
         <div className="mb-4">
-          <h3 className="font-semibold text-lg">תעודת משלוח ידנית</h3>
+          <h3 className="font-semibold text-lg">
+            {asInvoice ? "חשבונית מס חדשה" : "תעודת משלוח ידנית"}
+          </h3>
           <p className="text-sm text-gray-500">
-            הכמות שתוקלד כאן היא המשקל שנשקל בפועל, והיא זו שתחויב בחשבונית
-            בסוף החודש.
+            {asInvoice
+              ? "החשבונית מופקת ב-iCount מיד ונשלחת במייל ללקוח (אם יש בכרטיס שלו כתובת מייל אמיתית). במערכת תיווצר גם תעודת משלוח שעליה היא מבוססת."
+              : "הכמות שתוקלד כאן היא המשקל שנשקל בפועל, והיא זו שתחויב בחשבונית בסוף החודש."}
           </p>
         </div>
 
@@ -308,7 +439,7 @@ const ManualDeliveryNoteForm = ({ orderId, customerId: rawFixedCustomer, onCreat
           )}
 
           <Label className="w-48">
-            <span>תאריך המסירה</span>
+            <span>{asInvoice ? "תאריך האספקה" : "תאריך המסירה"}</span>
             <Input
               className="mt-1"
               type="date"
@@ -355,8 +486,9 @@ const ManualDeliveryNoteForm = ({ orderId, customerId: rawFixedCustomer, onCreat
         </div>
 
         <p className="text-xs text-gray-500 mb-3">
-          התאריך קובע לאיזה חודש התעודה תיכנס בחיוב. תעודה שהוקלדה באיחור —
-          יש לתארך אותה ליום המסירה בפועל.
+          {asInvoice
+            ? "תאריך החשבונית ב-iCount הוא היום. התאריך כאן הוא תאריך האספקה שיופיע על התעודה."
+            : "התאריך קובע לאיזה חודש התעודה תיכנס בחיוב. תעודה שהוקלדה באיחור — יש לתארך אותה ליום המסירה בפועל."}
         </p>
 
         {/* הדרך המהירה למלא את הטופס: סורקים או מקלידים ברקוד, והשורה
@@ -387,7 +519,7 @@ const ManualDeliveryNoteForm = ({ orderId, customerId: rawFixedCustomer, onCreat
                 type="number"
                 min="0"
                 step="0.01"
-                placeholder="משקל בפועל"
+                placeholder={asInvoice ? "כמות" : "משקל בפועל"}
                 value={row.quantity}
                 onChange={(e) => updateRow(i, "quantity", e.target.value)}
               />
@@ -403,6 +535,18 @@ const ManualDeliveryNoteForm = ({ orderId, customerId: rawFixedCustomer, onCreat
                 onChange={(e) => updateRow(i, "unitPrice", e.target.value)}
               />
             </div>
+
+            {/* מופיע רק כשיש מחיר ידני — בלי מחיר אין מה לשמור */}
+            {Number(row.unitPrice) > 0 && row.sku && (
+              <label className="flex items-center gap-1 text-xs text-gray-600 dark:text-gray-400 shrink-0">
+                <input
+                  type="checkbox"
+                  checked={row.savePrice}
+                  onChange={(e) => toggleSavePrice(i, e.target.checked)}
+                />
+                לשמור במחירון הלקוח
+              </label>
+            )}
 
             {/* המשקל שהוזמן, כדי שיהיה ברור במה השורה שונה ממה שהלקוח ביקש */}
             <span className="text-xs text-gray-500 w-28 shrink-0">
@@ -430,7 +574,8 @@ const ManualDeliveryNoteForm = ({ orderId, customerId: rawFixedCustomer, onCreat
         ))}
 
         <p className="text-xs text-gray-500 mt-1">
-          מחיר יח' ריק — נלקח ממחירון הלקוח, ובהיעדרו ממחיר הקטלוג.
+          מחיר יח' ריק — נלקח ממחירון הלקוח, ובהיעדרו ממחיר הקטלוג. מחיר שסומן
+          "לשמור במחירון הלקוח" יישמר עם הפקת התעודה ויתפוס גם בפעם הבאה.
         </p>
 
         <div className="flex flex-wrap gap-3 mt-4">
@@ -517,7 +662,7 @@ const ManualDeliveryNoteForm = ({ orderId, customerId: rawFixedCustomer, onCreat
                   onClick={doCreate}
                   disabled={saving || priced.quality?.hasMissing || discountTooBig}
                 >
-                  {saving ? "מפיק..." : "הפק תעודת משלוח"}
+                  {createLabel}
                 </Button>
               </div>
             </div>
@@ -547,7 +692,7 @@ const ManualDeliveryNoteForm = ({ orderId, customerId: rawFixedCustomer, onCreat
             {/* הפקה בלי תמחור מוקדם מותרת — השרת מתמחר ממילא. הכפתור
                 "חשב מחירים" הוא אמצעי בקרה, לא שלב חובה */}
             <Button onClick={doCreate} disabled={saving || !validRows.length}>
-              {saving ? "מפיק..." : "הפק תעודת משלוח"}
+              {createLabel}
             </Button>
           </div>
         )}

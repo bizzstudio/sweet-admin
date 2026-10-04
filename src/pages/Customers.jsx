@@ -18,7 +18,7 @@ import React, {
   useState,
 } from "react";
 import { useTranslation } from "react-i18next";
-import { FiDollarSign } from "react-icons/fi";
+import { FiDollarSign, FiUserPlus } from "react-icons/fi";
 
 // Internal import
 import UploadManyTwo from "@/components/common/UploadManyTwo";
@@ -32,6 +32,7 @@ import CustomerServices from "@/services/CustomerServices";
 import CustomerHistoryServices from "@/services/CustomerHistoryServices";
 import CustomerPriceListServices from "@/services/CustomerPriceListServices";
 import ImportCustomersExcelModal from "@/components/customer/ImportCustomersExcelModal";
+import AddCustomerModal from "@/components/customer/AddCustomerModal";
 import CustomerHistoryModal from "@/components/customer/CustomerHistoryModal";
 import CustomerPriceListModal from "@/components/customer/CustomerPriceListModal";
 import BulkCustomerPriceListModal from "@/components/customer/BulkCustomerPriceListModal";
@@ -42,6 +43,7 @@ const Customers = () => {
   const { data, loading, error } = useAsync(CustomerServices.getAllCustomers);
   const { setIsUpdate } = useContext(SidebarContext);
   const [isExcelModalOpen, setIsExcelModalOpen] = useState(false);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   // הלקוח שהמחירון שלו נערך כרגע (null = המודאל סגור)
   const [priceListCustomer, setPriceListCustomer] = useState(null);
   const [historyCustomer, setHistoryCustomer] = useState(null);
@@ -140,6 +142,12 @@ const Customers = () => {
         onImported={() => setIsUpdate(true)}
       />
 
+      <AddCustomerModal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        onCreated={() => setIsUpdate(true)}
+      />
+
       {/* מחירון פרטי ללקוח מסוים. נשאר מותקן גם כשהוא סגור, כדי שהמצב הפנימי
           שלו יתאפס לפי customerId ולא ישמור נתונים של הלקוח הקודם */}
       <CustomerPriceListModal
@@ -185,6 +193,17 @@ const Customers = () => {
                 exportData={exportRows}
                 onExcelImport={() => setIsExcelModalOpen(true)}
               />
+            </div>
+
+            <div className="flex items-center">
+              <Button
+                type="button"
+                onClick={() => setIsAddModalOpen(true)}
+                className="h-12 whitespace-nowrap bg-customGreen-dark"
+              >
+                <FiUserPlus className="ml-2" />
+                הוספת לקוח
+              </Button>
             </div>
 
             {/* המחירונים מגיעים מההנהח"ש בקובץ אחד לכל הלקוחות, ולכן הכפתור

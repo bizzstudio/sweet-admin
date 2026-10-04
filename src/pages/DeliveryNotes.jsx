@@ -115,7 +115,8 @@ const DeliveryNotes = () => {
   const bill = async (note) => {
     if (
       !window.confirm(
-        `להפיק חשבונית מס על תעודה ${note.number} (${note.customerSnapshot?.name || "הלקוח"})?\n\n` +
+        `להפיק חשבונית מס מפורטת על תעודה ${note.number} (${note.customerSnapshot?.name || "הלקוח"})?\n\n` +
+          `כל מוצר יופיע בחשבונית בשורה משלו.\n` +
           `חשבונית מס נרשמת בספרים ואי אפשר למחוק אותה — רק להוציא זיכוי.`
       )
     ) {
@@ -310,7 +311,7 @@ const DeliveryNotes = () => {
                             onClick={() => bill(note)}
                             disabled={working === note._id}
                             className="text-sm text-blue-700 dark:text-blue-400 hover:underline flex items-center gap-1 disabled:opacity-40"
-                            title="הפקת חשבונית מס על התעודה הזו עכשיו"
+                            title="הפקת חשבונית מס מפורטת (כל מוצר בשורה) על התעודה הזו עכשיו"
                           >
                             <MdOutlineReceiptLong /> חשבונית
                           </button>

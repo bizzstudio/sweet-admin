@@ -21,7 +21,10 @@ export const EditableField = ({
   name,
   register,
   required = false,
+  // בדיקה נוספת לפי ה-validate של react-hook-form; ההודעה מוצגת מתחת לשדה
+  validate,
   type = "text",
+  inputMode,
   // ל-type="number" הדפדפן חוסם ערך עשרוני בלי step="any", כי ברירת המחדל
   // של step היא 1 (אותה בעיה שקיימת ב-InputArea)
   step,
@@ -41,7 +44,10 @@ export const EditableField = ({
     if (control) return control;
     if (!register || !name) return null;
 
-    const rules = { required: required ? `${label} הוא שדה חובה` : false };
+    const rules = {
+      required: required ? `${label} הוא שדה חובה` : false,
+      ...(validate ? { validate } : {}),
+    };
     const disabledClass = disabled ? " cursor-not-allowed opacity-60" : "";
 
     if (options) {
@@ -79,6 +85,7 @@ export const EditableField = ({
       <input
         id={name}
         type={type}
+        inputMode={inputMode}
         step={step || (type === "number" ? "any" : undefined)}
         disabled={disabled}
         // גלגלת העכבר משנה ערך בשדה מספרי ממוקד בכרום ובפיירפוקס. בעמוד
