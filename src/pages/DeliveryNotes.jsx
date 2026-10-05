@@ -3,7 +3,7 @@
 // רשימת תעודות המשלוח ומצב החיוב שלהן. זה המסך שעונה על "מה עוד לא חויב"
 // ועל "באיזו חשבונית נסגרה התעודה הזו".
 
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Badge,
   Button,
@@ -55,9 +55,20 @@ const DeliveryNotes = () => {
   const [notes, setNotes] = useState([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
+  // רכיב העימוד של Windmill מחזיק את העמוד הפעיל בעצמו ואינו מקבל אותו
+  // מבחוץ. כדי להחזיר אותו לעמוד 1 בונים אותו מחדש — זה המפתח שלו.
+  const [pagerKey, setPagerKey] = useState(0);
+  const toFirstPage = useCallback(() => {
+    setPage(1);
+    setPagerKey((k) => k + 1);
+  }, []);
   const [status, setStatus] = useState("");
   const [month, setMonth] = useState("");
   const [kind, setKind] = useState("");
+  // searchInput הוא מה שמוקלד; search הוא מה שנשלח לשרת, אחרי השהיה קצרה —
+  // כדי שלא תצא בקשה על כל אות
+  const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [building, setBuilding] = useState(false);
   // התעודה שעליה רצה כרגע פעולה — מנטרל את הכפתורים שלה בלבד, כדי
@@ -68,7 +79,12 @@ const DeliveryNotes = () => {
   // כך הקישור ניתן לשיתוף ולרענון בלי לאבד את הסינון.
   const [customerFilter, setCustomerFilter] = useQueryParam("customer");
 
+  // מספר הבקשה האחרונה שיצאה. תשובה איטית של חיפוש קודם שחוזרת אחרי
+  // החדשה לא תדרוס אותה — אחרת מוצגות תעודות של לקוח שכבר לא מחפשים
+  const requestSeq = useRef(0);
+
   const load = useCallback(async () => {
+    const seq = ++requestSeq.current;
     setLoading(true);
     try {
       const res = await BillingServices.getDeliveryNotes({
@@ -77,22 +93,35 @@ const DeliveryNotes = () => {
         status,
         month,
         kind,
+        search,
         customer: customerFilter,
       });
+      if (seq !== requestSeq.current) return;
       setNotes(res.notes || []);
       setTotal(res.total || 0);
     } catch (err) {
+      if (seq !== requestSeq.current) return;
       notifyError(err?.response?.data?.message || err.message);
       setNotes([]);
       setTotal(0);
     } finally {
-      setLoading(false);
+      if (seq === requestSeq.current) setLoading(false);
     }
-  }, [page, status, month, kind, customerFilter]);
+  }, [page, status, month, kind, search, customerFilter]);
 
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    const next = searchInput.trim();
+    if (next === search) return undefined;
+    const timer = setTimeout(() => {
+      setSearch(next);
+      toFirstPage();
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [searchInput, search, toFirstPage]);
 
   /** "עוד אחת בדיוק כמו זו" — תעודה חדשה עם אותן שורות ואותם מחירים. */
   const duplicate = async (note) => {
@@ -102,7 +131,7 @@ const DeliveryNotes = () => {
         idempotencyKey: newIdempotencyKey(),
       });
       notifySuccess(res.message);
-      setPage(1);
+      toFirstPage();
       load();
     } catch (err) {
       notifyError(err?.response?.data?.message || err.message);
@@ -139,7 +168,7 @@ const DeliveryNotes = () => {
   // שיש בה עמוד אחד, ורואה מסך ריק
   const changeFilter = (setter) => (e) => {
     setter(e.target.value);
-    setPage(1);
+    toFirstPage();
   };
 
   return (
@@ -157,7 +186,7 @@ const DeliveryNotes = () => {
           onCancel={() => setBuilding(false)}
           onCreated={() => {
             setBuilding(false);
-            setPage(1);
+            toFirstPage();
             load();
           }}
         />
@@ -172,6 +201,17 @@ const DeliveryNotes = () => {
       <Card className="min-w-0 shadow-xs overflow-hidden bg-white dark:bg-gray-800 mb-5">
         <CardBody>
           <div className="flex flex-wrap items-end gap-4">
+            <Label>
+              <span>חיפוש לפי לקוח</span>
+              <Input
+                className="mt-1"
+                type="search"
+                placeholder="שם לקוח או מספר לקוח"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+              />
+            </Label>
+
             <Label>
               <span>סטטוס</span>
               <Select className="mt-1" value={status} onChange={changeFilter(setStatus)}>
@@ -202,15 +242,17 @@ const DeliveryNotes = () => {
               />
             </Label>
 
-            {(status || month || kind || customerFilter) && (
+            {(status || month || kind || searchInput || customerFilter) && (
               <Button
                 layout="link"
                 onClick={() => {
+                  setSearchInput("");
+                  setSearch("");
                   setStatus("");
                   setMonth("");
                   setKind("");
                   setCustomerFilter(null);
-                  setPage(1);
+                  toFirstPage();
                 }}
               >
                 נקה סינון
@@ -220,12 +262,18 @@ const DeliveryNotes = () => {
         </CardBody>
       </Card>
 
-      {loading ? (
+      {/* שלד הטעינה מוצג רק כשאין מה להציג. כשכבר יש שורות, הטבלה נשארת
+          במקומה (מעומעמת) בזמן הטעינה: אם היא הייתה מוסרת, רכיב העימוד היה
+          נבנה מחדש, מדווח "עמוד 1", ומעבר לעמוד 2 היה קופץ מיד חזרה */}
+      {loading && notes.length === 0 ? (
         <TableLoading row={10} col={9} width={160} height={20} />
       ) : notes.length === 0 ? (
         <NotFound title="לא נמצאו תעודות משלוח" />
       ) : (
-        <TableContainer className="mb-8">
+        <TableContainer
+          className={`mb-8 ${loading ? "opacity-50 pointer-events-none" : ""}`}
+          aria-busy={loading}
+        >
           <Table className="w-full whitespace-nowrap admin-table">
             <TableHeader>
               <tr>
@@ -326,6 +374,7 @@ const DeliveryNotes = () => {
 
           <TableFooter>
             <Pagination
+              key={`${pagerKey}|${customerFilter}`}
               totalResults={total}
               resultsPerPage={LIMIT}
               onChange={setPage}

@@ -77,7 +77,6 @@ const Quotes = () => {
   );
   const [rows, setRows] = useState([{ sku: "", quantity: 1 }]);
   const [priced, setPriced] = useState(null);
-  const [validDays, setValidDays] = useState(30);
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
   // ההצעה שעליה רצה כרגע פעולה — כדי לנטרל את הכפתורים שלה בלבד
@@ -108,8 +107,19 @@ const Quotes = () => {
 
   const updateRow = (i, field, value) => {
     setRows((prev) => prev.map((r, idx) => (idx === i ? { ...r, [field]: value } : r)));
-    setPriced(null);
+    // מחיר ידני אינו משנה את מה שהמחירון החזיר, ולכן הטבלה המתומחרת נשארת
+    if (field !== "unitPrice") setPriced(null);
   };
+
+  // מחיר שהוקלד ביד לשורה. ריק = "לפי המחירון"; 0 מפורש הוא מחיר תקף
+  const hasManualPrice = (row) =>
+    row?.unitPrice !== undefined && row.unitPrice !== "" && Number(row.unitPrice) >= 0;
+
+  const toPayload = (r) => ({
+    sku: r.sku.trim(),
+    quantity: Number(r.quantity),
+    ...(hasManualPrice(r) ? { unitPrice: Number(r.unitPrice) } : {}),
+  });
 
   const addRow = () => setRows((prev) => [...prev, { sku: "", quantity: 1 }]);
   const removeRow = (i) => {
@@ -138,7 +148,12 @@ const Quotes = () => {
     });
   };
 
-  const validRows = rows.filter((r) => r.sku?.trim() && Number(r.quantity) > 0);
+  // עם האינדקס המקורי: השרת מחזיר את השורות המתומחרות באותו סדר שבו
+  // נשלחו, וזה מה שמקשר שורה בטבלה המתומחרת לשורה שבטופס. קישור לפי
+  // מק"ט היה נשבר כשאותו מוצר מופיע בשתי שורות במחירים שונים.
+  const validRows = rows
+    .map((r, index) => ({ ...r, index }))
+    .filter((r) => r.sku?.trim() && Number(r.quantity) > 0);
 
   const doPrice = async () => {
     if (!customerId) return notifyError("יש לבחור לקוח");
@@ -160,8 +175,7 @@ const Quotes = () => {
     try {
       const res = await BillingServices.createQuote({
         customer: customerId,
-        items: validRows.map((r) => ({ sku: r.sku.trim(), quantity: Number(r.quantity) })),
-        validDays: Number(validDays) || 30,
+        items: validRows.map(toPayload),
         notes,
       });
       notifySuccess(res.message);
@@ -230,7 +244,7 @@ const Quotes = () => {
   const duplicate = async (quote) => {
     setWorking(quote._id);
     try {
-      const res = await BillingServices.duplicateQuote(quote._id, { validDays: 30 });
+      const res = await BillingServices.duplicateQuote(quote._id);
       notifySuccess(res.message);
       setPage(1);
       load();
@@ -241,8 +255,31 @@ const Quotes = () => {
     }
   };
 
-  const pricedTotal = (priced?.items || []).reduce((s, i) => s + i.lineTotal, 0);
-  const catalogCount = priced?.quality?.catalog || 0;
+  // השורות כפי שיופקו: מחיר שהוקלד ביד גובר על מה שהמחירון החזיר, בדיוק
+  // כמו בשרת (quotes.create), כך שהסכום שעל המסך הוא הסכום שעל המסמך
+  const shownItems = (priced?.items || []).map((item, i) => {
+    const row = validRows[i];
+    const base = { ...item, rowIndex: row?.index, listPrice: item.unitPrice, typed: row?.unitPrice };
+    if (!hasManualPrice(row)) return base;
+    const unitPrice = Number(row.unitPrice);
+    return {
+      ...base,
+      unitPrice,
+      lineTotal: Number((unitPrice * item.quantity).toFixed(2)),
+      source: "manual",
+    };
+  });
+  const pricedTotal = shownItems.reduce((s, i) => s + i.lineTotal, 0);
+  const catalogCount = shownItems.filter((i) => i.source === "catalog").length;
+  // מק"ט שאינו בקטלוג נחסם גם עם מחיר ידני — השרת דוחה אותו בכל מקרה
+  const unknownCount = shownItems.filter((i) => i.unknownProduct).length;
+  // מחיר שלילי אינו נשלח לשרת, ולכן בלי החסימה הזו ההצעה הייתה מופקת
+  // במחיר המחירון בזמן שבשדה כתוב מספר אחר
+  const hasInvalidPrice = validRows.some(
+    (r) => r.unitPrice !== undefined && r.unitPrice !== "" && !hasManualPrice(r)
+  );
+  const hasMissing =
+    unknownCount > 0 || hasInvalidPrice || shownItems.some((i) => i.source === "missing");
 
   return (
     <>
@@ -277,17 +314,6 @@ const Quotes = () => {
                   }}
                 />
               </Label>
-
-              <Label className="w-40">
-                <span>תוקף (ימים)</span>
-                <Input
-                  className="mt-1"
-                  type="number"
-                  min="1"
-                  value={validDays}
-                  onChange={(e) => setValidDays(e.target.value)}
-                />
-              </Label>
             </div>
 
             <div className="mb-4 max-w-sm">
@@ -314,6 +340,19 @@ const Quotes = () => {
                     placeholder="כמות"
                     value={row.quantity}
                     onChange={(e) => updateRow(i, "quantity", e.target.value)}
+                  />
+                </div>
+                {/* ריק = המחיר נלקח ממחירון הלקוח או מהקטלוג */}
+                <div className="w-36">
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="מחיר"
+                    title="ריק = לפי המחירון"
+                    aria-label="מחיר ליחידה"
+                    value={row.unitPrice ?? ""}
+                    onChange={(e) => updateRow(i, "unitPrice", e.target.value)}
                   />
                 </div>
                 <button
@@ -362,7 +401,7 @@ const Quotes = () => {
                       </tr>
                     </TableHeader>
                     <TableBody>
-                      {priced.items.map((item, i) => {
+                      {shownItems.map((item, i) => {
                         const src = SOURCE_LABELS[item.source] || SOURCE_LABELS.catalog;
                         return (
                           <TableRow key={i}>
@@ -371,7 +410,24 @@ const Quotes = () => {
                             </TableCell>
                             <TableCell>{item.name}</TableCell>
                             <TableCell className="text-center">{item.quantity}</TableCell>
-                            <TableCell className="text-left">{shekel(item.unitPrice)}</TableCell>
+                            <TableCell className="text-left">
+                              <div className="w-28 mr-auto">
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  aria-label={`מחיר ליחידה — ${item.name}`}
+                                  // שדה שלא נגעו בו מציג את מחיר המחירון; שדה
+                                  // שרוקן נשאר ריק (והמחירון ברקע) כדי שאפשר
+                                  // יהיה להקליד מחיר חדש
+                                  value={item.typed ?? (item.listPrice || "")}
+                                  placeholder={item.listPrice ? String(item.listPrice) : ""}
+                                  onChange={(e) =>
+                                    updateRow(item.rowIndex, "unitPrice", e.target.value)
+                                  }
+                                />
+                              </div>
+                            </TableCell>
                             <TableCell className="text-left">{shekel(item.lineTotal)}</TableCell>
                             <TableCell className={`text-xs ${src.cls}`}>{src.text}</TableCell>
                           </TableRow>
@@ -392,22 +448,27 @@ const Quotes = () => {
                     </p>
                   </div>
 
-                  <Button onClick={doCreate} disabled={saving || priced.quality.hasMissing}>
+                  <Button onClick={doCreate} disabled={saving || hasMissing}>
                     {saving ? "מפיק..." : "הפק הצעת מחיר"}
                   </Button>
                 </div>
 
-                {priced.quality.hasMissing && (
+                {hasMissing && (
                   <p className="mt-3 text-sm text-red-600 flex items-center gap-2">
-                    <FiAlertTriangle /> יש מוצרים ללא מחיר — יש לתקן לפני הפקה
+                    <FiAlertTriangle />{" "}
+                    {unknownCount > 0
+                      ? 'יש מק"טים שאינם קיימים בקטלוג — יש להסיר או לתקן אותם לפני הפקה'
+                      : hasInvalidPrice
+                      ? "מחיר לא יכול להיות שלילי — יש לתקן לפני הפקה"
+                      : "יש מוצרים ללא מחיר — יש להקליד מחיר בשורה לפני הפקה"}
                   </p>
                 )}
 
-                {catalogCount > 0 && !priced.quality.hasMissing && (
+                {catalogCount > 0 && !hasMissing && (
                   <p className="mt-3 text-sm text-yellow-700 dark:text-yellow-500 flex items-start gap-2">
                     <FiAlertTriangle className="mt-0.5 shrink-0" />
                     <span>
-                      {catalogCount} מתוך {priced.quality.total} השורות מתומחרות לפי
+                      {catalogCount} מתוך {shownItems.length} השורות מתומחרות לפי
                       מחיר הקטלוג ולא לפי מחירון הלקוח. כל עוד לא הועלה מחירון
                       בסיס אמיתי, אלה מחירי ברירת מחדל — כדאי לבדוק לפני שליחה.
                     </span>

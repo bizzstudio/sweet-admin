@@ -215,7 +215,7 @@ const BillingDocument = () => {
     setBusy("duplicate");
     try {
       if (isQuote) {
-        const res = await BillingServices.duplicateQuote(id, { validDays: 30 });
+        const res = await BillingServices.duplicateQuote(id);
         notifySuccess(res.message);
         history.push(`/quote/${res.quote._id}`);
       } else {
