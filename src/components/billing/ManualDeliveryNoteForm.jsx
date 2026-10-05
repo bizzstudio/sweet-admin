@@ -48,6 +48,9 @@ const SOURCE_LABELS = {
   missing: { text: "אין מחיר!", cls: "text-red-600 font-semibold" },
 };
 
+// הנוסח הקצר של מקור המחיר, לרמז שמתחת לשדה המחיר
+const EXPECTED_SOURCE_TEXT = { customerPriceList: "מחירון הלקוח", catalog: "קטלוג" };
+
 const shekel = (n) =>
   Number(n || 0).toLocaleString("he-IL", {
     minimumFractionDigits: 2,
@@ -73,6 +76,39 @@ const emptyRow = () => ({ sku: "", quantity: "", ordered: null, name: "", unitPr
 // שקרא. שליחת אובייקט לשרת הייתה נכשלת על "מזהה לקוח לא תקין"
 const customerIdOf = (value) =>
   value && typeof value === "object" ? String(value._id || "") : value ? String(value) : "";
+
+// מק"ט הוא טקסט חופשי מהקטלוג, ולכן הבדיקה היא על שדות האובייקט עצמו:
+// "sku in obj" היה מוצא גם שמות כמו "constructor" שכל אובייקט נושא
+const hasOwn = (obj, key) => Object.prototype.hasOwnProperty.call(obj, key);
+
+/**
+ * המחיר שיחול על השורה, מתחת לשדה המחיר.
+ *
+ * שדה ריק — המחיר שייכנס לתעודה ומאיפה הוא מגיע. מחיר שהוקלד — רק תזכורת
+ * למה שכתוב במחירון הלקוח, כדי שיהיה ברור שהמחיר הידני מחליף אותו.
+ */
+const ExpectedPrice = ({ known, typed }) => {
+  if (!known) return null;
+
+  // שורה אחת, בלי שבירה: העמודה צרה (רוחב שדה המחיר), ורמז שנשבר לשתי
+  // שורות היה מגביה רק חלק מהשורות בטופס
+  const base = "mt-1 whitespace-nowrap text-xs leading-tight";
+
+  if (typed !== "") {
+    return known.source === "customerPriceList" && Number(typed) !== known.unitPrice ? (
+      <p className={`${base} text-gray-500`}>במחירון: {shekel(known.unitPrice)} ₪</p>
+    ) : null;
+  }
+
+  const label = SOURCE_LABELS[known.source] || SOURCE_LABELS.catalog;
+  return (
+    <p className={`${base} ${label.cls}`}>
+      {known.source === "missing"
+        ? label.text
+        : `${shekel(known.unitPrice)} ₪ · ${EXPECTED_SOURCE_TEXT[known.source] || EXPECTED_SOURCE_TEXT.catalog}`}
+    </p>
+  );
+};
 
 /**
  * @param {string}   [orderId]      - הזמנה שממנה נטענות השורות הממתינות
@@ -105,6 +141,10 @@ const ManualDeliveryNoteForm = ({
   const [loading, setLoading] = useState(Boolean(orderId));
   const [saving, setSaving] = useState(false);
   const [idempotencyKey, setIdempotencyKey] = useState(newKey);
+  // המחיר שיחול על כל מק"ט ללקוח הנבחר אם שדה המחיר יישאר ריק:
+  // { [sku]: { unitPrice, source } }. נשמר יחד עם הלקוח שעבורו נשאל, כדי
+  // שהחלפת לקוח לא תציג לרגע את המחירים של הלקוח הקודם
+  const [expected, setExpected] = useState({ customer: "", bySku: {} });
 
   // טעינת השורות הממתינות מההזמנה
   useEffect(() => {
@@ -154,6 +194,58 @@ const ManualDeliveryNoteForm = ({
       cancelled = true;
     };
   }, [orderId]);
+
+  // ── המחיר השמור מוצג בשורה, בלי לחכות ל"חשב מחירים" ──
+  //
+  // שדה מחיר ריק פירושו "המחיר מהמחירון", אבל שדה ריק נראה בדיוק כמו "אין
+  // מחיר שמור": מי שסימנה "לשמור במחירון הלקוח" ופתחה תעודה נוספת לאותו
+  // לקוח ראתה שדה ריק והקלידה הכל מחדש (05/10/2026). לכן המחיר שיחול מוצג
+  // מתחת לשדה ברגע שנבחר מוצר. השדה עצמו נשאר ריק בכוונה — מחיר שמולא
+  // אוטומטית היה נשלח כמחיר ידני ומציע לשמור למחירון את מה שכבר נמצא בו.
+  const skuKey = useMemo(
+    () => [...new Set(rows.map((r) => r.sku?.trim()).filter(Boolean))].sort().join("\n"),
+    [rows]
+  );
+
+  useEffect(() => {
+    if (!customerId || !skuKey) return;
+    const known = expected.customer === customerId ? expected.bySku : {};
+    const missing = skuKey.split("\n").filter((sku) => !hasOwn(known, sku));
+    if (!missing.length) return;
+
+    let cancelled = false;
+    // הכמות אינה משנה את מחיר היחידה; 1 רק כדי שהבקשה תהיה תקינה
+    BillingServices.priceItems({
+      customer: customerId,
+      items: missing.map((sku) => ({ sku, quantity: 1 })),
+    })
+      .then((res) => {
+        if (cancelled) return;
+        const found = {};
+        for (const item of res?.items || []) {
+          found[String(item.sku)] = { unitPrice: item.unitPrice, source: item.source };
+        }
+        setExpected((prev) => ({
+          customer: customerId,
+          bySku: { ...(prev.customer === customerId ? prev.bySku : {}), ...found },
+        }));
+      })
+      // זו תצוגת עזר בלבד: כשל כאן לא חוסם דבר, והשרת מתמחר בהפקה ממילא
+      .catch(() => {});
+
+    return () => {
+      cancelled = true;
+    };
+    // expected נקרא רק כדי לדלג על מה שכבר ידוע, ואסור שיפעיל את הבקשה מחדש
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customerId, skuKey]);
+
+  const expectedFor = (sku) => {
+    const key = sku?.trim();
+    return key && expected.customer === customerId && hasOwn(expected.bySku, key)
+      ? expected.bySku[key]
+      : null;
+  };
 
   const updateRow = (index, field, value) => {
     setRows((prev) =>
@@ -502,7 +594,9 @@ const ManualDeliveryNoteForm = ({
 
         <p className="text-sm font-medium mb-2">שורות</p>
         {rows.map((row, i) => (
-          <div key={i} className="flex flex-wrap gap-2 mb-2 items-center">
+          // items-start: הרמז שמתחת לשדה המחיר מגביה רק את העמודה שלו, ויישור
+          // למרכז היה מזיז את שדה המחיר ביחס לשדות שלצידו
+          <div key={i} className="flex flex-wrap gap-2 mb-2 items-start">
             <div className="flex-1 min-w-[220px]">
               <ProductPicker value={row.sku} onChange={(sku) => updateRow(i, "sku", sku)} />
               {/* שורה שנטענה מההזמנה בלי מק"ט — הבורר עובד על מק"טים, ולכן
@@ -534,11 +628,12 @@ const ManualDeliveryNoteForm = ({
                 value={row.unitPrice}
                 onChange={(e) => updateRow(i, "unitPrice", e.target.value)}
               />
+              <ExpectedPrice known={expectedFor(row.sku)} typed={row.unitPrice} />
             </div>
 
             {/* מופיע רק כשיש מחיר ידני — בלי מחיר אין מה לשמור */}
             {Number(row.unitPrice) > 0 && row.sku && (
-              <label className="flex items-center gap-1 text-xs text-gray-600 dark:text-gray-400 shrink-0">
+              <label className="flex items-center gap-1 py-2 text-xs text-gray-600 dark:text-gray-400 shrink-0">
                 <input
                   type="checkbox"
                   checked={row.savePrice}
@@ -549,7 +644,7 @@ const ManualDeliveryNoteForm = ({
             )}
 
             {/* המשקל שהוזמן, כדי שיהיה ברור במה השורה שונה ממה שהלקוח ביקש */}
-            <span className="text-xs text-gray-500 w-28 shrink-0">
+            <span className="py-2 text-xs text-gray-500 w-28 shrink-0">
               {row.ordered != null ? (
                 Number(row.quantity) !== Number(row.ordered) ? (
                   <span className="text-yellow-700 dark:text-yellow-500">
@@ -574,7 +669,8 @@ const ManualDeliveryNoteForm = ({
         ))}
 
         <p className="text-xs text-gray-500 mt-1">
-          מחיר יח' ריק — נלקח ממחירון הלקוח, ובהיעדרו ממחיר הקטלוג. מחיר שסומן
+          מחיר יח' ריק — נלקח ממחירון הלקוח, ובהיעדרו ממחיר הקטלוג; המחיר
+          שיחול מופיע מתחת לשדה. מחיר שסומן
           "לשמור במחירון הלקוח" יישמר עם הפקת התעודה ויתפוס גם בפעם הבאה.
         </p>
 

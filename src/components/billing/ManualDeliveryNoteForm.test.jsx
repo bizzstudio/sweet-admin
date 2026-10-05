@@ -87,6 +87,9 @@ beforeEach(() => {
       { sku: "222", quantity: 1, name: "מלפפונים" },
     ],
   });
+  // הטופס שואל על המחירים השמורים ברגע שיש שורות; ברירת המחדל כאן היא
+  // "אין מה להציג", והבדיקות שעוסקות בתצוגה קובעות תשובה משלהן
+  BillingServices.priceItems.mockResolvedValue({ items: [] });
   BillingServices.createManualDeliveryNote.mockResolvedValue({
     message: "התעודה הופקה",
     note: { customer: "c1" },
@@ -165,5 +168,74 @@ describe("ManualDeliveryNoteForm — שמירת מחיר במחירון", () => 
 
     await click(createButton());
     expect(CustomerPriceListServices.upsertItems).not.toHaveBeenCalled();
+  });
+});
+
+// המחיר השמור חייב להיראות בשורה בלי ללחוץ "חשב מחירים": שדה ריק נראה כמו
+// "לא נשמר", וזה מה שגרם להקלדה כפולה של אותם מחירים (05/10/2026).
+describe("ManualDeliveryNoteForm — הצגת המחיר השמור", () => {
+  beforeEach(() => {
+    BillingServices.priceItems.mockResolvedValue({
+      items: [
+        { sku: "111", unitPrice: 35, source: "customerPriceList" },
+        { sku: "222", unitPrice: 8.9, source: "catalog" },
+      ],
+    });
+  });
+
+  it("מציג את מחיר המחירון ואת מחיר הקטלוג מתחת לשדה, והשדה נשאר ריק", async () => {
+    await render();
+
+    expect(BillingServices.priceItems).toHaveBeenCalledWith({
+      customer: "c1",
+      items: [
+        { sku: "111", quantity: 1 },
+        { sku: "222", quantity: 1 },
+      ],
+    });
+    expect(container.textContent).toContain("35.00 ₪ · מחירון הלקוח");
+    expect(container.textContent).toContain("8.90 ₪ · קטלוג");
+    expect(priceInputs().map((input) => input.value)).toEqual(["", ""]);
+    // מחיר שמגיע מהמחירון אינו מחיר ידני, ולכן אין מה להציע לשמור
+    expect(container.querySelectorAll('input[type="checkbox"]')).toHaveLength(0);
+  });
+
+  it("שדה ריק נשלח בלי מחיר, כדי שהשרת יתמחר מהמחירון", async () => {
+    await render();
+    await click(createButton());
+
+    expect(BillingServices.createManualDeliveryNote.mock.calls[0][0].items).toEqual([
+      { sku: "111", quantity: 2, unitPrice: undefined },
+      { sku: "222", quantity: 1, unitPrice: undefined },
+    ]);
+  });
+
+  it("כשמקלידים מחיר אחר מוצג מה כתוב במחירון, ולא נשאלת שאלה נוספת לשרת", async () => {
+    await render();
+    await type(priceInputs()[0], "40");
+
+    expect(container.textContent).toContain("במחירון: 35.00 ₪");
+    expect(container.textContent).not.toContain("35.00 ₪ · מחירון הלקוח");
+    expect(BillingServices.priceItems).toHaveBeenCalledTimes(1);
+  });
+
+  it("כשל בשאלת המחירים אינו מפריע לטופס ואינו מוצג כשגיאה", async () => {
+    BillingServices.priceItems.mockRejectedValue(new Error("network"));
+    await render();
+
+    expect(container.textContent).not.toContain("₪ ·");
+    expect(notifyError).not.toHaveBeenCalled();
+    await click(createButton());
+    expect(BillingServices.createManualDeliveryNote).toHaveBeenCalledTimes(1);
+  });
+
+  it("מוצר בלי מחיר מסומן, ולא מוצג כמחיר 0", async () => {
+    BillingServices.priceItems.mockResolvedValue({
+      items: [{ sku: "111", unitPrice: 0, source: "missing" }],
+    });
+    await render();
+
+    expect(container.textContent).toContain("אין מחיר!");
+    expect(container.textContent).not.toContain("0.00 ₪");
   });
 });
