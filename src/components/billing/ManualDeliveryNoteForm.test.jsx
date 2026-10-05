@@ -18,15 +18,23 @@ vi.mock("@/services/BillingServices", () => ({
   },
 }));
 vi.mock("@/services/CustomerPriceListServices", () => ({
-  default: { upsertItems: vi.fn() },
+  default: { upsertItems: vi.fn(), getCustomerPriceListSkus: vi.fn() },
+}));
+vi.mock("@/services/CustomerHistoryServices", () => ({
+  default: { getCustomerHistory: vi.fn() },
 }));
 vi.mock("@/utils/toast", () => ({
   notifyError: vi.fn(),
   notifySuccess: vi.fn(),
 }));
-// הבוררים מושכים נתונים מהשרת; לבדיקות האלה הם אינם רלוונטיים
+// הבוררים מושכים נתונים מהשרת; לבדיקות האלה הם אינם רלוונטיים. בורר המוצר
+// רק מתעד את הסינון שקיבל, לבדיקות של "רק מוצרי המחירון"
+const pickerScopes = vi.hoisted(() => []);
 vi.mock("@/components/billing/ProductPicker", () => ({
-  default: () => React.createElement("div"),
+  default: ({ onlySkus }) => {
+    pickerScopes.push(onlySkus);
+    return React.createElement("div");
+  },
 }));
 vi.mock("@/components/billing/CustomerPicker", () => ({
   default: () => React.createElement("div"),
@@ -36,6 +44,7 @@ vi.mock("@/components/billing/BarcodeInput", () => ({
 }));
 
 import BillingServices from "@/services/BillingServices";
+import CustomerHistoryServices from "@/services/CustomerHistoryServices";
 import CustomerPriceListServices from "@/services/CustomerPriceListServices";
 import { notifyError } from "@/utils/toast";
 import ManualDeliveryNoteForm from "@/components/billing/ManualDeliveryNoteForm";
@@ -90,6 +99,10 @@ beforeEach(() => {
   // הטופס שואל על המחירים השמורים ברגע שיש שורות; ברירת המחדל כאן היא
   // "אין מה להציג", והבדיקות שעוסקות בתצוגה קובעות תשובה משלהן
   BillingServices.priceItems.mockResolvedValue({ items: [] });
+  // ברירת המחדל: ללקוח אין מחירון ואין היסטוריה, והבורר מציג את כל הקטלוג
+  CustomerPriceListServices.getCustomerPriceListSkus.mockResolvedValue({ skus: [] });
+  CustomerHistoryServices.getCustomerHistory.mockResolvedValue({ items: [] });
+  pickerScopes.length = 0;
   BillingServices.createManualDeliveryNote.mockResolvedValue({
     message: "התעודה הופקה",
     note: { customer: "c1" },
@@ -237,5 +250,84 @@ describe("ManualDeliveryNoteForm — הצגת המחיר השמור", () => {
 
     expect(container.textContent).toContain("אין מחיר!");
     expect(container.textContent).not.toContain("0.00 ₪");
+  });
+});
+
+describe("ManualDeliveryNoteForm — רק מוצרים שהלקוח מכיר", () => {
+  const catalogToggle = () =>
+    [...container.querySelectorAll("label")]
+      .find((l) => l.textContent.includes("כל הקטלוג"))
+      ?.querySelector("input");
+  const lastScope = () => pickerScopes[pickerScopes.length - 1];
+
+  it("הבורר מקבל את מק\"טי המחירון של הלקוח שנבחר", async () => {
+    CustomerPriceListServices.getCustomerPriceListSkus.mockResolvedValue({ skus: ["111", "333"] });
+    await render();
+
+    expect(CustomerPriceListServices.getCustomerPriceListSkus).toHaveBeenCalledWith("c1");
+    expect([...lastScope()]).toEqual(["111", "333"]);
+  });
+
+  it("הבורר מקבל גם את מה שהלקוח קנה בעבר, בלי מחירון", async () => {
+    CustomerHistoryServices.getCustomerHistory.mockResolvedValue({
+      items: [{ sku: "555" }, { sku: "0077" }],
+    });
+    await render();
+
+    expect(CustomerHistoryServices.getCustomerHistory).toHaveBeenCalledWith("c1", { limit: 1000 });
+    // "0077" נכנס גם בצורתו המספרית: בקטלוג אותו מוצר יכול להיות "77"
+    expect([...lastScope()]).toEqual(["555", "0077", "77"]);
+  });
+
+  it("היסטוריה ומחירון מתאחדים, וכשל באחד אינו מבטל את השני", async () => {
+    CustomerHistoryServices.getCustomerHistory.mockResolvedValue({ items: [{ sku: "555" }] });
+    CustomerPriceListServices.getCustomerPriceListSkus.mockResolvedValue({ skus: ["111"] });
+    await render();
+    expect([...lastScope()]).toEqual(["555", "111"]);
+
+    CustomerHistoryServices.getCustomerHistory.mockRejectedValue(new Error("network"));
+    act(() => root.unmount());
+    root = createRoot(container);
+    await render();
+    expect([...lastScope()]).toEqual(["111"]);
+  });
+
+  it("היסטוריה שחזרה חתוכה אינה מסננת — רשימה חלקית הייתה מסתירה מוצרים", async () => {
+    CustomerHistoryServices.getCustomerHistory.mockResolvedValue({
+      items: [{ sku: "555" }],
+      returned: 1000,
+      filtered: 1400,
+    });
+    CustomerPriceListServices.getCustomerPriceListSkus.mockResolvedValue({ skus: ["111"] });
+    await render();
+
+    expect(lastScope()).toBeNull();
+  });
+
+  it("\"כל הקטלוג\" מסיר את הסינון, וביטולו מחזיר אותו", async () => {
+    CustomerPriceListServices.getCustomerPriceListSkus.mockResolvedValue({ skus: ["111"] });
+    await render();
+
+    await click(catalogToggle());
+    expect(lastScope()).toBeNull();
+
+    await click(catalogToggle());
+    expect([...lastScope()]).toEqual(["111"]);
+  });
+
+  it("לקוח בלי מחירון ובלי היסטוריה רואה את כל הקטלוג, בלי מתג", async () => {
+    await render();
+
+    expect(lastScope()).toBeNull();
+    expect(catalogToggle()).toBeUndefined();
+  });
+
+  it("כשל בטעינת המחירון משאיר את כל הקטלוג ואינו מוצג כשגיאה", async () => {
+    CustomerHistoryServices.getCustomerHistory.mockRejectedValue(new Error("network"));
+    CustomerPriceListServices.getCustomerPriceListSkus.mockRejectedValue(new Error("network"));
+    await render();
+
+    expect(lastScope()).toBeNull();
+    expect(notifyError).not.toHaveBeenCalled();
   });
 });

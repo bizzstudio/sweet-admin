@@ -129,11 +129,32 @@ export const lookupBarcode = (products, code) => {
   });
 };
 
+/**
+ * האם המוצר נמצא בקבוצת המק"טים (ההיסטוריה והמחירון של לקוח).
+ *
+ * אותו כלל כמו priceForProduct בשרת: התאמה מדויקת, ואחריה המק"ט בצורתו
+ * המספרית ("0123" מול 123) — אחרת מוצר שמתומחר מהמחירון היה חסר בבורר.
+ */
+export const inSkuSet = (skus, product) => {
+  const sku = String(product?.sku ?? "").trim();
+  if (!sku) return false;
+  if (skus.has(sku)) return true;
+  if (!/^\d+$/.test(sku)) return false;
+  const num = Number(sku);
+  return Number.isSafeInteger(num) && skus.has(String(num));
+};
+
+/**
+ * @param {Set<string>|null} [onlySkus] - המק"טים שהלקוח מכיר (היסטוריה ומחירון):
+ *   כשהם מועברים, הרשימה מציגה רק אותם ולא את כל הקטלוג. מוצר שכבר נבחר
+ *   בשורה מוצג תמיד, גם אם אינו ביניהם.
+ */
 export default function ProductPicker({
   value,
   onChange,
   placeholder = 'חיפוש מוצר לפי שם, ברקוד או מק"ט...',
   className = "",
+  onlySkus = null,
 }) {
   const { mode } = useContext(WindmillContext);
   const { products, loading, failed } = useSyncExternalStore(
@@ -153,14 +174,20 @@ export default function ProductPicker({
     [products, value]
   );
 
+  // המוצרים שמתוכם בוחרים: כל הקטלוג, או רק מה שהלקוח מכיר
+  const pool = useMemo(
+    () => (onlySkus ? products.filter((p) => inSkuSet(onlySkus, p)) : products),
+    [products, onlySkus]
+  );
+
   // סינון ידני: react-select מרנדר את כל ההתאמות, ועם קטלוג בגודל הזה צריך
   // לחתוך אותן. filterOption={null} מכבה את הסינון הפנימי שלו.
   const options = useMemo(() => {
     const terms = inputValue.trim().toLowerCase().split(/\s+/).filter(Boolean);
-    if (!terms.length) return products.slice(0, MAX_OPTIONS);
+    if (!terms.length) return pool.slice(0, MAX_OPTIONS);
 
     const matches = [];
-    for (const p of products) {
+    for (const p of pool) {
       const haystack = `${p.name} ${p.sku} ${p.barcode || ""}`.toLowerCase();
       if (terms.every((t) => haystack.includes(t))) {
         matches.push(p);
@@ -168,14 +195,14 @@ export default function ProductPicker({
       }
     }
     return matches;
-  }, [products, inputValue]);
+  }, [pool, inputValue]);
 
   const truncNote =
     options.length < MAX_OPTIONS
       ? null
       : inputValue.trim()
       ? `מוצגות ${MAX_OPTIONS} התוצאות הראשונות — כדאי לדייק את החיפוש`
-      : `מוצגים ${MAX_OPTIONS} מוצרים מתוך ${products.length} — יש להקליד שם, ברקוד או מק"ט`;
+      : `מוצגים ${MAX_OPTIONS} מוצרים מתוך ${pool.length} — יש להקליד שם, ברקוד או מק"ט`;
 
   const styles = useMemo(
     () => ({
@@ -290,8 +317,16 @@ export default function ProductPicker({
         menuPortalTarget={document.body}
         menuPosition="fixed"
         menuPlacement="auto"
+        // מוצר שהלקוח לא קנה נראה בדיוק כמו מוצר שלא קיים, ולכן נאמר במפורש
+        // שהחיפוש היה במוצרי הלקוח בלבד
         noOptionsMessage={() =>
-          inputValue ? "לא נמצא מוצר תואם" : "אין מוצרים בקטלוג"
+          onlySkus
+            ? inputValue
+              ? "לא נמצא במוצרים שהלקוח קנה — לחיפוש בכל הקטלוג יש לסמן \"כל הקטלוג\""
+              : "אין למוצרי הלקוח התאמה בקטלוג"
+            : inputValue
+            ? "לא נמצא מוצר תואם"
+            : "אין מוצרים בקטלוג"
         }
         loadingMessage={() => "טוען..."}
       />

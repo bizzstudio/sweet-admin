@@ -111,13 +111,13 @@ const NoteEditor = ({ note, state, onChange, onReset, readOnly = false }) => {
   const setRow = (index, field, value) =>
     patch({ rows: state.rows.map((r, i) => (i === index ? { ...r, [field]: value } : r)) });
 
-  const addRow = () =>
-    patch({
-      rows: [
-        ...state.rows,
-        { sku: "", name: "", barcode: "", quantity: "", unitPrice: "", fromNote: false },
-      ],
-    });
+  const emptyRow = () => ({ sku: "", name: "", barcode: "", quantity: "", unitPrice: "", fromNote: false });
+
+  const addRow = () => patch({ rows: [...state.rows, emptyRow()] });
+  // שורה שנשכחה באמצע: נכנסת מעל השורה שנלחצה, כדי שסדר התעודה יישמר.
+  // הכפתור שבתחתית ממשיך להוסיף בסוף
+  const insertRow = (index) =>
+    patch({ rows: [...state.rows.slice(0, index), emptyRow(), ...state.rows.slice(index)] });
 
   const removeRow = (index) => patch({ rows: state.rows.filter((_, i) => i !== index) });
 
@@ -310,6 +310,15 @@ const NoteEditor = ({ note, state, onChange, onReset, readOnly = false }) => {
                     onChange={(e) => setRow(i, "unitPrice", e.target.value)}
                   />
                 </div>
+                <button
+                  type="button"
+                  onClick={() => insertRow(i)}
+                  className="p-2 text-gray-500 hover:text-gray-800 dark:hover:text-gray-200"
+                  title="הוספת שורה מעל שורה זו"
+                  aria-label="הוספת שורה מעל שורה זו"
+                >
+                  <FiPlus />
+                </button>
                 <button
                   type="button"
                   onClick={() => removeRow(i)}

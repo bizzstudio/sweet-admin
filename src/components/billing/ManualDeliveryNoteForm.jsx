@@ -39,6 +39,7 @@ import CustomerPicker from "@/components/billing/CustomerPicker";
 import BarcodeInput from "@/components/billing/BarcodeInput";
 import BillingServices from "@/services/BillingServices";
 import CustomerPriceListServices from "@/services/CustomerPriceListServices";
+import useCustomerKnownSkus from "@/hooks/useCustomerKnownSkus";
 import { notifyError, notifySuccess } from "@/utils/toast";
 
 import TableHeaderCell from "@/components/table/TableHeaderCell";
@@ -145,6 +146,14 @@ const ManualDeliveryNoteForm = ({
   // { [sku]: { unitPrice, source } }. נשמר יחד עם הלקוח שעבורו נשאל, כדי
   // שהחלפת לקוח לא תציג לרגע את המחירים של הלקוח הקודם
   const [expected, setExpected] = useState({ customer: "", bySku: {} });
+
+  // הבורר מציג רק מוצרים שהלקוח הנבחר קנה בעבר או שבמחירון שלו, ולא את כל
+  // הקטלוג שרובו מוצרים של לקוחות אחרים. ללקוח בלי היסטוריה ובלי מחירון
+  // (null) מוצג הקטלוג כולו. "כל הקטלוג" נשאר זמין: מוצר שנמכר ללקוח בפעם
+  // הראשונה עוד אינו באף אחד מהם
+  const knownSkus = useCustomerKnownSkus(customerId);
+  const [wholeCatalog, setWholeCatalog] = useState(false);
+  const pickerSkus = wholeCatalog ? null : knownSkus;
 
   // טעינת השורות הממתינות מההזמנה
   useEffect(() => {
@@ -271,6 +280,10 @@ const ManualDeliveryNoteForm = ({
     setRows((prev) => prev.map((r, i) => (i === index ? { ...r, savePrice: checked } : r)));
 
   const addRow = () => setRows((prev) => [...prev, emptyRow()]);
+  // שורה שנשכחה באמצע: נכנסת מעל השורה שנלחצה, כדי שסדר התעודה יישמר.
+  // הכפתור שבתחתית ממשיך להוסיף בסוף
+  const insertRow = (index) =>
+    setRows((prev) => [...prev.slice(0, index), emptyRow(), ...prev.slice(index)]);
   const removeRow = (index) => {
     setRows((prev) => prev.filter((_, i) => i !== index));
     setPriced(null);
@@ -525,6 +538,7 @@ const ManualDeliveryNoteForm = ({
                 onChange={(id) => {
                   setCustomerId(id);
                   setPriced(null);
+                  setWholeCatalog(false);
                 }}
               />
             </Label>
@@ -592,13 +606,34 @@ const ManualDeliveryNoteForm = ({
           />
         </div>
 
-        <p className="text-sm font-medium mb-2">שורות</p>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mb-2">
+          <p className="text-sm font-medium">שורות</p>
+          {knownSkus && (
+            <label className="flex items-center gap-1 text-xs text-gray-600 dark:text-gray-400">
+              <input
+                type="checkbox"
+                checked={wholeCatalog}
+                onChange={(e) => setWholeCatalog(e.target.checked)}
+              />
+              כל הקטלוג
+              <span className="text-gray-500">
+                {wholeCatalog
+                  ? "— מוצגים גם מוצרים שהלקוח לא קנה"
+                  : "— מוצגים רק מוצרים שהלקוח קנה או שבמחירון שלו"}
+              </span>
+            </label>
+          )}
+        </div>
         {rows.map((row, i) => (
           // items-start: הרמז שמתחת לשדה המחיר מגביה רק את העמודה שלו, ויישור
           // למרכז היה מזיז את שדה המחיר ביחס לשדות שלצידו
           <div key={i} className="flex flex-wrap gap-2 mb-2 items-start">
             <div className="flex-1 min-w-[220px]">
-              <ProductPicker value={row.sku} onChange={(sku) => updateRow(i, "sku", sku)} />
+              <ProductPicker
+                value={row.sku}
+                onChange={(sku) => updateRow(i, "sku", sku)}
+                onlySkus={pickerSkus}
+              />
               {/* שורה שנטענה מההזמנה בלי מק"ט — הבורר עובד על מק"טים, ולכן
                   היא מגיעה ריקה. בלי השם המקורי אי אפשר לדעת מה לבחור */}
               {!row.sku && row.name && (
@@ -656,6 +691,15 @@ const ManualDeliveryNoteForm = ({
               ) : null}
             </span>
 
+            <button
+              type="button"
+              onClick={() => insertRow(i)}
+              className="p-2 text-gray-500 hover:text-gray-800 dark:hover:text-gray-200"
+              title="הוספת שורה מעל שורה זו"
+              aria-label="הוספת שורה מעל שורה זו"
+            >
+              <FiPlus />
+            </button>
             <button
               type="button"
               onClick={() => removeRow(i)}

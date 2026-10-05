@@ -122,6 +122,10 @@ const Quotes = () => {
   });
 
   const addRow = () => setRows((prev) => [...prev, { sku: "", quantity: 1 }]);
+  // שורה שנשכחה באמצע: נכנסת מעל השורה שנלחצה, כדי שסדר ההצעה יישמר.
+  // הכפתור שבתחתית ממשיך להוסיף בסוף
+  const insertRow = (i) =>
+    setRows((prev) => [...prev.slice(0, i), { sku: "", quantity: 1 }, ...prev.slice(i)]);
   const removeRow = (i) => {
     setRows((prev) => prev.filter((_, idx) => idx !== i));
     setPriced(null);
@@ -355,6 +359,15 @@ const Quotes = () => {
                     onChange={(e) => updateRow(i, "unitPrice", e.target.value)}
                   />
                 </div>
+                <button
+                  type="button"
+                  onClick={() => insertRow(i)}
+                  className="p-2 text-gray-500 hover:text-gray-800 dark:hover:text-gray-200"
+                  title="הוספת שורה מעל שורה זו"
+                  aria-label="הוספת שורה מעל שורה זו"
+                >
+                  <FiPlus />
+                </button>
                 <button
                   type="button"
                   onClick={() => removeRow(i)}

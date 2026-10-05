@@ -16,6 +16,11 @@ const CustomerPriceListServices = {
     return requests.get(`/customer-price-list/${customerId}${suffix}`);
   },
 
+  // מפתחות המק"ט שבמחירון בלבד ({skus}) — לסינון בורר המוצרים
+  getCustomerPriceListSkus: async (customerId) => {
+    return requests.get(`/customer-price-list/${customerId}/skus`);
+  },
+
   // בדיקה מקדימה לפני יבוא: {rows}
   checkImport: async (customerId, body) => {
     return requests.post(`/customer-price-list/${customerId}/check`, body);
