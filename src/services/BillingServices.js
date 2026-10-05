@@ -211,6 +211,40 @@ const BillingServices = {
     return requests.get(`/billing/customer/${customerId}/open-invoices`);
   },
 
+  // --- תעודות זיכוי ---
+  // תעודת משלוח זיכוי נבנית אצלנו; חשבונית הזיכוי מופקת ממנה ב-iCount.
+  //
+  // התצוגה המקדימה מחזירה את השורות המתומחרות ואת הסכומים (כולל מע"מ)
+  // כפי שיופיעו על המסמך — הדפדפן אינו מחשב אותם בעצמו
+  previewCreditNote: async (body) => {
+    return requests.post("/billing/credit-notes/preview", body);
+  },
+
+  getCreditNotes: async (params = {}) => {
+    const q = new URLSearchParams(
+      Object.entries(params).filter(([, v]) => v !== undefined && v !== "")
+    ).toString();
+    return requests.get(`/billing/credit-notes${q ? `?${q}` : ""}`);
+  },
+
+  getCreditNote: async (id) => {
+    return requests.get(`/billing/credit-notes/${id}`);
+  },
+
+  // issueInvoice: true = תעודה + חשבונית זיכוי מיד. כשהתעודה נשמרה
+  // והחשבונית נכשלה התשובה מצליחה ונושאת invoiceError
+  createCreditNote: async (body) => {
+    return requests.post("/billing/credit-notes", body);
+  },
+
+  issueCreditNoteInvoice: async (id, body = {}) => {
+    return requests.post(`/billing/credit-notes/${id}/invoice`, body);
+  },
+
+  cancelCreditNote: async (id, reason) => {
+    return requests.patch(`/billing/credit-notes/${id}/cancel`, { reason });
+  },
+
   // --- הצעות מחיר ---
   // תמחור מקדים: מה יעלו הפריטים ללקוח הזה, לפני שמפיקים
   priceItems: async ({ customer, items }) => {

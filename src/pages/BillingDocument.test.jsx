@@ -36,6 +36,9 @@ vi.mock("@/services/BillingServices", () => ({
     cancelDeliveryNote: vi.fn(),
     billDeliveryNote: vi.fn(),
     convertQuote: vi.fn(),
+    getCreditNote: vi.fn(),
+    issueCreditNoteInvoice: vi.fn(),
+    cancelCreditNote: vi.fn(),
   },
 }));
 
@@ -290,5 +293,88 @@ describe("המסמך המודפס — פרטי איש קשר, הערות ושע�
     });
     await render();
     expect(container.textContent).toMatch(/7001 ב-\S+ בשעה \d{2}:\d{2}/);
+  });
+});
+
+// תעודת משלוח זיכוי חולקת את הפריסה, אבל לא את הפעולות של תעודת משלוח:
+// אין לה חיוב, עריכה, העתקה או הדפסה אוטומטית — ומה שמופק ממנה הוא
+// חשבונית זיכוי.
+describe("BillingDocument — תעודת משלוח זיכוי", () => {
+  const CREDIT = {
+    _id: "c1",
+    number: 9000,
+    issuedAt: "2026-10-05T09:00:00.000Z",
+    createdAt: "2026-10-05T09:00:00.000Z",
+    reason: "החזרת סחורה פגומה",
+    billing: { status: "open", originalDocNum: "300" },
+    customerSnapshot: { name: "טבולה קום" },
+    items: [{ sku: "116", barcode: "110", name: "חלב", quantity: 2, unitPrice: 5, lineTotal: 10 }],
+    subTotal: 10,
+    discount: 0,
+    total: 10,
+    totals: { net: 10, shipping: 0, discount: 0, beforeVat: 10, vat: 1.8, total: 11.8 },
+  };
+  const renderCredit = () => render("/credit-note/c1", "/credit-note/:id");
+  const buttonTexts = () => [...container.querySelectorAll("button")].map((b) => b.textContent.trim());
+
+  it("מציגה כותרת, סיבה וסיכום של זיכוי, בשני עותקים", async () => {
+    BillingServices.getCreditNote.mockResolvedValue(CREDIT);
+    await renderCredit();
+
+    expect(BillingServices.getCreditNote).toHaveBeenCalledWith("c1");
+    expect(BillingServices.getDeliveryNote).not.toHaveBeenCalled();
+    expect(container.textContent).toContain("תעודת משלוח זיכוי — מקור");
+    expect(container.textContent).toContain("תעודת משלוח זיכוי — העתק");
+    expect(container.textContent).toContain("החזרת סחורה פגומה");
+    expect(container.textContent).toContain("בגין חשבונית: 300");
+    expect(container.textContent).toContain('סה"כ לזיכוי');
+    expect(container.textContent).not.toContain('סה"כ לתשלום');
+    expect(container.textContent).not.toContain("חשבונית מרכזת תופק");
+  });
+
+  it("אין לה פעולות של תעודת משלוח, ומצב ההדפסה האוטומטית לא נשאל", async () => {
+    BillingServices.getCreditNote.mockResolvedValue(CREDIT);
+    await renderCredit();
+
+    const texts = buttonTexts();
+    expect(texts).toContain("הפק חשבונית זיכוי");
+    expect(texts).toContain("בטל תעודה");
+    for (const forbidden of ["העתק מסמך", "ערוך", "הפק חשבונית מפורטת", "שלח שוב למדפסת"]) {
+      expect(texts).not.toContain(forbidden);
+    }
+    expect(BillingServices.getDeliveryNotePrintStatus).not.toHaveBeenCalled();
+  });
+
+  it("הפקת חשבונית זיכוי דורשת אישור ומרעננת את המסמך", async () => {
+    BillingServices.getCreditNote.mockResolvedValue(CREDIT);
+    BillingServices.issueCreditNoteInvoice.mockResolvedValue({ message: "ok" });
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    await renderCredit();
+
+    const press = async () => {
+      const button = [...container.querySelectorAll("button")].find(
+        (b) => b.textContent.trim() === "הפק חשבונית זיכוי"
+      );
+      await act(async () => button.dispatchEvent(new window.MouseEvent("click", { bubbles: true })));
+      await act(async () => {
+        await Promise.resolve();
+      });
+    };
+
+    await press();
+    expect(BillingServices.issueCreditNoteInvoice).not.toHaveBeenCalled();
+
+    confirm.mockReturnValue(true);
+    BillingServices.getCreditNote.mockResolvedValue({
+      ...CREDIT,
+      billing: { status: "billed", creditDocNum: "501", originalDocNum: "300" },
+    });
+    await press();
+
+    expect(BillingServices.issueCreditNoteInvoice).toHaveBeenCalledWith("c1");
+    expect(container.textContent).toContain("מהתעודה הופקה חשבונית זיכוי 501");
+    expect(buttonTexts()).not.toContain("הפק חשבונית זיכוי");
+    expect(buttonTexts()).not.toContain("בטל תעודה");
+    confirm.mockRestore();
   });
 });

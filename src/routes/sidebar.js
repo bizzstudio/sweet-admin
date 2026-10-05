@@ -117,6 +117,10 @@ const sidebar = [
         name: "InvoicesAndCollection",
       },
       {
+        path: "/credit-notes",
+        name: "CreditNotes",
+      },
+      {
         path: "/receipts",
         name: "Receipts",
       },

@@ -56,6 +56,8 @@ const Lotteries = lazy(() => import("@/pages/Lotteries"));
 const DeliveryNotes = lazy(() => import("@/pages/DeliveryNotes"));
 const MonthlyBilling = lazy(() => import("@/pages/MonthlyBilling"));
 const Quotes = lazy(() => import("@/pages/Quotes"));
+// חשבונית זיכוי ותעודת משלוח זיכוי
+const CreditNotes = lazy(() => import("@/pages/CreditNotes"));
 const BillingDocument = lazy(() => import("@/pages/BillingDocument"));
 // נספח "ריכוז תעודות" שמצורף לחשבונית החודשית
 const InvoiceNotesSummary = lazy(() => import("@/pages/InvoiceNotesSummary"));
@@ -225,6 +227,10 @@ const routes = [
     component: Receipts,
   },
   {
+    path: "/credit-notes",
+    component: CreditNotes,
+  },
+  {
     path: "/reports/purchases",
     component: PurchaseReports,
   },
@@ -240,6 +246,10 @@ const routes = [
   },
   {
     path: "/delivery-note/:id",
+    component: BillingDocument,
+  },
+  {
+    path: "/credit-note/:id",
     component: BillingDocument,
   },
   {

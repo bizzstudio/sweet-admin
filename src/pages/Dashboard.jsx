@@ -95,6 +95,11 @@ const TILE_META = {
     accent: "purple",
     desc: "החשבוניות שהופקו ומצב הגבייה: מה שולם ומה פתוח, הפקת קבלה על תשלום שהתקבל, והפקת חשבונית זיכוי.",
   },
+  CreditNotes: {
+    icon: FiFileText,
+    accent: "purple",
+    desc: "חשבונית זיכוי ותעודת משלוח זיכוי: סחורה שחזרה או סכום שמגיע ללקוח בחזרה, והפקת חשבונית הזיכוי ב-iCount.",
+  },
   Receipts: {
     icon: MdOutlineReceiptLong,
     accent: "purple",

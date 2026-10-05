@@ -1,8 +1,8 @@
 // src/pages/BillingDocument.jsx
 //
-// מסמך להדפסה שנבנה אצלנו: תעודת משלוח או הצעת מחיר.
+// מסמך להדפסה שנבנה אצלנו: תעודת משלוח, הצעת מחיר או תעודת משלוח זיכוי.
 //
-// שני סוגי המסמכים חולקים את אותו פריסה כי הם אותו דבר מבחינת המבנה —
+// סוגי המסמכים חולקים את אותו פריסה כי הם אותו דבר מבחינת המבנה —
 // כותרת עם פרטי החברה, פרטי הלקוח, טבלת שורות וסיכום. מה שמשתנה הוא
 // הכותרת, שדות המשנה, והאם מוצג סיכום כספי.
 //
@@ -99,6 +99,14 @@ const PrintStatusBadge = ({ status }) => {
   );
 };
 
+// תעודת זיכוי אינה "מחויבת" — מה שמופק ממנה הוא חשבונית זיכוי
+const CREDIT_LABELS = {
+  open: { text: "טרם הופקה חשבונית זיכוי", type: "warning" },
+  billing: { text: "בהפקה", type: "neutral" },
+  billed: { text: "הופקה חשבונית זיכוי", type: "success" },
+  cancelled: { text: "בוטלה", type: "danger" },
+};
+
 const BillingDocument = () => {
   const { id } = useParams();
   const { pathname } = useLocation();
@@ -107,6 +115,11 @@ const BillingDocument = () => {
 
   // הסוג נגזר מהנתיב ולא מפרמטר, כדי ששני המסלולים יהיו קריאים בכתובת
   const isQuote = pathname.startsWith("/quote/");
+  // תעודת משלוח זיכוי — סחורה שחזרה או סכום שמגיע ללקוח. חשבונית הזיכוי
+  // עצמה היא מסמך ב-iCount, והמסך הזה מפיק אותה מהתעודה
+  const isCredit = pathname.startsWith("/credit-note/");
+  // תעודת משלוח רגילה: כל מה שקשור לחיוב, לעריכה ולהדפסה האוטומטית
+  const isNote = !isQuote && !isCredit;
 
   const [doc, setDoc] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -124,6 +137,12 @@ const BillingDocument = () => {
   // יורה על רכיב שכבר אינו קיים
   const refreshTimer = useRef(null);
 
+  const fetchDoc = useCallback(() => {
+    if (isQuote) return BillingServices.getQuote(id);
+    if (isCredit) return BillingServices.getCreditNote(id);
+    return BillingServices.getDeliveryNote(id);
+  }, [id, isQuote, isCredit]);
+
   /**
    * טעינת המסמך. מוצא מה-useEffect כדי שפעולה שמשנה אותו (ביטול, חיוב,
    * עריכה) תוכל לרענן — מסך שממשיך להציג "ממתינה לחיוב" אחרי שהופקה
@@ -131,24 +150,20 @@ const BillingDocument = () => {
    */
   const reload = useCallback(async () => {
     try {
-      const res = isQuote
-        ? await BillingServices.getQuote(id)
-        : await BillingServices.getDeliveryNote(id);
+      const res = await fetchDoc();
       setDoc(res);
       return res;
     } catch (err) {
       notifyError(err?.response?.data?.message || err.message);
       return null;
     }
-  }, [id, isQuote]);
+  }, [fetchDoc]);
 
   useEffect(() => {
     let alive = true;
     (async () => {
       try {
-        const res = isQuote
-          ? await BillingServices.getQuote(id)
-          : await BillingServices.getDeliveryNote(id);
+        const res = await fetchDoc();
         if (alive) setDoc(res);
       } catch (err) {
         if (alive) notifyError(err?.response?.data?.message || err.message);
@@ -159,7 +174,7 @@ const BillingDocument = () => {
     return () => {
       alive = false;
     };
-  }, [id, isQuote]);
+  }, [fetchDoc]);
 
   // מעבר בין מסמכים (העתקה, המרה מהצעה) משאיר את מצב העריכה פתוח על
   // המסמך החדש, שאינו זה שנפתח לעריכה
@@ -170,13 +185,13 @@ const BillingDocument = () => {
   // נכשל בשקט: אי אפשר לדעת אם הנייר יצא זו אי-נוחות, ואילו שגיאה אדומה
   // על מסמך שנפתח כדי להדפיס אותו ידנית היא הפרעה.
   const loadPrintStatus = useCallback(async () => {
-    if (isQuote) return;
+    if (!isNote) return;
     try {
       setPrintStatus(await BillingServices.getDeliveryNotePrintStatus(id));
     } catch (_) {
       setPrintStatus(null);
     }
-  }, [id, isQuote]);
+  }, [id, isNote]);
 
   useEffect(() => {
     loadPrintStatus();
@@ -201,8 +216,10 @@ const BillingDocument = () => {
 
   /** מצב החיוב של התעודה — קובע אילו פעולות מותרות. */
   const billingStatus = doc?.billing?.status || "open";
-  const isOpen = !isQuote && billingStatus === "open";
-  const isBilled = !isQuote && billingStatus === "billed";
+  const isOpen = isNote && billingStatus === "open";
+  const isBilled = isNote && billingStatus === "billed";
+  const isCreditOpen = isCredit && billingStatus === "open";
+  const statusLabels = isCredit ? CREDIT_LABELS : BILLING_LABELS;
 
   /**
    * "עוד אחת בדיוק כמו זו" — מסמך חדש עם אותן שורות ואותם מחירים.
@@ -282,6 +299,48 @@ const BillingDocument = () => {
     }
   };
 
+  /** הפקת חשבונית זיכוי ב-iCount מתעודת הזיכוי. */
+  const handleIssueCredit = async () => {
+    if (
+      !window.confirm(
+        `להפיק חשבונית זיכוי מתעודת זיכוי ${doc.number}?\n\n` +
+          `חשבונית זיכוי היא מסמך מס: היא נרשמת בספרים, נשלחת ללקוח במייל, ` +
+          `ואי אפשר למחוק אותה.`
+      )
+    ) {
+      return;
+    }
+
+    setBusy("credit");
+    try {
+      const res = await BillingServices.issueCreditNoteInvoice(id);
+      notifySuccess(res.message);
+    } catch (err) {
+      notifyError(err?.response?.data?.message || err.message);
+    } finally {
+      // גם אחרי כשלון: ייתכן שהחשבונית הופקה והסימון נכשל, והמסך חייב
+      // להציג את המצב האמיתי לפני לחיצה נוספת
+      await reload();
+      setBusy("");
+    }
+  };
+
+  const handleCancelCredit = async () => {
+    const reason = window.prompt(`ביטול תעודת זיכוי ${doc.number}. מה הסיבה?`);
+    if (reason === null) return;
+
+    setBusy("cancel");
+    try {
+      const res = await BillingServices.cancelCreditNote(id, reason);
+      notifySuccess(res.message);
+    } catch (err) {
+      notifyError(err?.response?.data?.message || err.message);
+    } finally {
+      await reload();
+      setBusy("");
+    }
+  };
+
   /** הפקת תעודה (או חשבונית) מהצעת מחיר. */
   const handleConvert = async (target) => {
     const what = target === "invoice" ? "חשבונית מס" : "תעודת משלוח";
@@ -312,7 +371,7 @@ const BillingDocument = () => {
   if (loading) return <Loading loading={loading} />;
   if (!doc) return <PageTitle>המסמך לא נמצא</PageTitle>;
 
-  const title = isQuote ? "הצעת מחיר" : "תעודת משלוח";
+  const title = isQuote ? "הצעת מחיר" : isCredit ? "תעודת משלוח זיכוי" : "תעודת משלוח";
   const company = {
     name: globalSetting?.company_name || globalSetting?.shop_name || "",
     address: globalSetting?.address || "",
@@ -362,13 +421,16 @@ const BillingDocument = () => {
           {isQuote && doc.validUntil && (
             <p className="text-sm">בתוקף עד: {hebDate(doc.validUntil)}</p>
           )}
-          {!isQuote && doc.orderNumber && (
+          {isNote && doc.orderNumber && (
             <p className="text-sm">הזמנה: {doc.orderNumber}</p>
           )}
           {/* מספר הפתק מהפנקס הידני — זה מה שמאפשר להצליב את המסמך
               המודפס מול מה שהלקוח קיבל ביד ביום המסירה */}
           {doc.manualReference && (
             <p className="text-sm">תעודה ידנית: {doc.manualReference}</p>
+          )}
+          {isCredit && doc.billing?.originalDocNum && (
+            <p className="text-sm">בגין חשבונית: {doc.billing.originalDocNum}</p>
           )}
         </div>
       </div>
@@ -398,6 +460,12 @@ const BillingDocument = () => {
         {/* ההערות בראש המסמך, מתחת לאיש הקשר ולא בתחתית — בקשת הלקוחה
             (04/10/2026): זה מה שהנהג והמקבל צריכים לראות לפני הסחורה.
             ⚠️ אותו מיקום ב-lib/printing/deliveryNotePdf.js */}
+        {isCredit && doc.reason && (
+          <p className="text-sm mt-2">
+            <span className="font-bold">סיבת הזיכוי:</span> {doc.reason}
+          </p>
+        )}
+
         {doc.notes && (
           <div className="mt-3 rounded border border-gray-400 bg-gray-50 px-3 py-2">
             <p className="text-sm font-bold">הערות</p>
@@ -486,7 +554,7 @@ const BillingDocument = () => {
               <td className="text-left py-1">{shekel(totals.vat)} ₪</td>
             </tr>
             <tr className="border-t-2 border-gray-800 font-bold text-base">
-              <td className="py-2">סה"כ לתשלום</td>
+              <td className="py-2">{isCredit ? 'סה"כ לזיכוי' : 'סה"כ לתשלום'}</td>
               <td className="text-left py-2">{shekel(totals.total)} ₪</td>
             </tr>
           </tbody>
@@ -501,10 +569,17 @@ const BillingDocument = () => {
           </p>
         ) : (
           <>
-            <p>
-              תעודת משלוח זו אינה מהווה חשבונית מס. חשבונית מרכזת תופק
-              בסוף החודש.
-            </p>
+            {isCredit ? (
+              <p>
+                תעודת זיכוי זו אינה מהווה חשבונית מס. הזיכוי נרשם בספרים
+                בחשבונית זיכוי, המופקת בנפרד.
+              </p>
+            ) : (
+              <p>
+                תעודת משלוח זו אינה מהווה חשבונית מס. חשבונית מרכזת תופק
+                בסוף החודש.
+              </p>
+            )}
             <div className="mt-8 flex justify-between">
               <div className="w-56 border-t border-gray-400 pt-1 text-center">
                 חתימת המוסר
@@ -529,23 +604,44 @@ const BillingDocument = () => {
         <div className="flex flex-wrap items-center gap-3">
           {/* מצב החיוב — קובע אילו פעולות מותרות, ולכן מוצג לצידן */}
           {!isQuote && (
-            <Badge type={(BILLING_LABELS[billingStatus] || BILLING_LABELS.open).type}>
-              {(BILLING_LABELS[billingStatus] || BILLING_LABELS.open).text}
+            <Badge type={(statusLabels[billingStatus] || statusLabels.open).type}>
+              {(statusLabels[billingStatus] || statusLabels.open).text}
             </Badge>
           )}
 
           {/* מצב ההדפסה האוטומטית — כדי ש"האם זה יצא מהמדפסת" תהיה שאלה
               שנענית מהמסך ולא מהלוגים של השרת */}
-          {!isQuote && printStatus && printStatus.status !== "none" && (
+          {isNote && printStatus && printStatus.status !== "none" && (
             <PrintStatusBadge status={printStatus} />
           )}
 
           {/* העתקה — זמינה תמיד, גם על מסמך שחויב או בוטל: ההעתק הוא
               מסמך חדש ואינו נוגע במקור */}
-          <Button layout="outline" onClick={handleDuplicate} disabled={Boolean(busy)}>
-            <FiCopy className="ml-2" />
-            {busy === "duplicate" ? "מעתיק..." : "העתק מסמך"}
-          </Button>
+          {!isCredit && (
+            <Button layout="outline" onClick={handleDuplicate} disabled={Boolean(busy)}>
+              <FiCopy className="ml-2" />
+              {busy === "duplicate" ? "מעתיק..." : "העתק מסמך"}
+            </Button>
+          )}
+
+          {isCreditOpen && (
+            <Button layout="outline" onClick={handleIssueCredit} disabled={Boolean(busy)}>
+              <MdOutlineReceiptLong className="ml-2" />
+              {busy === "credit" ? "מפיק..." : "הפק חשבונית זיכוי"}
+            </Button>
+          )}
+
+          {isCreditOpen && (
+            <Button
+              layout="outline"
+              onClick={handleCancelCredit}
+              disabled={Boolean(busy)}
+              className="text-red-600 border-red-400"
+            >
+              <FiXCircle className="ml-2" />
+              {busy === "cancel" ? "מבטל..." : "בטל תעודה"}
+            </Button>
+          )}
 
           {isOpen && (
             <Button
@@ -597,7 +693,7 @@ const BillingDocument = () => {
             </>
           )}
 
-          {!isQuote && (
+          {isNote && (
             <Button layout="outline" onClick={handleReprint} disabled={reprinting}>
               <FiRefreshCw className="ml-2" />
               {reprinting ? "שולח..." : "שלח שוב למדפסת"}
@@ -665,7 +761,63 @@ const BillingDocument = () => {
         </Card>
       )}
 
-      {!isQuote && doc.manuallyEdited && (
+      {isCredit && billingStatus === "billed" && (
+        <Card className="mb-4 border-r-4 border-green-500">
+          <CardBody>
+            <p className="text-sm text-gray-700 dark:text-gray-300">
+              מהתעודה הופקה חשבונית זיכוי{" "}
+              <span className="font-mono font-semibold">{doc.billing?.creditDocNum}</span>
+              {doc.billing?.billedAt &&
+                ` ב-${hebDate(doc.billing.billedAt)} בשעה ${hebTime(doc.billing.billedAt)}`}
+              {doc.billing?.originalDocNum && `, בגין חשבונית ${doc.billing.originalDocNum}`}
+              {doc.billing?.creditDocUrl && (
+                <>
+                  {" "}
+                  (
+                  <a
+                    href={doc.billing.creditDocUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-blue-600 hover:underline"
+                  >
+                    צפייה ב-iCount
+                  </a>
+                  )
+                </>
+              )}
+              .{" "}
+              {doc.billing?.creditDocEmailedTo
+                ? `נשלחה ללקוח במייל: ${doc.billing.creditDocEmailedTo}.`
+                : "לא נשלחה במייל — ללקוח אין כתובת מייל תקינה, או שהשליחה כבויה."}
+            </p>
+          </CardBody>
+        </Card>
+      )}
+
+      {isCreditOpen && (
+        <Card className="mb-4 border-r-4 border-yellow-500">
+          <CardBody>
+            <p className="text-sm text-gray-700 dark:text-gray-300">
+              לתעודה עדיין לא הופקה חשבונית זיכוי, ולכן הזיכוי אינו רשום
+              בספרים. היא אינה יורדת אוטומטית מהחשבונית החודשית של הלקוח.
+            </p>
+          </CardBody>
+        </Card>
+      )}
+
+      {isCredit && billingStatus === "cancelled" && (
+        <Card className="mb-4 border-r-4 border-red-500">
+          <CardBody>
+            <p className="text-sm text-gray-700 dark:text-gray-300">
+              התעודה בוטלה
+              {doc.billing?.cancelledAt ? ` ב-${hebDate(doc.billing.cancelledAt)}` : ""}
+              {doc.billing?.cancelReason ? ` — ${doc.billing.cancelReason}` : ""}.
+            </p>
+          </CardBody>
+        </Card>
+      )}
+
+      {isNote && doc.manuallyEdited && (
         <Card className="mb-4 border-r-4 border-blue-500">
           <CardBody>
             <p className="text-sm text-gray-700 dark:text-gray-300">
@@ -677,7 +829,7 @@ const BillingDocument = () => {
         </Card>
       )}
 
-      {!isQuote && doc.copiedFromNumber && (
+      {isNote && doc.copiedFromNumber && (
         <Card className="mb-4 border-r-4 border-gray-400">
           <CardBody>
             <p className="text-sm text-gray-700 dark:text-gray-300">

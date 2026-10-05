@@ -300,6 +300,14 @@ const Invoices = () => {
                     {inv.credits?.length > 0 && (
                       <span className="block text-xs text-red-600">
                         {inv.credits.length} זיכויים
+                        {/* זיכוי חלקי (מתעודת זיכוי) אינו מבטל את החשבונית,
+                            ולכן הסכום שלו מוצג — זה מה שיורד מהגבייה */}
+                        {inv.credits.some((c) => c.partial) &&
+                          ` · ${shekel(
+                            inv.credits
+                              .filter((c) => c.partial)
+                              .reduce((s, c) => s + (c.grossEstimate || 0), 0)
+                          )} ₪`}
                       </span>
                     )}
                   </TableCell>
