@@ -444,10 +444,11 @@ const BillingDocument = () => {
         {doc.customerSnapshot?.vatId && (
           <p className="text-sm">ח.פ: {doc.customerSnapshot.vatId}</p>
         )}
-        {doc.customerSnapshot?.address && (
+        {(doc.customerSnapshot?.address || doc.customerSnapshot?.city) && (
           <p className="text-sm">
-            {doc.customerSnapshot.address}
-            {doc.customerSnapshot.city ? `, ${doc.customerSnapshot.city}` : ""}
+            {[doc.customerSnapshot.address, doc.customerSnapshot.city]
+              .filter(Boolean)
+              .join(", ")}
           </p>
         )}
         {doc.customerSnapshot?.contactPerson && (
