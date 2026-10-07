@@ -32,11 +32,12 @@ import {
   TableHeader,
   TableRow,
 } from "@windmill/react-ui";
-import { FiAlertTriangle, FiPlus, FiTrash2 } from "react-icons/fi";
+import { FiAlertTriangle, FiClock, FiPlus, FiTrash2 } from "react-icons/fi";
 
 import ProductPicker from "@/components/billing/ProductPicker";
-import CustomerPicker from "@/components/billing/CustomerPicker";
+import CustomerPicker, { customerNameOf, useCustomers } from "@/components/billing/CustomerPicker";
 import BarcodeInput from "@/components/billing/BarcodeInput";
+import CustomerHistoryModal from "@/components/customer/CustomerHistoryModal";
 import BillingServices from "@/services/BillingServices";
 import CustomerPriceListServices from "@/services/CustomerPriceListServices";
 import useCustomerKnownSkus from "@/hooks/useCustomerKnownSkus";
@@ -112,6 +113,23 @@ const ExpectedPrice = ({ known, typed }) => {
 };
 
 /**
+ * חלון ההיסטוריה של הלקוח — אותו חלון שנפתח מרשימת הלקוחות.
+ *
+ * רכיב נפרד כדי שרשימת הלקוחות תימשך רק כשהחלון נפתח: כשמגיעים מהזמנה
+ * הטופס אינו טוען אותה, והיא נחוצה כאן רק לשם שבכותרת. בלי השם אין מה
+ * שיאשר שההיסטוריה שמוצגת היא של הלקוח הנכון.
+ */
+const CustomerHistoryWindow = ({ customerId, ...modalProps }) => {
+  const { customers } = useCustomers();
+  const customerName = useMemo(
+    () => customerNameOf(customers.find((c) => String(c._id) === String(customerId))),
+    [customers, customerId]
+  );
+
+  return <CustomerHistoryModal {...modalProps} customerId={customerId} customerName={customerName} />;
+};
+
+/**
  * @param {string}   [orderId]      - הזמנה שממנה נטענות השורות הממתינות
  * @param {string}   [customerId]   - לקוח קבוע מראש (כשמגיעים מהזמנה)
  * @param {boolean}  [asInvoice]    - להפיק חשבונית מס מיד, ולא רק תעודה
@@ -151,9 +169,16 @@ const ManualDeliveryNoteForm = ({
   // הקטלוג שרובו מוצרים של לקוחות אחרים. ללקוח בלי היסטוריה ובלי מחירון
   // (null) מוצג הקטלוג כולו. "כל הקטלוג" נשאר זמין: מוצר שנמכר ללקוח בפעם
   // הראשונה עוד אינו באף אחד מהם
-  const knownSkus = useCustomerKnownSkus(customerId);
+  //
+  // historyVersion: היסטוריה שהועלתה או הוסרה מחלון ההיסטוריה משנה את
+  // הרשימה הזו, והבורר צריך לקבל אותה בלי לבחור את הלקוח מחדש
+  const [historyVersion, setHistoryVersion] = useState(0);
+  const knownSkus = useCustomerKnownSkus(customerId, historyVersion);
   const [wholeCatalog, setWholeCatalog] = useState(false);
   const pickerSkus = wholeCatalog ? null : knownSkus;
+
+  // חלון ההיסטוריה של הלקוח. null — עוד לא נפתח, ואז אינו מורכב כלל
+  const [historyOpen, setHistoryOpen] = useState(null);
 
   // טעינת השורות הממתינות מההזמנה
   useEffect(() => {
@@ -515,15 +540,39 @@ const ManualDeliveryNoteForm = ({
   return (
     <Card className="min-w-0 shadow-xs bg-white dark:bg-gray-800 my-5 border-r-4 border-green-500">
       <CardBody>
-        <div className="mb-4">
-          <h3 className="font-semibold text-lg">
-            {asInvoice ? "חשבונית מס חדשה" : "תעודת משלוח ידנית"}
-          </h3>
-          <p className="text-sm text-gray-500">
-            {asInvoice
-              ? "החשבונית מופקת ב-iCount מיד ונשלחת במייל ללקוח (אם יש בכרטיס שלו כתובת מייל אמיתית). במערכת תיווצר גם תעודת משלוח שעליה היא מבוססת."
-              : "הכמות שתוקלד כאן היא המשקל שנשקל בפועל, והיא זו שתחויב בחשבונית בסוף החודש."}
-          </p>
+        {historyOpen !== null && (
+          <CustomerHistoryWindow
+            isOpen={historyOpen}
+            onClose={() => setHistoryOpen(false)}
+            customerId={customerId}
+            onChanged={() => setHistoryVersion((v) => v + 1)}
+          />
+        )}
+
+        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3 className="font-semibold text-lg">
+              {asInvoice ? "חשבונית מס חדשה" : "תעודת משלוח ידנית"}
+            </h3>
+            <p className="text-sm text-gray-500">
+              {asInvoice
+                ? "החשבונית מופקת ב-iCount מיד ונשלחת במייל ללקוח (אם יש בכרטיס שלו כתובת מייל אמיתית). במערכת תיווצר גם תעודת משלוח שעליה היא מבוססת."
+                : "הכמות שתוקלד כאן היא המשקל שנשקל בפועל, והיא זו שתחויב בחשבונית בסוף החודש."}
+            </p>
+          </div>
+
+          {/* בכותרת ולא ליד בורר הלקוח: כשמגיעים מהזמנה הבורר אינו מוצג,
+              וההיסטוריה נחוצה גם שם */}
+          <Button
+            type="button"
+            size="small"
+            layout="outline"
+            onClick={() => setHistoryOpen(true)}
+            disabled={!customerId}
+            title={customerId ? "מה הלקוח קנה בעבר" : "יש לבחור לקוח"}
+          >
+            <FiClock className="ml-1" /> היסטוריית הלקוח
+          </Button>
         </div>
 
         <div className="flex flex-wrap gap-4 mb-5">

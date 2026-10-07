@@ -38,6 +38,19 @@ vi.mock("@/components/billing/ProductPicker", () => ({
 }));
 vi.mock("@/components/billing/CustomerPicker", () => ({
   default: () => React.createElement("div"),
+  useCustomers: () => ({ customers: [{ _id: "c1", name: "מכולת", lastName: "השכונה" }] }),
+  customerNameOf: (c) => [c?.name, c?.lastName].filter(Boolean).join(" "),
+}));
+// חלון ההיסטוריה עצמו נבדק בנפרד; כאן נבדק רק מה שהטופס מעביר אליו
+vi.mock("@/components/customer/CustomerHistoryModal", () => ({
+  default: ({ isOpen, customerId, customerName, onChanged }) =>
+    isOpen
+      ? React.createElement(
+          "button",
+          { type: "button", "data-history": customerId, onClick: onChanged },
+          customerName
+        )
+      : null,
 }));
 vi.mock("@/components/billing/BarcodeInput", () => ({
   default: () => React.createElement("div"),
@@ -329,5 +342,36 @@ describe("ManualDeliveryNoteForm — רק מוצרים שהלקוח מכיר", (
 
     expect(lastScope()).toBeNull();
     expect(notifyError).not.toHaveBeenCalled();
+  });
+});
+
+describe("ManualDeliveryNoteForm — חלון ההיסטוריה של הלקוח", () => {
+  const historyButton = () =>
+    [...container.querySelectorAll("button")].find((b) => b.textContent.includes("היסטוריית הלקוח"));
+
+  it("הכפתור פותח את חלון ההיסטוריה של הלקוח שבתעודה", async () => {
+    await render();
+    expect(container.querySelector("[data-history]")).toBeNull();
+
+    await click(historyButton());
+    const modal = container.querySelector("[data-history]");
+    expect(modal.getAttribute("data-history")).toBe("c1");
+    expect(modal.textContent).toBe("מכולת השכונה");
+  });
+
+  it("בלי לקוח הכפתור כבוי", async () => {
+    await act(async () => {
+      root.render(React.createElement(ManualDeliveryNoteForm, { onCreated: () => {} }));
+    });
+    expect(historyButton().disabled).toBe(true);
+  });
+
+  it("היסטוריה שהשתנתה בחלון מרעננת את סינון בורר המוצרים", async () => {
+    await render();
+    const before = CustomerHistoryServices.getCustomerHistory.mock.calls.length;
+
+    await click(historyButton());
+    await click(container.querySelector("[data-history]"));
+    expect(CustomerHistoryServices.getCustomerHistory.mock.calls.length).toBe(before + 1);
   });
 });

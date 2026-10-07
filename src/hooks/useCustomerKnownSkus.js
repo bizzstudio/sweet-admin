@@ -31,7 +31,8 @@ const addSku = (set, value) => {
   if (/^\d+$/.test(sku) && Number.isSafeInteger(Number(sku))) set.add(String(Number(sku)));
 };
 
-const useCustomerKnownSkus = (customerId) => {
+// version: מספר שעולה כשההיסטוריה או המחירון השתנו, כדי לטעון מחדש לאותו לקוח
+const useCustomerKnownSkus = (customerId, version = 0) => {
   // נשמר יחד עם הלקוח שעבורו נשאל, כדי שהחלפת לקוח לא תסנן לרגע לפי
   // המוצרים של הלקוח הקודם
   const [state, setState] = useState({ customer: "", skus: null });
@@ -67,7 +68,7 @@ const useCustomerKnownSkus = (customerId) => {
     return () => {
       cancelled = true;
     };
-  }, [customerId]);
+  }, [customerId, version]);
 
   return customerId && state.customer === customerId ? state.skus : null;
 };
