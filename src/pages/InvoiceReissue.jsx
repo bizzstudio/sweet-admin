@@ -648,9 +648,9 @@ const InvoiceReissue = () => {
                 {data.receiptDocNum ? ` (קבלה ${data.receiptDocNum})` : ""}
               </p>
               <p className="mt-1 text-red-700 dark:text-red-400">
-                הזיכוי ינתק את הקבלה מהחשבונית. הקבלה תישאר ב-iCount ותצטרך
-                טיפול מול ההנהלת חשבונות — לרוב רישום התשלום מחדש מול החשבונית
-                החדשה.
+                הזיכוי ינתק את הקבלה מהחשבונית, והקבלה תישאר ב-iCount. הסכום
+                ששולם יירשם כיתרת זכות ללקוח, ויקוזז כשיירשם התשלום על
+                החשבונית החדשה.
               </p>
               <label className="mt-2 flex items-center gap-2 cursor-pointer">
                 <input

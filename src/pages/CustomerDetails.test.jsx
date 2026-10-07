@@ -28,6 +28,15 @@ vi.mock("@/services/CustomerServices", () => ({
   },
 }));
 
+// פאנל יתרת הלקוח שולף את היתרה בכל טעינה, מאותה סיבה כמו המחירון למטה
+vi.mock("@/services/BillingServices", () => ({
+  default: {
+    getCustomerBalance: vi.fn().mockResolvedValue({ balance: 0, entries: [] }),
+    adjustCustomerBalance: vi.fn(),
+    syncCustomerToIcount: vi.fn(),
+  },
+}));
+
 // כרטיס המחירון שולף את המחירון של הלקוח בכל טעינה. בלי המוק הזה הבדיקה
 // הייתה יוצאת לרשת, כלומר תוצאה שאינה דטרמיניסטית
 vi.mock("@/services/CustomerPriceListServices", () => ({

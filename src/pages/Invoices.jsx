@@ -9,7 +9,7 @@
 // שתי הפעולות מפיקות מסמכי מס ב-iCount שאי אפשר למחוק, ולכן שתיהן עוברות
 // דרך דיאלוג אישור עם פירוט מה עומד לקרות — ולא לחיצה אחת בטבלה.
 
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Badge,
   Button,
@@ -56,6 +56,11 @@ const shekel = (n) =>
 
 const hebDate = (d) => (d ? new Date(d).toLocaleDateString("he-IL") : "—");
 
+// יתרה קטנה מאגורה היא שארית עיגול ולא יתרה
+const hasBalance = (n) => Math.abs(Number(n) || 0) >= 0.005;
+
+const round2 = (n) => Number((Number(n) || 0).toFixed(2));
+
 const PAYMENT_METHODS = [
   { value: "transfer", label: "העברה בנקאית" },
   { value: "check", label: "צ'ק" },
@@ -78,6 +83,11 @@ const Invoices = () => {
   // הסכום המחייב מ-iCount, או null אם לא נטען (iCount לא זמין)
   const [icountTotal, setIcountTotal] = useState(null);
   const [loadingTotal, setLoadingTotal] = useState(false);
+  // יתרת הלקוח מתשלומים קודמים. חיובי = לזכותו, שלילי = לחובתו
+  const [balance, setBalance] = useState(0);
+  // איזו פתיחה של החלון היא האחרונה. תשובה שחוזרת אחרי שהחלון כבר נפתח
+  // על חשבונית אחרת הייתה ממלאת את הסכום של הקודמת
+  const openSeq = useRef(0);
 
   // טופס התשלום
   const [amount, setAmount] = useState("");
@@ -108,28 +118,50 @@ const Invoices = () => {
     setDetails({});
     setIcountTotal(null);
     // האומדן שלנו כערך פתיחה, כדי שהשדה לא יהיה ריק אם iCount לא זמין
-    setAmount(String(inv.grossEstimate));
+    // היתרה שהגיעה עם הרשימה, עד שהעדכנית נטענת
+    const known = Number(inv.customerBalance) || 0;
+    setBalance(known);
+    setAmount(String(Math.max(0, round2(inv.grossEstimate - known))));
     setPayFor(inv);
+    const seq = ++openSeq.current;
 
     // הסכום המחייב הוא זה שעל החשבונית ב-iCount, לא האומדן שלנו.
-    // קבלה על סכום שונה מהחשבונית היא אי-התאמה בכרטסת של הלקוח.
+    // היתרה נטענת מחדש באותה הזדמנות: הרשימה יכולה להיות פתוחה שעה,
+    // ובינתיים נרשם ללקוח תשלום ממסך אחר.
     setLoadingTotal(true);
-    try {
-      const res = await BillingServices.getInvoiceTotal(inv.docNum);
-      if (res?.totalWithVat > 0) {
-        setIcountTotal(res);
-        setAmount(String(res.totalWithVat));
-      }
-    } catch {
-      // iCount לא זמין — נשארים עם האומדן, והמסך מציין זאת
-    } finally {
-      setLoadingTotal(false);
-    }
+    const [totalRes, balanceRes] = await Promise.allSettled([
+      BillingServices.getInvoiceTotal(inv.docNum),
+      BillingServices.getCustomerBalance(inv.customer),
+    ]);
+    if (seq !== openSeq.current) return;
+
+    // iCount לא זמין — נשארים עם האומדן, והמסך מציין זאת
+    const total = totalRes.status === "fulfilled" && totalRes.value?.totalWithVat > 0
+      ? totalRes.value
+      : null;
+    const fresh = balanceRes.status === "fulfilled"
+      ? Number(balanceRes.value?.balance) || 0
+      : known;
+
+    if (total) setIcountTotal(total);
+    setBalance(fresh);
+    // מה שנשאר לגבות: החשבונית פחות יתרת הזכות, או בתוספת חוב קודם
+    setAmount(String(Math.max(0, round2((total?.totalWithVat ?? inv.grossEstimate) - fresh))));
+    setLoadingTotal(false);
   };
 
+  // סכום החשבונית שמולו נמדד התשלום, ומה יישאר ביתרה אחריו. אותו חשבון
+  // שהשרת עושה ברישום — כאן רק כדי להראות מראש מה עומד לקרות.
+  const invoiceTotal = icountTotal?.totalWithVat ?? payFor?.grossEstimate ?? 0;
+  const balanceAfter = round2(balance + (Number(amount) || 0) - invoiceTotal);
+  // היתרה מכסה את כל החשבונית: אין כסף שנכנס, ולכן גם אין קבלה
+  const closesFromBalance = !(Number(amount) > 0) && balance + 0.005 >= invoiceTotal;
+
   const submitPayment = async () => {
-    const value = Number(amount);
-    if (!(value > 0)) return notifyError("יש להזין סכום חיובי");
+    const value = Number(amount) || 0;
+    if (value < 0 || (!(value > 0) && !closesFromBalance)) {
+      return notifyError("יש להזין סכום חיובי");
+    }
 
     setWorking(true);
     try {
@@ -297,6 +329,16 @@ const Invoices = () => {
                         מס' {inv.customerNumber}
                       </span>
                     )}
+                    {hasBalance(inv.customerBalance) && (
+                      <span
+                        className={`block text-xs ${
+                          inv.customerBalance > 0 ? "text-green-700" : "text-red-600"
+                        }`}
+                      >
+                        {inv.customerBalance > 0 ? "יתרת זכות" : "יתרת חוב"}{" "}
+                        {shekel(Math.abs(inv.customerBalance))} ₪
+                      </span>
+                    )}
                     {inv.credits?.length > 0 && (
                       <span className="block text-xs text-red-600">
                         {inv.credits.length} זיכויים
@@ -326,6 +368,9 @@ const Invoices = () => {
                     {inv.isPaid ? (
                       <div className="flex flex-col gap-1">
                         <Badge type="success">שולמה</Badge>
+                        {inv.paidFromBalance && !inv.receiptDocNum && (
+                          <span className="text-xs text-gray-500">מיתרת הזכות</span>
+                        )}
                         {inv.receiptDocNum &&
                           (inv.receiptDocUrl ? (
                             <a
@@ -418,6 +463,20 @@ const Invoices = () => {
             />
           </Label>
 
+          {hasBalance(balance) && (
+            <p
+              className={`text-sm mb-3 p-2 rounded ${
+                balance > 0
+                  ? "bg-green-50 text-green-800 dark:bg-green-900/20 dark:text-green-400"
+                  : "bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400"
+              }`}
+            >
+              {balance > 0
+                ? `ללקוח יתרת זכות של ${shekel(balance)} ₪ מתשלומים קודמים — קוזזה מהסכום לגבייה.`
+                : `ללקוח יתרת חוב של ${shekel(-balance)} ₪ מתשלומים קודמים — נוספה לסכום לגבייה.`}
+            </p>
+          )}
+
           <p className="text-xs mb-3">
             {loadingTotal ? (
               <span className="text-gray-500">טוען את הסכום מ-iCount...</span>
@@ -445,7 +504,7 @@ const Invoices = () => {
             </Select>
           </Label>
 
-          {method === "check" && (
+          {!closesFromBalance && method === "check" && (
             <div className="grid grid-cols-2 gap-3">
               <Label>
                 <span>מספר צ'ק</span>
@@ -483,7 +542,7 @@ const Invoices = () => {
             </div>
           )}
 
-          {method === "transfer" && (
+          {!closesFromBalance && method === "transfer" && (
             <div className="grid grid-cols-2 gap-3">
               <Label>
                 <span>בנק</span>
@@ -504,19 +563,33 @@ const Invoices = () => {
             </div>
           )}
 
-          {icountTotal && Math.abs(Number(amount) - icountTotal.totalWithVat) > 0.01 && (
-            <p className="mt-3 text-sm text-yellow-700 dark:text-yellow-500 flex items-start gap-2">
-              <FiAlertTriangle className="mt-0.5 shrink-0" />
+          {/* מה יישאר ללקוח אחרי הרישום. מוצג רק כשיש מה לומר: תשלום
+              מדויק בלי יתרה קודמת הוא המקרה הרגיל ואינו צריך הסבר */}
+          {!loadingTotal && (hasBalance(balance) || hasBalance(balanceAfter)) && (
+            <p
+              className={`mt-3 text-sm flex items-start gap-2 ${
+                balanceAfter < -0.005
+                  ? "text-red-700 dark:text-red-400"
+                  : "text-gray-700 dark:text-gray-300"
+              }`}
+            >
+              {balanceAfter < -0.005 && <FiAlertTriangle className="mt-0.5 shrink-0" />}
               <span>
-                הסכום שונה מסכום החשבונית. הקבלה תופק על{" "}
-                {shekel(Number(amount) || 0)} ₪ ותשאיר יתרה פתוחה.
+                {!hasBalance(balanceAfter)
+                  ? "אחרי הרישום היתרה של הלקוח תהיה מאוזנת."
+                  : balanceAfter > 0
+                  ? `אחרי הרישום יישארו ללקוח ${shekel(balanceAfter)} ₪ זכות, שיקוזזו מהחשבונית הבאה.`
+                  : `הסכום אינו מכסה את החשבונית. היא תיסגר, ו-${shekel(
+                      -balanceAfter
+                    )} ₪ יירשמו כחוב של הלקוח וייגבו עם החשבונית הבאה.`}
               </span>
             </p>
           )}
 
           <p className="mt-4 text-xs text-gray-500">
-            תופק קבלה ב-iCount המקושרת לחשבונית {payFor?.docNum}. יש לרשום תשלום
-            רק אחרי שהכסף התקבל בפועל.
+            {closesFromBalance
+              ? `החשבונית ${payFor?.docNum} תיסגר מיתרת הזכות של הלקוח. לא תופק קבלה, כי לא התקבל תשלום חדש.`
+              : `תופק קבלה ב-iCount המקושרת לחשבונית ${payFor?.docNum}. יש לרשום תשלום רק אחרי שהכסף התקבל בפועל.`}
           </p>
         </ModalBody>
         <ModalFooter>
@@ -524,7 +597,7 @@ const Invoices = () => {
             ביטול
           </Button>
           <Button onClick={submitPayment} disabled={working || loadingTotal}>
-            {working ? "מפיק קבלה..." : "הפק קבלה"}
+            {working ? "רושם..." : closesFromBalance ? "סגירה מהיתרה" : "הפק קבלה"}
           </Button>
         </ModalFooter>
       </Modal>

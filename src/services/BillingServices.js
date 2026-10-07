@@ -207,6 +207,17 @@ const BillingServices = {
     return requests.get(`/billing/reports/customer-purchases${q ? `?${q}` : ""}`);
   },
 
+  // יתרת הלקוח: זכות או חוב שנשארו מתשלומים קודמים. {balance, entries}.
+  // חיובי = לזכות הלקוח
+  getCustomerBalance: async (customerId) => {
+    return requests.get(`/billing/customer/${customerId}/balance`);
+  },
+
+  // תיקון ידני של היתרה. delta חיובי מוסיף זכות, שלילי מוריד. אינו מפיק מסמך
+  adjustCustomerBalance: async (customerId, { delta, reason }) => {
+    return requests.post(`/billing/customer/${customerId}/balance`, { delta, reason });
+  },
+
   getCustomerOpenInvoices: async (customerId) => {
     return requests.get(`/billing/customer/${customerId}/open-invoices`);
   },

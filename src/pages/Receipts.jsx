@@ -101,7 +101,9 @@ const Receipts = () => {
     );
   }, [receipts, search]);
 
-  const total = filtered.reduce((s, r) => s + Number(r.grossEstimate || 0), 0);
+  // amount = הסכום שנרשם על הקבלה. קיים רק לקבלות שהופקו מאז שיתרת
+  // הלקוח מנוהלת; לישנות נשאר האומדן מהתעודות
+  const total = filtered.reduce((s, r) => s + Number(r.amount ?? r.grossEstimate ?? 0), 0);
   const hasFilter = Boolean(from || to || customerFilter || search);
 
   return (
@@ -178,8 +180,9 @@ const Receipts = () => {
           <p className="mt-4 text-xs text-gray-500 flex items-start gap-2">
             <FiInfo className="mt-0.5 shrink-0" />
             <span>
-              הסכומים כאן מחושבים מתעודות המשלוח של החשבוניות שנסגרו, ולא
-              מהסכום שנרשם על הקבלה עצמה. קבלה שהופקה ישירות ב-iCount, בלי
+              קבלות שהופקו לפני שיתרת הלקוח נוהלה במערכת מוצגות בסכום
+              תעודות המשלוח של החשבוניות שנסגרו, ולא בסכום שנרשם על הקבלה
+              עצמה. קבלה שהופקה ישירות ב-iCount, בלי
               לעבור דרך "חשבוניות וגבייה", אינה מופיעה ברשימה. לצורכי הנהלת
               חשבונות יש להסתמך על iCount.
             </span>
@@ -201,7 +204,7 @@ const Receipts = () => {
                 <TableHeaderCell>תאריך תשלום</TableHeaderCell>
                 <TableHeaderCell>חשבוניות</TableHeaderCell>
                 <TableHeaderCell className="text-center">תעודות</TableHeaderCell>
-                <TableHeaderCell className="text-left">סכום (אומדן)</TableHeaderCell>
+                <TableHeaderCell className="text-left">סכום</TableHeaderCell>
               </tr>
             </TableHeader>
             <TableBody>
@@ -269,7 +272,17 @@ const Receipts = () => {
                   <TableCell className="text-center" title={notes.join(", ")}>
                     {notes.length}
                   </TableCell>
-                  <TableCell className="text-left">{shekel(r.grossEstimate)} ₪</TableCell>
+                  <TableCell className="text-left">
+                    {shekel(r.amount ?? r.grossEstimate)} ₪
+                    {/* הסכום שעל הקבלה שונה מסכום התעודות: תשלום עודף או
+                        חסר, שההפרש שלו נרשם ביתרת הלקוח */}
+                    {r.amount != null &&
+                      Math.abs(r.amount - (r.grossEstimate || 0)) > 0.01 && (
+                        <span className="block text-xs text-gray-500">
+                          חשבוניות: {shekel(r.grossEstimate)} ₪
+                        </span>
+                      )}
+                  </TableCell>
                 </TableRow>
                 );
               })}

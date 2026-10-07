@@ -12,6 +12,7 @@ import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   FiCreditCard,
+  FiDollarSign,
   FiEdit,
   FiFileText,
   FiMail,
@@ -37,6 +38,7 @@ import CustomerErpPanel, {
 import CustomerHistoryPanel from "@/components/customer/CustomerHistoryPanel";
 import CustomerPriceListPanel from "@/components/customer/CustomerPriceListPanel";
 import CustomerBillingPanel from "@/components/billing/CustomerBillingPanel";
+import CustomerBalancePanel from "@/components/billing/CustomerBalancePanel";
 import Loading from "@/components/preloader/Loading";
 import PageTitle from "@/components/Typography/PageTitle";
 import useAsync from "@/hooks/useAsync";
@@ -405,6 +407,12 @@ const CustomerDetails = () => {
               customerId={customer._id}
               customerName={fullName}
             />
+
+            {/* כסף שנשאר ללקוח מתשלום עודף, או חוב מתשלום חסר. מעל הגדרות
+                החיוב כי זו השאלה שנשאלת כשהלקוח מתקשר: "כמה נשאר לי אצלכם" */}
+            <Panel title="יתרת לקוח" icon={<FiDollarSign />} span>
+              <CustomerBalancePanel customerId={customer._id} />
+            </Panel>
 
             <Panel title="הגדרות חיוב" icon={<FiCreditCard />} span>
               <CustomerBillingPanel
