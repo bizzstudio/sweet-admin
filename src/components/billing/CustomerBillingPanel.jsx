@@ -30,6 +30,7 @@ const CustomerBillingPanel = ({
 }) => {
   const [split, setSplit] = useState(Boolean(billing?.splitInvoiceByCategory));
   const [summarize, setSummarize] = useState(billing?.summarizeInvoiceLines !== false);
+  const [mergeProducts, setMergeProducts] = useState(billing?.mergeInvoiceProducts === true);
   const [discountPercent, setDiscountPercent] = useState(
     billing?.discountPercent === undefined || billing?.discountPercent === null
       ? ""
@@ -44,6 +45,7 @@ const CustomerBillingPanel = ({
   useEffect(() => {
     setSplit(Boolean(billing?.splitInvoiceByCategory));
     setSummarize(billing?.summarizeInvoiceLines !== false);
+    setMergeProducts(billing?.mergeInvoiceProducts === true);
     setDiscountPercent(
       billing?.discountPercent === undefined || billing?.discountPercent === null
         ? ""
@@ -157,6 +159,16 @@ const CustomerBillingPanel = ({
       successText: checked
         ? "החשבונית תרכז שורה לכל קטגוריה, עם טבלת התעודות"
         : "החשבונית תפרט כל מוצר מכל תעודה",
+    });
+  };
+
+  const toggleMergeProducts = async (checked) => {
+    setMergeProducts(checked);
+    await saveField("mergeInvoiceProducts", checked, {
+      onRollback: () => setMergeProducts(!checked),
+      successText: checked
+        ? "כל מוצר יופיע בחשבונית בשורה אחת, עם סך הכמות מכל התעודות"
+        : "מוצר יופיע בחשבונית בשורה נפרדת לכל תעודה",
     });
   };
 
@@ -367,13 +379,41 @@ const CustomerBillingPanel = ({
             </span>
           </span>
         </label>
-      ) : (
+      ) : null}
+
+      {/* איחוד מוצרים — רלוונטי רק לחשבונית מפורטת, ולכן מוצג רק כשהריכוז
+          כבוי. בלי זה מוצר שסופק ב-20 תעודות תופס 20 שורות */}
+      {editing && !summarize ? (
+        <label className="flex items-start gap-3 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={mergeProducts}
+            disabled={saving}
+            onChange={(e) => toggleMergeProducts(e.target.checked)}
+            className="w-4 h-4 mt-1"
+          />
+          <span>
+            <span className="text-sm font-medium">שורה אחת לכל מוצר, עם סך הכמות</span>
+            <span className="block text-xs text-gray-500">
+              מוצר שסופק בכמה תעודות מופיע בחשבונית פעם אחת, עם הכמות הכוללת
+              מכל התעודות. בלי הסימון הוא מופיע בשורה נפרדת לכל תעודה.
+              <br />
+              מוצר שנמכר במהלך החודש בשני מחירים יופיע בשתי שורות, אחת לכל
+              מחיר.
+            </span>
+          </span>
+        </label>
+      ) : null}
+
+      {editing ? null : (
         <div>
           <p className="text-sm font-medium">צורת החשבונית החודשית</p>
           <p className="text-sm text-gray-600 dark:text-gray-300">
             {summarize
               ? "שורת ריכוז לכל קטגוריה + טבלת תעודות"
-              : "פירוט מלא של כל המוצרים"}
+              : mergeProducts
+                ? "פירוט מוצרים — שורה אחת לכל מוצר, עם סך הכמות"
+                : "פירוט מלא של כל המוצרים, שורה לכל תעודה"}
           </p>
         </div>
       )}

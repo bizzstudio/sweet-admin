@@ -485,6 +485,14 @@ const MonthlyBilling = () => {
                               מרוכז מ-{inv.detailCount}
                             </span>
                           )}
+                          {inv.merged && inv.detailCount > inv.itemCount && (
+                            <span
+                              className="block text-xs text-gray-500"
+                              title={`${inv.detailCount} שורות מוצרים אוחדו ל-${inv.itemCount}, שורה לכל מוצר`}
+                            >
+                              אוחד מ-{inv.detailCount}
+                            </span>
+                          )}
                         </TableCell>
                         <TableCell className="text-left text-xs text-gray-500">
                           {inv.discount > 0 && <div>-{shekel(inv.discount)} ₪ הנחה</div>}
