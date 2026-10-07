@@ -351,6 +351,59 @@ describe("פרטי מוצר — עריכה בתוך העמוד", () => {
     expect(sentData.slug).toBe("sweet-candy-big");
   });
 
+  // שורות הנהח"ש (שכירות וכדומה) שמורות במחיר 0 ומוסתרות מהחנות. בעבר שום
+  // שינוי בהן לא נשמר, כי השמירה נחסמה על "מחיר גדול מאפס"
+  const zeroPriced = (status) => async () => ({
+    ...fresh(),
+    status,
+    prices: { price: 0, originalPrice: 0, storePrice: 0, discount: 0, offers: [] },
+  });
+
+  it("מוצר שהוסר מהחנות נשמר גם כשהמחיר שלו 0", async () => {
+    ProductServices.getProductDetails.mockImplementation(zeroPriced("hide"));
+    ProductServices.getProductById.mockImplementation(zeroPriced("hide"));
+
+    await loadPage();
+    await clickButton("EditProduct");
+    await typeInto(fieldByLabel("ProductTitleName"), "שכירות חודש 11/25");
+    await clickButton("שמירה");
+
+    expect(ProductServices.updateProduct).toHaveBeenCalledTimes(1);
+    const [, sentData] = ProductServices.updateProduct.mock.calls[0];
+    expect(sentData.title).toEqual({ he: "שכירות חודש 11/25" });
+    expect(sentData.status).toBe("hide");
+    expect(Number(sentData.prices.price)).toBe(0);
+    expect(Number(sentData.prices.originalPrice)).toBe(0);
+    expect(sentData.prices.discount).toBe(0);
+  });
+
+  it("מוצר שמוצג בחנות לא נשמר במחיר 0", async () => {
+    ProductServices.getProductDetails.mockImplementation(zeroPriced("show"));
+    ProductServices.getProductById.mockImplementation(zeroPriced("show"));
+
+    await loadPage();
+    await clickButton("EditProduct");
+    await clickButton("שמירה");
+
+    expect(ProductServices.updateProduct).not.toHaveBeenCalled();
+  });
+
+  it("מחירים שהוקלדו מושווים כמספרים ולא כטקסט", async () => {
+    // שדות המחיר מחזירים טקסט, ובהשוואת טקסט "100" קטן מ-"20" - כך שמירה
+    // תקינה נחסמה בטענה שהמחיר לצרכן גבוה מהמחיר המקורי
+    await loadPage();
+    await clickButton("EditProduct");
+
+    await typeInto(fieldByLabel("מחיר מקורי"), "100");
+    await typeInto(fieldByLabel("מחיר לצרכן"), "20");
+    await clickButton("שמירה");
+
+    expect(ProductServices.updateProduct).toHaveBeenCalledTimes(1);
+    const [, sentData] = ProductServices.updateProduct.mock.calls[0];
+    expect(sentData.prices.price).toBe(20);
+    expect(sentData.prices.originalPrice).toBe("100.00");
+  });
+
   it("ביטול מחזיר לקריאה בלי לשמור", async () => {
     await loadPage();
     await clickButton("EditProduct");

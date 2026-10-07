@@ -161,17 +161,21 @@ const useProductSubmit = (id, options = {}) => {
       // );
 
       // ולידציות
-      if (data.originalPrice < data.price) {
+      // Number: בעריכה בעמוד השדות מחזירים טקסט, ובהשוואת טקסט "100" קטן
+      // מ-"20" - כך שמירה תקינה נחסמה
+      if (Number(data.originalPrice) < Number(data.price)) {
         setIsSubmitting(false);
         return notifyError(
           "מחיר המבצע חייב להיות קטן מהמחיר המקורי!"
         );
       }
 
-      if (data.price == 0) {
+      // מוצר שהוסר מהחנות (שורות הנהח"ש כמו שכירות) רשאי להישאר במחיר 0;
+      // בלי החריג הזה אי אפשר היה לשמור בו שום שינוי
+      if (data.price == 0 && !isHiddenFromStore) {
         setIsSubmitting(false);
         return notifyError(
-          "מחיר המבצע חייב להיות גדול מאפס!"
+          "המחיר לצרכן חייב להיות גדול מאפס! מוצר במחיר 0 אפשר לשמור רק כשהוא מוסר מהחנות."
         );
       }
       if (!defaultCategory[0]) {
@@ -409,6 +413,7 @@ const useProductSubmit = (id, options = {}) => {
       setSpecialOffersComb({});
       setIsVatFree(true);
       setIsStoreProduct(false);
+      setIsHiddenFromStore(false);
       setIsCartpprod(false);
       setIsStockManagement(true);
       // הסרתי את הקריאה ל-resetSelectedValues מכיוון שהחלפנו לSelect רגיל
