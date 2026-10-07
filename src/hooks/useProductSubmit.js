@@ -161,12 +161,20 @@ const useProductSubmit = (id, options = {}) => {
       // );
 
       // ולידציות
+      // מוצר שנוצר במחיר 0 (שורות הנהח"ש) מחזיק גם מחיר מקורי 0. מי שמזין לו
+      // מחיר לצרכן בלבד היה נחסם על "גבוה מהמחיר המקורי", ולכן מחיר מקורי
+      // ריק או 0 מקבל את המחיר לצרכן
+      if (!(Number(data.originalPrice) > 0) && Number(data.price) > 0) {
+        data.originalPrice = data.price;
+        setValue("originalPrice", data.price);
+      }
+
       // Number: בעריכה בעמוד השדות מחזירים טקסט, ובהשוואת טקסט "100" קטן
       // מ-"20" - כך שמירה תקינה נחסמה
       if (Number(data.originalPrice) < Number(data.price)) {
         setIsSubmitting(false);
         return notifyError(
-          "מחיר המבצע חייב להיות קטן מהמחיר המקורי!"
+          "המחיר לצרכן חייב להיות קטן או שווה למחיר המקורי!"
         );
       }
 
