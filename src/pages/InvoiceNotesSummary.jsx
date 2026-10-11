@@ -145,6 +145,7 @@ const InvoiceNotesSummary = () => {
           {/* צבעים קבועים ולא tokens של מצב כהה: זה מה שיוצא למדפסת,
               וטקסט בהיר על רקע לבן נעלם */}
           <div ref={printRef} dir="rtl" className="bg-white text-gray-900 p-8">
+            <p className="text-sm">בס"ד</p>
             <h1 className="text-2xl font-bold">{companyName}</h1>
 
             <div className="mt-6">

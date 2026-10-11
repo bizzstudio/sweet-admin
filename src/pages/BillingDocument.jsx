@@ -423,6 +423,7 @@ const BillingDocument = () => {
     <div dir="rtl" className="bg-white text-gray-900 p-8">
       <div className="flex justify-between items-start border-b-2 border-gray-800 pb-4">
         <div>
+          <p className="text-sm">בס"ד</p>
           <h1 className="text-2xl font-bold">{company.name}</h1>
           {company.vatNumber && <p className="text-sm">ח.פ {company.vatNumber}</p>}
           {company.address && <p className="text-sm">{company.address}</p>}
