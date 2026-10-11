@@ -107,6 +107,17 @@ const CREDIT_LABELS = {
   cancelled: { text: "בוטלה", type: "danger" },
 };
 
+// הדפסה בלבד: בגודל המסך (16px) תעודה של 9 שורות מילאה עמוד A4 עד הסוף,
+// ושורת החתימות נפלה לבדה לדף שני (11/10/2026). 14px מקטין את כל המידות
+// מבוססות ה-rem ב-12% בלי לגעת במסך. השאר הוא ברירת המחדל של react-to-print.
+const PRINT_PAGE_STYLE = `
+  @page { size: auto; margin: 0mm; }
+  @media print {
+    html { font-size: 14px !important; }
+    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+`;
+
 const BillingDocument = () => {
   const { id } = useParams();
   const { pathname, search } = useLocation();
@@ -491,119 +502,124 @@ const BillingDocument = () => {
       <table className="w-full mt-5 text-sm">
         <thead>
           <tr className="bg-gray-100 border-b-2 border-gray-400">
-            <th className="text-right py-2 px-2">#</th>
+            <th className="text-right py-2 print:py-1 px-2">#</th>
             {/* הברקוד הוא המזהה שעל התעודה — זו העמודה הראשונה,
                 והיא מודגשת. זה מה שמופיע על האריזה ועל המדף, וזה מה
                 שהלקוח מצליב מולו. המק"ט נשאר לצידו לזיהוי בקטלוג,
                 ומשמש כמזהה היחיד בשורה שאין לה ברקוד תקין.
                 ⚠️ אותה פריסה קיימת ב-lib/printing/deliveryNotePdf.js
                 עבור ההדפסה האוטומטית — שינוי כאן צריך להגיע גם לשם. */}
-            <th className="text-right py-2 px-2">ברקוד</th>
-            <th className="text-right py-2 px-2">מק"ט</th>
-            <th className="text-right py-2 px-2">תיאור</th>
-            <th className="text-center py-2 px-2">כמות</th>
+            <th className="text-right py-2 print:py-1 px-2">ברקוד</th>
+            <th className="text-right py-2 print:py-1 px-2">מק"ט</th>
+            <th className="text-right py-2 print:py-1 px-2">תיאור</th>
+            <th className="text-center py-2 print:py-1 px-2">כמות</th>
             {/* בתעודת משלוח המחירים מוצגים כי הן הבסיס לחשבונית
                 החודשית, והלקוח מצליב מולן */}
-            <th className="text-left py-2 px-2">מחיר יח'</th>
-            <th className="text-left py-2 px-2">סה"כ</th>
+            <th className="text-left py-2 print:py-1 px-2">מחיר יח'</th>
+            <th className="text-left py-2 print:py-1 px-2">סה"כ</th>
           </tr>
         </thead>
         <tbody>
           {(doc.items || []).map((item, i) => (
             <tr key={i} className="border-b border-gray-200">
-              <td className="py-2 px-2">{i + 1}</td>
-              <td className="py-2 px-2 font-semibold">{item.barcode || "—"}</td>
-              <td className="py-2 px-2 text-gray-600">{item.sku || "—"}</td>
-              <td className="py-2 px-2">
+              <td className="py-2 print:py-1 px-2">{i + 1}</td>
+              <td className="py-2 print:py-1 px-2 font-semibold">{item.barcode || "—"}</td>
+              <td className="py-2 print:py-1 px-2 text-gray-600">{item.sku || "—"}</td>
+              <td className="py-2 print:py-1 px-2">
                 {item.name}
                 {item.isVatFree && (
                   <span className="text-xs text-gray-500"> (פטור ממע"מ)</span>
                 )}
               </td>
-              <td className="text-center py-2 px-2">{item.quantity}</td>
-              <td className="text-left py-2 px-2">{shekel(item.unitPrice)}</td>
-              <td className="text-left py-2 px-2">{shekel(item.lineTotal)}</td>
+              <td className="text-center py-2 print:py-1 px-2">{item.quantity}</td>
+              <td className="text-left py-2 print:py-1 px-2">{shekel(item.unitPrice)}</td>
+              <td className="text-left py-2 print:py-1 px-2">{shekel(item.lineTotal)}</td>
             </tr>
           ))}
         </tbody>
       </table>
 
-      <div className="flex justify-start mt-5">
-        <table className="text-sm w-72">
-          <tbody>
-            <tr>
-              <td className="py-1">סה"כ פריטים</td>
-              <td className="text-left py-1">{shekel(totals.net)} ₪</td>
-            </tr>
-            {totals.shipping > 0 && (
+      {/* הסיכום והחתימות נשארים יחד: בתעודה ארוכה הם עוברים לעמוד הבא
+          כגוש אחד, ולא נשארת שורת חתימה יתומה בדף נפרד.
+          ⚠️ אותו כלל ב-lib/printing/deliveryNotePdf.js (.tail) */}
+      <div style={{ breakInside: "avoid" }}>
+        <div className="flex justify-start mt-5">
+          <table className="text-sm w-72">
+            <tbody>
               <tr>
-                <td className="py-1">משלוח</td>
-                <td className="text-left py-1">{shekel(totals.shipping)} ₪</td>
+                <td className="py-1">סה"כ פריטים</td>
+                <td className="text-left py-1">{shekel(totals.net)} ₪</td>
               </tr>
-            )}
-            {totals.discount > 0 && (
+              {totals.shipping > 0 && (
+                <tr>
+                  <td className="py-1">משלוח</td>
+                  <td className="text-left py-1">{shekel(totals.shipping)} ₪</td>
+                </tr>
+              )}
+              {totals.discount > 0 && (
+                <tr>
+                  <td className="py-1">
+                    הנחה
+                    {/* האחוז מוצג ליד הסכום כדי שהלקוח יוכל לבדוק אותו.
+                        כשיש גם הנחה ידנית וגם אחוז, השורה מפרטת רק את
+                        החלק שהאחוז יצר */}
+                    {Number(doc.customerDiscount) > 0 && Number(doc.discountPercent) > 0 && (
+                      <span className="text-xs text-gray-500">
+                        {" "}
+                        (כולל {doc.discountPercent}% הנחת לקוח —{" "}
+                        {shekel(doc.customerDiscount)} ₪)
+                      </span>
+                    )}
+                  </td>
+                  <td className="text-left py-1">-{shekel(totals.discount)} ₪</td>
+                </tr>
+              )}
+              <tr className="border-t border-gray-300">
+                <td className="py-1">סה"כ לפני מע"מ</td>
+                <td className="text-left py-1">{shekel(totals.beforeVat)} ₪</td>
+              </tr>
               <tr>
-                <td className="py-1">
-                  הנחה
-                  {/* האחוז מוצג ליד הסכום כדי שהלקוח יוכל לבדוק אותו.
-                      כשיש גם הנחה ידנית וגם אחוז, השורה מפרטת רק את
-                      החלק שהאחוז יצר */}
-                  {Number(doc.customerDiscount) > 0 && Number(doc.discountPercent) > 0 && (
-                    <span className="text-xs text-gray-500">
-                      {" "}
-                      (כולל {doc.discountPercent}% הנחת לקוח —{" "}
-                      {shekel(doc.customerDiscount)} ₪)
-                    </span>
-                  )}
-                </td>
-                <td className="text-left py-1">-{shekel(totals.discount)} ₪</td>
+                <td className="py-1">מע"מ 18%</td>
+                <td className="text-left py-1">{shekel(totals.vat)} ₪</td>
               </tr>
-            )}
-            <tr className="border-t border-gray-300">
-              <td className="py-1">סה"כ לפני מע"מ</td>
-              <td className="text-left py-1">{shekel(totals.beforeVat)} ₪</td>
-            </tr>
-            <tr>
-              <td className="py-1">מע"מ 18%</td>
-              <td className="text-left py-1">{shekel(totals.vat)} ₪</td>
-            </tr>
-            <tr className="border-t-2 border-gray-800 font-bold text-base">
-              <td className="py-2">{isCredit ? 'סה"כ לזיכוי' : 'סה"כ לתשלום'}</td>
-              <td className="text-left py-2">{shekel(totals.total)} ₪</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+              <tr className="border-t-2 border-gray-800 font-bold text-base">
+                <td className="py-2">{isCredit ? 'סה"כ לזיכוי' : 'סה"כ לתשלום'}</td>
+                <td className="text-left py-2">{shekel(totals.total)} ₪</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
 
-      <div className="mt-8 pt-4 border-t border-gray-300 text-xs text-gray-500">
-        {isQuote ? (
-          <p>
-            הצעת מחיר זו אינה מהווה חשבונית מס. המחירים אינם כוללים מע"מ,
-            והמע"מ מתווסף בחשבונית.
-          </p>
-        ) : (
-          <>
-            {isCredit ? (
-              <p>
-                תעודת זיכוי זו אינה מהווה חשבונית מס. הזיכוי נרשם בספרים
-                בחשבונית זיכוי, המופקת בנפרד.
-              </p>
-            ) : (
-              <p>
-                תעודת משלוח זו אינה מהווה חשבונית מס. חשבונית מרכזת תופק
-                בסוף החודש.
-              </p>
-            )}
-            <div className="mt-8 flex justify-between">
-              <div className="w-56 border-t border-gray-400 pt-1 text-center">
-                חתימת המוסר
+        <div className="mt-8 pt-4 border-t border-gray-300 text-xs text-gray-500">
+          {isQuote ? (
+            <p>
+              הצעת מחיר זו אינה מהווה חשבונית מס. המחירים אינם כוללים מע"מ,
+              והמע"מ מתווסף בחשבונית.
+            </p>
+          ) : (
+            <>
+              {isCredit ? (
+                <p>
+                  תעודת זיכוי זו אינה מהווה חשבונית מס. הזיכוי נרשם בספרים
+                  בחשבונית זיכוי, המופקת בנפרד.
+                </p>
+              ) : (
+                <p>
+                  תעודת משלוח זו אינה מהווה חשבונית מס. חשבונית מרכזת תופק
+                  בסוף החודש.
+                </p>
+              )}
+              <div className="mt-8 flex justify-between">
+                <div className="w-56 border-t border-gray-400 pt-1 text-center">
+                  חתימת המוסר
+                </div>
+                <div className="w-56 border-t border-gray-400 pt-1 text-center">
+                  חתימת המקבל
+                </div>
               </div>
-              <div className="w-56 border-t border-gray-400 pt-1 text-center">
-                חתימת המקבל
-              </div>
-            </div>
-          </>
-        )}
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -723,6 +739,7 @@ const BillingDocument = () => {
             )}
             content={() => printRef.current}
             documentTitle={`${title}-${doc.number}`}
+            pageStyle={PRINT_PAGE_STYLE}
           />
         </div>
       </div>

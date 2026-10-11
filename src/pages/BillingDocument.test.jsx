@@ -396,3 +396,22 @@ describe("הדפסה מיידית אחרי הפקה (?print=1)", () => {
     expect(printFrame()).toBeNull();
   });
 });
+
+describe("המסמך המודפס — הסיכום והחתימות באותו עמוד", () => {
+  // תעודה שמילאה עמוד בדיוק השאירה את שורת החתימות לבדה בדף שני
+  // (11/10/2026). הגוש הזה הוא מה שמונע את זה בתעודה ארוכה.
+  it("הסיכום והחתימות יושבים בגוש אחד שאינו נשבר בין עמודים", async () => {
+    await render();
+
+    const signature = [...container.querySelectorAll("div")].find(
+      (d) => d.textContent.trim() === "חתימת המקבל"
+    );
+    const block = signature.closest('div[style*="break-inside"]');
+
+    expect(block).not.toBeNull();
+    expect(block.style.breakInside).toBe("avoid");
+    expect(block.textContent).toContain('סה"כ לתשלום');
+    // טבלת השורות נשארת בחוץ — אחרת תעודה ארוכה לא הייתה נשברת בכלל
+    expect(block.contains(itemsTable())).toBe(false);
+  });
+});
