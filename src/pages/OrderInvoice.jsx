@@ -37,6 +37,12 @@ import OrderItemsEditor from "@/components/order/OrderItemsEditor";
 import { SidebarContext } from "@/context/SidebarContext";
 
 import TableHeaderCell from "@/components/table/TableHeaderCell";
+// הלוגו ארוז עם האדמין ולא נלקח מהגדרות החנות: הערך שם ("/logo/logo-mark.png")
+// הוא נתיב של החנות, ובאדמין שיושב בתת-תיקייה הוא נפתר לשורש הדומיין המשותף
+// לפרויקטים אחרים — ומשם הגיע לוגו של עסק אחר.
+import brandLogo from "@/assets/img/logo/logo-color.png";
+// אותיות בהירות — לרקע הכהה של מצב לילה (כמו בסרגל הצד).
+import brandLogoLight from "@/assets/img/logo/logo-dark.png";
 const OrderInvoice = () => {
   const { t } = useTranslation();
   const { mode } = useContext(WindmillContext);
@@ -217,11 +223,7 @@ const OrderInvoice = () => {
               </h1>
               <div className="lg:text-right text-right">
                 <h2 className="lg:flex lg:justify-end text-lg font-serif font-semibold mt-4 lg:mt-0 lg:ml-0 md:mt-0">
-                  {mode === "dark" ? (
-                    <img src={storeCustomizationSetting?.footer?.block4_logo} alt="מתוקיה של בני" width="110" />
-                  ) : (
-                    <img src={storeCustomizationSetting?.footer?.block4_logo} alt="מתוקיה של בני" width="110" />
-                  )}
+                  <img src={mode === "dark" ? brandLogoLight : brandLogo} alt="מתוקיה של בני" width="110" />
                 </h2>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
                   {globalSetting?.address} <br />

@@ -14,12 +14,16 @@ import AddressFormat from "../AddressFormat";
 import useUtilsFunction from "@/hooks/useUtilsFunction";
 
 import TableHeaderCell from "@/components/table/TableHeaderCell";
+// הלוגו ארוז עם האדמין ולא נלקח מהגדרות החנות: הערך שם ("/logo/logo-mark.png")
+// הוא נתיב של החנות, ובאדמין שיושב בתת-תיקייה הוא נפתר לשורש הדומיין המשותף
+// לפרויקטים אחרים — ומשם הגיע לוגו של עסק אחר.
+import brandLogo from "@/assets/img/logo/logo-color.png";
 const InvoiceForPrint = forwardRef(({ data, globalSetting }, ref) => {
   const { t } = useTranslation();
 
   const currency = globalSetting?.default_currency || "₪";
 
-  const { showDateTimeFormat, storeCustomizationSetting } = useUtilsFunction();
+  const { showDateTimeFormat } = useUtilsFunction();
 
   return (
     <div ref={ref} className="p-4" dir="rtl">
@@ -31,9 +35,8 @@ const InvoiceForPrint = forwardRef(({ data, globalSetting }, ref) => {
                 <img
                   className="flex"
                   size="large"
-                  // src={globalSetting?.logo}
-                  src={storeCustomizationSetting?.footer?.block4_logo}
-                  alt="logo"
+                  src={brandLogo}
+                  alt="מתוקיה של בני"
                   width={100}
                 />
                 <div className="flex justify-center">
@@ -314,9 +317,8 @@ const InvoiceForPrint = forwardRef(({ data, globalSetting }, ref) => {
               <img
                 className="flex"
                 size="large"
-                // src={globalSetting?.logo}
-                src={storeCustomizationSetting?.footer?.block4_logo}
-                alt="logo"
+                src={brandLogo}
+                alt="מתוקיה של בני"
                 width={100}
               />
               <div className="flex justify-center">
