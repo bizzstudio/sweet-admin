@@ -20,6 +20,7 @@ import { Link } from "react-router-dom";
 import { FiAlertTriangle, FiFileText, FiPlusCircle } from "react-icons/fi";
 
 import ManualDeliveryNoteForm from "@/components/billing/ManualDeliveryNoteForm";
+import PrintNoteOffer from "@/components/billing/PrintNoteOffer";
 import BillingServices from "@/services/BillingServices";
 import { notifyError, notifySuccess } from "@/utils/toast";
 
@@ -90,6 +91,8 @@ const DeliveryNoteAction = ({ orderId, customerId }) => {
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [manualOpen, setManualOpen] = useState(false);
+  // התעודה שהופקה זה עתה — מציעים להדפיס אותה בלי לפתוח אותה קודם
+  const [printOffer, setPrintOffer] = useState(null);
 
   const load = useCallback(async () => {
     if (!orderId) return;
@@ -125,6 +128,7 @@ const DeliveryNoteAction = ({ orderId, customerId }) => {
     try {
       const res = await BillingServices.createDeliveryNoteFromOrder(orderId);
       notifySuccess(res.message);
+      setPrintOffer(res.note || null);
       // רענון מלא ולא setNote בלבד: ההפקה גם מעדכנת מה נשאר ממתין להקלדה
       await load();
     } catch (err) {
@@ -138,6 +142,8 @@ const DeliveryNoteAction = ({ orderId, customerId }) => {
 
   return (
     <>
+      <PrintNoteOffer note={printOffer} onClose={() => setPrintOffer(null)} />
+
       <Card className="min-w-0 shadow-xs overflow-hidden bg-white dark:bg-gray-800 my-5">
         <CardBody>
           {note ? (
@@ -205,8 +211,9 @@ const DeliveryNoteAction = ({ orderId, customerId }) => {
           orderId={orderId}
           customerId={customerId}
           onCancel={() => setManualOpen(false)}
-          onCreated={() => {
+          onCreated={(created) => {
             setManualOpen(false);
+            setPrintOffer(created || null);
             load();
           }}
         />

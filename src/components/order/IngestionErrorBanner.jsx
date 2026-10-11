@@ -10,7 +10,7 @@
 // חשוב: אישור חייב לעבור מכאן ולא משינוי סטטוס ידני, כי שינוי סטטוס במערכת
 // אינו מוריד מלאי (המלאי יורד רק ב-WebHook של Cardcom).
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useHistory } from "react-router-dom";
 import { Button } from "@windmill/react-ui";
 import { FiAlertTriangle, FiCheck, FiMail, FiRefreshCw } from "react-icons/fi";
@@ -18,6 +18,8 @@ import { FaWhatsapp } from "react-icons/fa";
 
 import { notifyError, notifySuccess } from "@/utils/toast";
 import IncomingOrderServices from "@/services/IncomingOrderServices";
+import BillingServices from "@/services/BillingServices";
+import PrintNoteOffer from "@/components/billing/PrintNoteOffer";
 import UnmatchedItemResolver from "@/components/order/UnmatchedItemResolver";
 
 const ERROR_HINTS = {
@@ -34,9 +36,28 @@ const ERROR_HINTS = {
   order_create_failed: "תקלה טכנית ביצירת ההזמנה.",
 };
 
+// התעודה נוצרת ב-hook של ההזמנה, אחרי שתשובת האישור כבר חזרה — ולכן היא
+// אינה חלק מהתשובה, וצריך לשאול עליה. כמה ניסיונות קצרים ולא המתנה ארוכה:
+// הזמנה שכולה סחורה נשקלת לא מקבלת תעודה אוטומטית בכלל.
+const findOrderNote = async (orderId) => {
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const res = await BillingServices.getDeliveryNoteByOrder(orderId).catch(() => null);
+    // תעודה מבוטלת אינה מה שיוצא עם הסחורה — לא מציעים להדפיס אותה
+    if (res?.note) return res.note.billing?.status === "cancelled" ? null : res.note;
+    await new Promise((resolve) => setTimeout(resolve, 700));
+  }
+  return null;
+};
+
 const IngestionErrorBanner = ({ order, onChanged }) => {
   const history = useHistory();
   const [busy, setBusy] = useState("");
+  // התעודה שנוצרה מהאישור — מציעים להדפיס אותה בלי לפתוח אותה קודם
+  const [printOffer, setPrintOffer] = useState(null);
+  // ההזמנה שמוצגת כרגע. החיפוש אחרי התעודה נמשך כמה שניות, ובזמן הזה אפשר
+  // לעבור להזמנה אחרת — שלא תקבל הצעה להדפיס תעודה שאינה שלה
+  const shownOrderId = useRef(order?._id);
+  shownOrderId.current = order?._id;
 
   const err = order?.ingestionError;
   if (!err?.code) return null;
@@ -59,6 +80,11 @@ const IngestionErrorBanner = ({ order, onChanged }) => {
       const res = await IncomingOrderServices.approveErrorOrder(order._id);
       notifySuccess(res.message);
       if (onChanged) onChanged();
+      // בלי await: האישור כבר הצליח, והכפתור לא צריך להמתין לתעודה
+      const approvedId = order._id;
+      findOrderNote(approvedId).then((note) => {
+        if (shownOrderId.current === approvedId) setPrintOffer(note);
+      });
     } catch (e) {
       notifyError(e?.response?.data?.message || e.message);
     } finally {
@@ -74,6 +100,7 @@ const IngestionErrorBanner = ({ order, onChanged }) => {
   // שההרצה הסתיימה בהצלחה ונוצרה הזמנה.
   useEffect(() => {
     setBusy("");
+    setPrintOffer(null);
   }, [order?._id]);
 
   const handleRetry = async () => {
@@ -97,6 +124,8 @@ const IngestionErrorBanner = ({ order, onChanged }) => {
   };
 
   return (
+    <>
+    <PrintNoteOffer note={printOffer} onClose={() => setPrintOffer(null)} />
     <div
       className={`mb-4 rounded-xl overflow-hidden border-2 ${
         resolved
@@ -227,6 +256,7 @@ const IngestionErrorBanner = ({ order, onChanged }) => {
         </div>
       </div>
     </div>
+    </>
   );
 };
 

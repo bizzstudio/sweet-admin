@@ -378,3 +378,21 @@ describe("BillingDocument — תעודת משלוח זיכוי", () => {
     confirm.mockRestore();
   });
 });
+
+describe("הדפסה מיידית אחרי הפקה (?print=1)", () => {
+  // react-to-print בונה iframe בשם printWindow ומדפיס ממנו — קיומו הוא הראיה
+  // שההדפסה התחילה בלי לחיצה
+  const printFrame = () => document.getElementById("printWindow");
+
+  afterEach(() => printFrame()?.remove());
+
+  it("כניסה עם ?print=1 פותחת את ההדפסה לבד", async () => {
+    await render("/delivery-note/n1?print=1");
+    expect(printFrame()).not.toBeNull();
+  });
+
+  it("כניסה רגילה לתעודה אינה מדפיסה", async () => {
+    await render();
+    expect(printFrame()).toBeNull();
+  });
+});

@@ -29,6 +29,7 @@ import useQueryParam from "@/hooks/useQueryParam";
 import PageTitle from "@/components/Typography/PageTitle";
 import ManualDeliveryNoteForm from "@/components/billing/ManualDeliveryNoteForm";
 import TableLoading from "@/components/preloader/TableLoading";
+import PrintNoteOffer from "@/components/billing/PrintNoteOffer";
 import NotFound from "@/components/table/NotFound";
 import BillingServices from "@/services/BillingServices";
 import { notifyError, notifySuccess } from "@/utils/toast";
@@ -53,6 +54,8 @@ const newIdempotencyKey = () =>
 
 const DeliveryNotes = () => {
   const [notes, setNotes] = useState([]);
+  // תעודה ידנית שהופקה זה עתה — מציעים להדפיס אותה בלי לחפש אותה ברשימה
+  const [printOffer, setPrintOffer] = useState(null);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   // רכיב העימוד של Windmill מחזיק את העמוד הפעיל בעצמו ואינו מקבל אותו
@@ -184,13 +187,16 @@ const DeliveryNotes = () => {
       {building && (
         <ManualDeliveryNoteForm
           onCancel={() => setBuilding(false)}
-          onCreated={() => {
+          onCreated={(created) => {
             setBuilding(false);
+            setPrintOffer(created || null);
             toFirstPage();
             load();
           }}
         />
       )}
+
+      <PrintNoteOffer note={printOffer} onClose={() => setPrintOffer(null)} />
 
       {customerFilter && notes.length > 0 && (
         <p className="mb-3 text-sm text-gray-600 dark:text-gray-400">

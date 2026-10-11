@@ -109,8 +109,9 @@ const CREDIT_LABELS = {
 
 const BillingDocument = () => {
   const { id } = useParams();
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
   const printRef = useRef();
+  const printerRef = useRef();
   const { globalSetting } = useUtilsFunction();
 
   // הסוג נגזר מהנתיב ולא מפרמטר, כדי ששני המסלולים יהיו קריאים בכתובת
@@ -175,6 +176,18 @@ const BillingDocument = () => {
       alive = false;
     };
   }, [fetchDoc]);
+
+  // הגעה מ"הדפסה" שמוצעת מיד אחרי הפקת תעודה (?print=1): חלון ההדפסה נפתח
+  // לבד, בלי לחיצה נוספת במסך הזה. הפרמטר מוסר מהכתובת באותו רגע, אחרת
+  // רענון או "אחורה" היו פותחים את חלון ההדפסה שוב.
+  // ממתינים גם להגדרות החנות: בכניסה ישירה לכתובת הן נטענות אחרי המסמך,
+  // והנייר היה יוצא בלי פרטי העסק בכותרת.
+  const autoPrint = new URLSearchParams(search).get("print") === "1";
+  useEffect(() => {
+    if (!autoPrint || !doc || !globalSetting) return;
+    printerRef.current?.handlePrint();
+    history.replace(pathname);
+  }, [autoPrint, doc, globalSetting, history, pathname]);
 
   // מעבר בין מסמכים (העתקה, המרה מהצעה) משאיר את מצב העריכה פתוח על
   // המסמך החדש, שאינו זה שנפתח לעריכה
@@ -702,6 +715,7 @@ const BillingDocument = () => {
           )}
 
           <ReactToPrint
+            ref={printerRef}
             trigger={() => (
               <Button>
                 <FiPrinter className="ml-2" /> הדפסה / שמירה כ-PDF
