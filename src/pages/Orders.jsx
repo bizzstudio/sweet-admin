@@ -44,6 +44,7 @@ const Orders = () => {
     searchRef,
     setStartDate,
     setSearchText,
+    setIsUpdate,
     handleChangePage,
     handleSubmitForAll,
   } = useContext(SidebarContext);
@@ -51,6 +52,8 @@ const Orders = () => {
   const { t } = useTranslation();
 
   const [loadingExport, setLoadingExport] = useState(false);
+  // לפי איזה תאריך טווח התאריכים מסנן: יצירת ההזמנה או העדכון האחרון שלה
+  const [dateField, setDateField] = useState("createdAt");
 
   const { data, loading, error } = useAsync(() =>
     OrderServices.getAllOrders({
@@ -58,6 +61,7 @@ const Orders = () => {
       page: currentPage,
       endDate: endDate,
       startDate: startDate,
+      dateField: dateField,
       limit: 100,
       customerName: searchText,
     })
@@ -79,6 +83,7 @@ const Orders = () => {
         endDate: endDate,
         download: true,
         startDate: startDate,
+        dateField: dateField,
         limit: data?.totalDoc,
         customerName: searchText,
       });
@@ -118,6 +123,8 @@ const Orders = () => {
     searchRef.current.value = "";
     setStartDateInput("");
     setEndDateInput("");
+    setDateField("createdAt");
+    setIsUpdate(true);
   };
 
   // handle limit change
@@ -230,7 +237,24 @@ const Orders = () => {
               </div>
             </div>
 
-            <div className="grid gap-4 lg:gap-6 xl:gap-6 lg:grid-cols-3 xl:grid-cols-3 md:grid-cols-3 sm:grid-cols-1 py-2">
+            <div className="grid gap-4 lg:gap-6 xl:gap-6 lg:grid-cols-4 xl:grid-cols-4 md:grid-cols-2 sm:grid-cols-1 py-2">
+
+              {/* לפי איזה תאריך לסנן – יצירה או עדכון */}
+              <div>
+                <Label>{t("DateFilterBy")}</Label>
+                <SelectReactSelect
+                  name="dateField"
+                  value={dateField}
+                  onChange={(e) => {
+                    setDateField(e.target.value);
+                    // dateField אינו חלק מה-context, לכן מרעננים את השליפה במפורש
+                    setIsUpdate(true);
+                  }}
+                >
+                  <option value="createdAt">{t("ByCreationDate")}</option>
+                  <option value="updatedAt">{t("ByUpdateDate")}</option>
+                </SelectReactSelect>
+              </div>
 
               {/* סינון על פי תאריך התחלה */}
               <div>

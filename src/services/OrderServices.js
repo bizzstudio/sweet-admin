@@ -13,6 +13,7 @@ const OrderServices = {
     method,
     startDate,
     endDate,
+    dateField,
     cities,
     cacheBust,
     // download = "",
@@ -25,9 +26,10 @@ const OrderServices = {
     const searchStatuses = statuses && statuses.length > 0 ? statuses.join(",") : "";
     const searchCities = cities && cities.length > 0 ? cities.join(",") : "";
     const cacheParam = cacheBust != null ? `&_=${cacheBust}` : "";
+    const dateFieldParam = dateField ? `&dateField=${encodeURIComponent(dateField)}` : "";
 
     return requests.get(
-      `/orders?customerName=${encodeURIComponent(searchName)}&statuses=${searchStatuses}&day=${encodeURIComponent(searchDay)}&page=${page}&limit=${limit}&startDate=${encodeURIComponent(startD)}&endDate=${encodeURIComponent(endD)}&method=${encodeURIComponent(searchMethod)}&cities=${searchCities}${cacheParam}`,
+      `/orders?customerName=${encodeURIComponent(searchName)}&statuses=${searchStatuses}&day=${encodeURIComponent(searchDay)}&page=${page}&limit=${limit}&startDate=${encodeURIComponent(startD)}&endDate=${encodeURIComponent(endD)}&method=${encodeURIComponent(searchMethod)}&cities=${searchCities}${dateFieldParam}${cacheParam}`,
       body,
       headers
     );
