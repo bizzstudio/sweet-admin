@@ -18,7 +18,7 @@ import React, {
   useState,
 } from "react";
 import { useTranslation } from "react-i18next";
-import { FiDollarSign, FiUserPlus, FiUsers } from "react-icons/fi";
+import { FiDollarSign, FiUserPlus } from "react-icons/fi";
 
 // Internal import
 import UploadManyTwo from "@/components/common/UploadManyTwo";
@@ -36,7 +36,6 @@ import AddCustomerModal from "@/components/customer/AddCustomerModal";
 import CustomerHistoryModal from "@/components/customer/CustomerHistoryModal";
 import CustomerPriceListModal from "@/components/customer/CustomerPriceListModal";
 import BulkCustomerPriceListModal from "@/components/customer/BulkCustomerPriceListModal";
-import GroupPriceListsModal from "@/components/customer/GroupPriceListsModal";
 import GroupPriceListServices from "@/services/GroupPriceListServices";
 import { SidebarContext } from "@/context/SidebarContext";
 
@@ -92,9 +91,9 @@ const Customers = () => {
 
   // ── המחירונים הקבוצתיים, באותה תבנית ──
   //
+  // הניהול שלהם בעמוד נפרד (pages/GroupPriceLists.jsx); כאן רק השם.
   // מחירון קבוצתי גובר על המחירון הפרטי, ולכן הטבלה מראה לצד כל לקוח לאיזו
   // קבוצה הוא שייך — בלי זה תג המחירון הפרטי היה נראה כמו המחיר שהוא משלם
-  const [isGroupPriceListsOpen, setIsGroupPriceListsOpen] = useState(false);
   const [priceGroups, setPriceGroups] = useState(new Map());
 
   const loadPriceGroups = useCallback(async () => {
@@ -206,14 +205,6 @@ const Customers = () => {
         onImported={loadPriceLists}
       />
 
-      {/* מחירון אחד לכמה לקוחות — גובר על המחירון הפרטי */}
-      <GroupPriceListsModal
-        isOpen={isGroupPriceListsOpen}
-        onClose={() => setIsGroupPriceListsOpen(false)}
-        customers={data}
-        onChanged={loadPriceGroups}
-      />
-
       <Card className="min-w-0 shadow-xs overflow-hidden bg-white dark:bg-gray-800 mb-5">
         <CardBody>
           <form
@@ -252,18 +243,6 @@ const Customers = () => {
               >
                 <FiDollarSign className="ml-2" />
                 העלאת מחירון לקוחות
-              </Button>
-            </div>
-
-            <div className="flex items-center">
-              <Button
-                type="button"
-                layout="outline"
-                onClick={() => setIsGroupPriceListsOpen(true)}
-                className="h-12 whitespace-nowrap"
-              >
-                <FiUsers className="ml-2" />
-                מחירון קבוצתי
               </Button>
             </div>
           </form>

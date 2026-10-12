@@ -1,4 +1,4 @@
-// בדיקות למסך המחירונים הקבוצתיים.
+// בדיקות לעמוד המחירונים הקבוצתיים.
 //
 // מה שהן שומרות עליו:
 //   1. קבוצה חדשה נשלחת עם השם, שורות הקובץ והלקוחות שסומנו.
@@ -17,11 +17,16 @@ vi.mock("@/utils/toast", () => ({ notifyError: vi.fn(), notifySuccess: vi.fn() }
 vi.mock("@/services/GroupPriceListServices", () => ({
   default: {
     getAll: vi.fn(),
+    getOne: vi.fn(),
     checkImport: vi.fn(),
     create: vi.fn(() => Promise.resolve({ message: "נשמר" })),
     update: vi.fn(() => Promise.resolve({ message: "עודכן" })),
     remove: vi.fn(() => Promise.resolve({ message: "נמחק" })),
   },
+}));
+
+vi.mock("@/services/CustomerServices", () => ({
+  default: { getAllCustomers: vi.fn() },
 }));
 
 // הפענוח עצמו נבדק ב-customerPriceListExcel.test.js
@@ -30,10 +35,11 @@ vi.mock("@/utils/customerPriceListExcel", async () => {
   return { ...actual, parseCustomerPriceListFile: vi.fn() };
 });
 
+import CustomerServices from "@/services/CustomerServices";
 import GroupPriceListServices from "@/services/GroupPriceListServices";
 import { parseCustomerPriceListFile } from "@/utils/customerPriceListExcel";
 import { notifyError } from "@/utils/toast";
-import GroupPriceListsModal from "@/components/customer/GroupPriceListsModal";
+import GroupPriceLists from "@/pages/GroupPriceLists";
 
 const CUSTOMERS = [
   { _id: "c1", name: "גן", lastName: "רימון", erp: { customerNumber: "101" } },
@@ -66,14 +72,13 @@ const PARSED = {
 let container;
 let root;
 
-// ‏Modal של windmill מרנדר ב-portal אל document.body
-const screen = () => document.body;
+const screen = () => container;
 const flush = () => act(async () => { await Promise.resolve(); await Promise.resolve(); });
 
 const open = async (groups = []) => {
   GroupPriceListServices.getAll.mockResolvedValue(groups);
   act(() => {
-    root.render(<GroupPriceListsModal isOpen onClose={() => {}} customers={CUSTOMERS} />);
+    root.render(<GroupPriceLists />);
   });
   await flush();
 };
@@ -113,6 +118,13 @@ const customerCheckbox = (label) =>
 beforeEach(() => {
   vi.clearAllMocks();
   parseCustomerPriceListFile.mockResolvedValue(PARSED);
+  CustomerServices.getAllCustomers.mockResolvedValue(CUSTOMERS);
+  GroupPriceListServices.getOne.mockResolvedValue({
+    ...GROUP,
+    filtered: 1,
+    returned: 1,
+    items: [{ sku: "85", price: 12, name: "אובלטים", inCatalog: true, catalogTitle: "אובלטים", catalogPrice: 8.9 }],
+  });
   GroupPriceListServices.checkImport.mockResolvedValue({
     matched: 2, unknown: 0, nameMismatchCount: 0, nameMismatches: [],
   });
@@ -126,7 +138,7 @@ afterEach(() => {
   container.remove();
 });
 
-describe("GroupPriceListsModal", () => {
+describe("GroupPriceLists", () => {
   it("קבוצה חדשה נשלחת עם השם, השורות והלקוחות שסומנו", async () => {
     await open([]);
     await click(button("מחירון קבוצתי חדש"));
@@ -175,6 +187,15 @@ describe("GroupPriceListsModal", () => {
 
     await click(customerCheckbox("רימון"));
     expect(screen().textContent).toContain("השמירה תעביר אותם");
+  });
+
+  it("פתיחת מחירון קיים מציגה את המחירים שבו", async () => {
+    await open([GROUP]);
+    await click(button("גני ילדים"));
+
+    expect(GroupPriceListServices.getOne).toHaveBeenCalledWith("g1", { search: "", limit: 100 });
+    expect(screen().textContent).toContain("אובלטים");
+    expect(screen().textContent).toContain("מחיר בקבוצה");
   });
 
   it("מחיקה עוברת דרך אישור", async () => {

@@ -19,6 +19,7 @@ const ChildCategory = lazy(() => import("@/pages/ChildCategory"));
 const Staff = lazy(() => import("@/pages/Staff"));
 const Pickers = lazy(() => import("@/pages/Pickers"));
 const Customers = lazy(() => import("@/pages/Customers"));
+const GroupPriceLists = lazy(() => import("@/pages/GroupPriceLists"));
 const CustomerOrder = lazy(() => import("@/pages/CustomerOrder"));
 const CustomerDetails = lazy(() => import("@/pages/CustomerDetails"));
 const CustomerDocumentsPage = lazy(() =>
@@ -147,6 +148,10 @@ const routes = [
   {
     path: "/customers",
     component: Customers,
+  },
+  {
+    path: "/group-price-lists",
+    component: GroupPriceLists,
   },
   {
     path: "/customer-order/:id",

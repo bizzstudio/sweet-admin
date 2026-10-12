@@ -1,20 +1,15 @@
-// src/components/customer/GroupPriceListsModal.jsx
-// מחירונים קבוצתיים: מחירון אחד מאקסל, עם שם, שמשויכים אליו כמה לקוחות.
+// src/pages/GroupPriceLists.jsx
+// עמוד "מחירון קבוצתי" (תחת לקוחות בתפריט): מחירון אחד מאקסל, עם שם,
+// שמשויכים אליו כמה לקוחות.
 //
-// שני מצבים באותו מודאל: רשימת הקבוצות, ועריכה של קבוצה אחת (שם, קובץ,
-// לקוחות). הקובץ הוא אותו קובץ כמו במחירון פרטי — מק"ט, שם המוצר, מחיר.
+// שני מצבים באותו עמוד: רשימת המחירונים הקיימים, ומחירון אחד פתוח (שם,
+// המחירים, קובץ חדש, לקוחות). הקובץ הוא אותו קובץ כמו במחירון פרטי — מק"ט, שם המוצר, מחיר.
 //
 // מה שהמסך חייב להעביר:
 //   1. מחירון קבוצתי גובר על המחירון הפרטי של הלקוח, בכל מק"ט שמופיע בו.
 //   2. לקוח שייך לקבוצה אחת — שיוך לכאן מוציא אותו מהקבוצה הקודמת.
 //   3. העלאת קובץ לקבוצה קיימת דורסת את המחירון שלה במלואו.
-import {
-  Badge,
-  Button,
-  Modal,
-  ModalBody,
-  ModalFooter,
-} from "@windmill/react-ui";
+import { Badge, Button, Card, CardBody } from "@windmill/react-ui";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   FiAlertTriangle,
@@ -30,6 +25,8 @@ import {
 
 // Internal import
 import spinnerLoadingImage from "@/assets/img/spinner.gif";
+import PageTitle from "@/components/Typography/PageTitle";
+import CustomerServices from "@/services/CustomerServices";
 import GroupPriceListServices from "@/services/GroupPriceListServices";
 import { describeApiError } from "@/utils/apiError";
 import {
@@ -78,8 +75,15 @@ const customerLabel = (customer) =>
 const inputClass =
   "block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:border-gray-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200";
 
-const GroupPriceListsModal = ({ isOpen, onClose, customers = [], onChanged }) => {
+const GroupPriceLists = () => {
   const fileRef = useRef();
+  // המחירון שהמסך מציג כרגע. תשובה שחוזרת אחרי שכבר עברו למחירון אחר (או
+  // חזרו לרשימה) נזרקת — אחרת מחירים של קבוצה אחת היו מוצגים תחת שם של אחרת
+  const openGroupId = useRef(null);
+
+  // כל הלקוחות, לבחירת חברי הקבוצה. כשל כאן אינו שובר את העמוד — המחירונים
+  // עצמם מוצגים, ורק רשימת הבחירה ריקה
+  const [customers, setCustomers] = useState([]);
 
   const [groups, setGroups] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -132,14 +136,26 @@ const GroupPriceListsModal = ({ isOpen, onClose, customers = [], onChanged }) =>
     setOnlySelected(false);
     setPriceRows(null);
     setPriceSearch("");
+    setIsLoadingRows(false);
+    openGroupId.current = null;
     resetFile();
   }, [resetFile]);
 
   useEffect(() => {
-    if (!isOpen) return;
-    backToList();
     loadGroups();
-  }, [isOpen, backToList, loadGroups]);
+  }, [loadGroups]);
+
+  useEffect(() => {
+    let cancelled = false;
+    CustomerServices.getAllCustomers()
+      .then((list) => {
+        if (!cancelled) setCustomers(Array.isArray(list) ? list : []);
+      })
+      .catch((err) => notifyError(describeApiError(err, "טעינת הלקוחות נכשלה")));
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // לאיזו קבוצה כל לקוח שייך כרגע — כדי להראות ליד לקוח שהשיוך מעביר אותו
   const groupByCustomer = useMemo(() => {
@@ -160,28 +176,27 @@ const GroupPriceListsModal = ({ isOpen, onClose, customers = [], onChanged }) =>
     setEditing(group);
     setName(group.name);
     setSelected(new Set((group.customers || []).map(String)));
+    // פתיחת מחירון מציגה מיד את המחירים שבו
+    loadPriceRows(group._id, "");
   };
 
-  const loadPriceRows = async (searchText = "") => {
-    if (!editing?._id || isLoadingRows) return;
+  const loadPriceRows = async (groupId, searchText = "") => {
+    if (!groupId) return;
+    openGroupId.current = groupId;
     setIsLoadingRows(true);
     try {
-      setPriceRows(
-        await GroupPriceListServices.getOne(editing._id, {
-          search: searchText,
-          limit: MAX_LIST,
-        }),
-      );
+      const rows = await GroupPriceListServices.getOne(groupId, {
+        search: searchText,
+        limit: MAX_LIST,
+      });
+      if (openGroupId.current === groupId) setPriceRows(rows);
     } catch (err) {
-      notifyError(describeApiError(err, "טעינת המחירון נכשלה"));
+      if (openGroupId.current === groupId) {
+        notifyError(describeApiError(err, "טעינת המחירון נכשלה"));
+      }
     } finally {
-      setIsLoadingRows(false);
+      if (openGroupId.current === groupId) setIsLoadingRows(false);
     }
-  };
-
-  const handleClose = () => {
-    if (busy) return;
-    onClose();
   };
 
   const handleSelectFile = async (e) => {
@@ -270,7 +285,6 @@ const GroupPriceListsModal = ({ isOpen, onClose, customers = [], onChanged }) =>
       notifySuccess(res?.message || "המחירון הקבוצתי נשמר");
       backToList();
       await loadGroups();
-      onChanged?.();
     } catch (err) {
       notifyError(describeApiError(err, "שמירת המחירון הקבוצתי נכשלה"));
     } finally {
@@ -293,7 +307,6 @@ const GroupPriceListsModal = ({ isOpen, onClose, customers = [], onChanged }) =>
       const res = await GroupPriceListServices.remove(group._id);
       notifySuccess(res?.message || "המחירון הקבוצתי נמחק");
       await loadGroups();
-      onChanged?.();
     } catch (err) {
       notifyError(describeApiError(err, "מחיקת המחירון הקבוצתי נכשלה"));
     } finally {
@@ -304,21 +317,35 @@ const GroupPriceListsModal = ({ isOpen, onClose, customers = [], onChanged }) =>
   const stats = parsed?.stats;
 
   return (
-    // אותו בסיס כמו ב-CustomerPriceListModal: className דורך על מחלקות התמה
-    <Modal
-      isOpen={isOpen}
-      onClose={handleClose}
-      className="w-full bg-white rounded-lg dark:bg-gray-800 sm:rounded-lg m-4 sm:max-w-4xl custom-modal"
-    >
-      <ModalBody className="text-sm text-gray-800 dark:text-gray-400 px-6 pt-6 pb-2 text-right max-h-[70vh] overflow-y-auto">
-        <h2 className="text-xl font-medium mb-1 flex items-center gap-2 justify-end">
-          {editing
-            ? isNew
-              ? "מחירון קבוצתי חדש"
-              : `עריכת מחירון קבוצתי — ${editing.name}`
-            : "מחירונים קבוצתיים"}
-          <FiUsers className="text-customGreen" />
-        </h2>
+    <>
+      <PageTitle>מחירון קבוצתי</PageTitle>
+
+      <Card className="min-w-0 shadow-xs overflow-hidden bg-white dark:bg-gray-800 mb-5">
+        <CardBody className="text-sm text-gray-800 dark:text-gray-400 text-right">
+        <div className="mb-1 flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-xl font-medium flex items-center gap-2">
+            <FiUsers className="text-customGreen" />
+            {editing
+              ? isNew
+                ? "מחירון קבוצתי חדש"
+                : `מחירון קבוצתי — ${editing.name}`
+              : "המחירונים הקיימים"}
+          </h2>
+          {editing ? (
+            <Button type="button" layout="outline" disabled={busy} onClick={backToList}>
+              <FiArrowRight className="ml-1" /> חזרה לרשימה
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              className="h-12 bg-customGreen-dark"
+              disabled={busy || isLoading}
+              onClick={startNew}
+            >
+              <FiPlus className="ml-1" /> מחירון קבוצתי חדש
+            </Button>
+          )}
+        </div>
         <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
           {"מחירון אחד לכמה לקוחות. מחירון קבוצתי גובר על המחירון הפרטי של הלקוח " +
             'בכל מק"ט שמופיע בו. מק"ט שאינו במחירון הקבוצתי נמכר לפי המחירון הפרטי, ' +
@@ -345,7 +372,7 @@ const GroupPriceListsModal = ({ isOpen, onClose, customers = [], onChanged }) =>
             </div>
           ) : groups.length === 0 ? (
             <p className="py-6 text-center text-sm text-gray-500 dark:text-gray-400">
-              עדיין אין מחירונים קבוצתיים.
+              {'עדיין אין מחירונים קבוצתיים. לוחצים על "מחירון קבוצתי חדש", נותנים שם, מעלים קובץ אקסל ובוחרים לקוחות.'}
             </p>
           ) : (
             <div className="rounded-md border border-gray-100 dark:border-gray-700">
@@ -367,7 +394,16 @@ const GroupPriceListsModal = ({ isOpen, onClose, customers = [], onChanged }) =>
                       key={group._id}
                       className="border-t border-gray-100 dark:border-gray-700"
                     >
-                      <td className="px-3 py-2 font-semibold">{group.name}</td>
+                      <td className="px-3 py-2 font-semibold">
+                        <button
+                          type="button"
+                          onClick={() => startEdit(group)}
+                          disabled={busy}
+                          className="text-blue-600 hover:underline focus:outline-none dark:text-blue-400"
+                        >
+                          {group.name}
+                        </button>
+                      </td>
                       <td className="px-3 py-2">{group.itemsCount}</td>
                       <td className="px-3 py-2">
                         {group.customersCount > 0 ? (
@@ -386,7 +422,7 @@ const GroupPriceListsModal = ({ isOpen, onClose, customers = [], onChanged }) =>
                           type="button"
                           onClick={() => startEdit(group)}
                           disabled={busy}
-                          title="עריכה"
+                          title="פתיחה ועריכה"
                           aria-label={`עריכת המחירון הקבוצתי ${group.name}`}
                           className="p-1 text-gray-500 hover:text-blue-600 disabled:opacity-40"
                         >
@@ -473,7 +509,7 @@ const GroupPriceListsModal = ({ isOpen, onClose, customers = [], onChanged }) =>
                         value={priceSearch}
                         onChange={(e) => setPriceSearch(e.target.value)}
                         onKeyDown={(e) => {
-                          if (e.key === "Enter") loadPriceRows(priceSearch);
+                          if (e.key === "Enter") loadPriceRows(editing._id, priceSearch);
                         }}
                         placeholder='חיפוש במחירון לפי מק"ט או שם (Enter)'
                         className={inputClass}
@@ -527,7 +563,7 @@ const GroupPriceListsModal = ({ isOpen, onClose, customers = [], onChanged }) =>
                 ) : (
                   <button
                     type="button"
-                    onClick={() => loadPriceRows("")}
+                    onClick={() => loadPriceRows(editing._id, "")}
                     disabled={isLoadingRows}
                     className="flex items-center gap-1 text-xs text-blue-600 underline focus:outline-none disabled:opacity-40 dark:text-blue-400"
                   >
@@ -709,23 +745,11 @@ const GroupPriceListsModal = ({ isOpen, onClose, customers = [], onChanged }) =>
             )}
           </>
         )}
-      </ModalBody>
-
-      <ModalFooter className="flex items-center justify-center gap-3 px-6 py-3 flex-row bg-gray-50 dark:bg-gray-800 rounded-b-lg">
         {editing ? (
-          <>
+          <div className="mt-4 flex justify-center">
             <Button
               type="button"
-              layout="outline"
-              className="w-full sm:w-auto"
-              disabled={busy}
-              onClick={backToList}
-            >
-              <FiArrowRight className="ml-1" /> חזרה לרשימה
-            </Button>
-            <Button
-              type="button"
-              className="w-full h-12 sm:w-auto"
+              className="h-12 w-full sm:w-auto bg-customGreen-dark"
               disabled={busy || isParsing}
               onClick={handleSave}
             >
@@ -738,31 +762,12 @@ const GroupPriceListsModal = ({ isOpen, onClose, customers = [], onChanged }) =>
                 "שמירת המחירון הקבוצתי"
               )}
             </Button>
-          </>
-        ) : (
-          <>
-            <Button
-              type="button"
-              layout="outline"
-              className="w-full sm:w-auto"
-              disabled={busy}
-              onClick={handleClose}
-            >
-              סגור
-            </Button>
-            <Button
-              type="button"
-              className="w-full h-12 sm:w-auto"
-              disabled={busy || isLoading}
-              onClick={startNew}
-            >
-              <FiPlus className="ml-1" /> מחירון קבוצתי חדש
-            </Button>
-          </>
-        )}
-      </ModalFooter>
-    </Modal>
+          </div>
+        ) : null}
+        </CardBody>
+      </Card>
+    </>
   );
 };
 
-export default GroupPriceListsModal;
+export default GroupPriceLists;

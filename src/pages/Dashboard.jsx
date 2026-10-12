@@ -65,6 +65,11 @@ const TILE_META = {
     accent: "green",
     desc: "רשימת הלקוחות: פרטי קשר וכתובת, עריכת מחירון הלקוח, ומעבר לכרטיס עם סיסמת הכניסה לחנות, ההזמנות והמסמכים.",
   },
+  GroupPriceLists: {
+    icon: FiUsers,
+    accent: "green",
+    desc: "מחירון אחד לכמה לקוחות: העלאה מאקסל, שם לקבוצה ובחירת הלקוחות. גובר על המחירון הפרטי של כל לקוח בקבוצה.",
+  },
   Orders: {
     icon: FiShoppingCart,
     accent: "blue",
@@ -197,6 +202,7 @@ const ACCENTS = {
 /* שמות הקבוצות בתפריט הצדדי -> כותרת הקבוצה בלוח הבקרה. */
 const GROUP_TITLES = {
   Catalog: "קטלוג",
+  Customers: "לקוחות",
   Orders: "הזמנות",
   Billing: "חיוב וגבייה",
 };

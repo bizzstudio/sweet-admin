@@ -313,7 +313,7 @@ const CustomerPriceListPanel = ({ customerId, customerName = "" }) => {
             </div>
             {groups && groups.length === 0 ? (
               <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                {'עדיין אין מחירונים קבוצתיים. יוצרים אותם בעמוד הלקוחות, בכפתור "מחירון קבוצתי".'}
+                {'עדיין אין מחירונים קבוצתיים. יוצרים אותם בעמוד "מחירון קבוצתי", תחת לקוחות בתפריט.'}
               </p>
             ) : null}
             {data.group ? (
