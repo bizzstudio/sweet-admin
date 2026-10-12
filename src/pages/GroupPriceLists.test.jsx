@@ -25,8 +25,10 @@ vi.mock("@/services/GroupPriceListServices", () => ({
   },
 }));
 
+// המוק שומר על החתימה האמיתית של השירות ({ searchText }): קריאה בלי ארגומנט
+// קורסת בו בדיוק כמו בשירות עצמו, ולא עוברת בשקט
 vi.mock("@/services/CustomerServices", () => ({
-  default: { getAllCustomers: vi.fn() },
+  default: { getAllCustomers: vi.fn(({ searchText = "" }) => Promise.resolve(searchText)) },
 }));
 
 // הפענוח עצמו נבדק ב-customerPriceListExcel.test.js
@@ -118,7 +120,9 @@ const customerCheckbox = (label) =>
 beforeEach(() => {
   vi.clearAllMocks();
   parseCustomerPriceListFile.mockResolvedValue(PARSED);
-  CustomerServices.getAllCustomers.mockResolvedValue(CUSTOMERS);
+  CustomerServices.getAllCustomers.mockImplementation(({ searchText = "" }) =>
+    Promise.resolve(searchText ? [] : CUSTOMERS)
+  );
   GroupPriceListServices.getOne.mockResolvedValue({
     ...GROUP,
     filtered: 1,

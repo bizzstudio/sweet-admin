@@ -147,7 +147,8 @@ const GroupPriceLists = () => {
 
   useEffect(() => {
     let cancelled = false;
-    CustomerServices.getAllCustomers()
+    // האובייקט הריק נדרש: השירות מפרק ממנו את searchText
+    CustomerServices.getAllCustomers({})
       .then((list) => {
         if (!cancelled) setCustomers(Array.isArray(list) ? list : []);
       })
