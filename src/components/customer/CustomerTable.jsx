@@ -16,6 +16,7 @@ import CashierToggleButton from "@/components/table/CashierToggleButton";
 const CustomerTable = ({
   customers,
   priceLists = new Map(),
+  priceGroups = new Map(),
   onOpenPriceList,
   histories = new Map(),
   onOpenHistory,
@@ -31,6 +32,7 @@ const CustomerTable = ({
       <TableBody>
         {customers?.map((user) => {
           const priceList = priceLists.get(String(user._id));
+          const priceGroup = priceGroups.get(String(user._id));
           const history = histories.get(String(user._id));
 
           return (
@@ -85,6 +87,15 @@ const CustomerTable = ({
                   )}
                 </button>
               </TableCell>
+                {/* המחירון הקבוצתי גובר על הפרטי, ולכן שמו מוצג ליד התג */}
+                {priceGroup ? (
+                  <span
+                    className="mt-1 block text-xs font-medium text-blue-600 dark:text-blue-400"
+                    title="הלקוח משויך למחירון קבוצתי — הוא גובר על המחירון הפרטי"
+                  >
+                    {`קבוצתי: ${priceGroup.name}`}
+                  </span>
+                ) : null}
 
               {/* היסטוריית הרכישות: אותה תבנית כמו המחירון — מצב וכפתור
                   באותו אלמנט, כדי לראות במבט אחד את מי עוד צריך להשלים */}

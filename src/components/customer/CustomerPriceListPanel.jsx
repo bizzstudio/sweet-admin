@@ -6,6 +6,10 @@
 // הלקוחה): שינוי מחיר בשורה, הוספת מוצר והסרת מוצר. כל פעולה כזו היא
 // מיזוג — שאר השורות נשארות — בניגוד ליבוא מאקסל, שדורס את הכל.
 //
+// מ-12/10/2026 הכרטיס מציג גם את המחירון הקבוצתי שהלקוח משויך אליו, ומאפשר
+// לשייך אותו מכאן. המחירון הקבוצתי גובר על הפרטי, ולכן שורה פרטית שהוא דורס
+// מסומנת — אחרת היא נראית כמו המחיר שהלקוח משלם.
+//
 // לצד כל שורה מוצג גם מחיר הקטלוג, כי זה מה שאומר אם המחירון בכלל משנה משהו —
 // שורה שהמחיר בה זהה לקטלוג היא שורה מיותרת, ושורה שהמק"ט שלה אינו בקטלוג
 // כלל אינה תופסת עד שהמוצר ייווצר.
@@ -20,6 +24,7 @@ import {
   FiSearch,
   FiTrash2,
   FiUploadCloud,
+  FiUsers,
   FiX,
 } from "react-icons/fi";
 
@@ -28,6 +33,7 @@ import { Field, Panel } from "@/components/common/ReadOnlyFields";
 import CustomerPriceListModal from "@/components/customer/CustomerPriceListModal";
 import ProductPicker from "@/components/billing/ProductPicker";
 import CustomerPriceListServices from "@/services/CustomerPriceListServices";
+import GroupPriceListServices from "@/services/GroupPriceListServices";
 import { describeApiError } from "@/utils/apiError";
 import { formatDateTime, formatMoney, text } from "@/utils/displayFormat";
 import { notifyError, notifySuccess } from "@/utils/toast";
@@ -71,6 +77,11 @@ const CustomerPriceListPanel = ({ customerId, customerName = "" }) => {
   const [newSku, setNewSku] = useState("");
   const [newPrice, setNewPrice] = useState("");
   const [saving, setSaving] = useState(false);
+
+  // שיוך למחירון קבוצתי. רשימת הקבוצות נטענת רק כשלוחצים "שינוי", כדי
+  // שהכרטיס במצב צפייה יישאר בלי שדות קלט ובלי בקשה נוספת בכל טעינה
+  const [groups, setGroups] = useState(null);
+  const [groupChoice, setGroupChoice] = useState("");
 
   const load = useCallback(
     async (searchText = "") => {
@@ -143,6 +154,32 @@ const CustomerPriceListPanel = ({ customerId, customerName = "" }) => {
     }
   };
 
+  const openGroupPicker = async () => {
+    if (saving) return;
+    try {
+      const list = await GroupPriceListServices.getAll();
+      setGroupChoice(data?.group?._id || "");
+      setGroups(list || []);
+    } catch (err) {
+      notifyError(describeApiError(err, "טעינת המחירונים הקבוצתיים נכשלה"));
+    }
+  };
+
+  const saveGroup = async () => {
+    if (saving) return;
+    setSaving(true);
+    try {
+      const res = await GroupPriceListServices.setCustomerGroup(customerId, groupChoice);
+      notifySuccess(res?.message || "השיוך נשמר");
+      setGroups(null);
+      await load(search);
+    } catch (err) {
+      notifyError(describeApiError(err));
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const startEdit = (item) => {
     setAdding(false);
     setEditingSku(item.sku);
@@ -194,7 +231,9 @@ const CustomerPriceListPanel = ({ customerId, customerName = "" }) => {
     ? "מצב המחירון לא נטען"
     : exists
       ? undefined
-      : "אין — הלקוח משלם מחירי קטלוג";
+      : data?.group
+        ? "אין — חל המחירון הקבוצתי, ומעבר לו מחירי הקטלוג"
+        : "אין — הלקוח משלם מחירי קטלוג";
 
   return (
     <Panel title="מחירון פרטי" icon={<FiDollarSign />} note={note} span>
@@ -207,6 +246,85 @@ const CustomerPriceListPanel = ({ customerId, customerName = "" }) => {
       />
 
       <div className="sm:col-span-2">
+        {/* המחירון הקבוצתי — מעל המחירון הפרטי, כי הוא זה שגובר */}
+        {!loadError && data ? (
+          <div className="mb-4 rounded-md bg-gray-50 p-3 dark:bg-gray-700">
+            <div className="flex flex-wrap items-center gap-2 text-sm">
+              <FiUsers className="text-gray-500" />
+              <span className="text-gray-500 dark:text-gray-400">מחירון קבוצתי:</span>
+              {groups ? (
+                <>
+                  <select
+                    value={groupChoice}
+                    onChange={(e) => setGroupChoice(e.target.value)}
+                    disabled={saving}
+                    aria-label="מחירון קבוצתי"
+                    className={inputClass}
+                    style={{ width: "16rem" }}
+                  >
+                    <option value="">בלי מחירון קבוצתי</option>
+                    {groups.map((group) => (
+                      <option key={group._id} value={group._id}>
+                        {`${group.name} (${group.itemsCount} שורות)`}
+                      </option>
+                    ))}
+                  </select>
+                  <Button
+                    type="button"
+                    onClick={saveGroup}
+                    disabled={saving}
+                    className="px-4 py-2 text-sm"
+                  >
+                    <FiCheck className="mr-1" /> {saving ? "שומר..." : "שמירה"}
+                  </Button>
+                  <Button
+                    type="button"
+                    layout="outline"
+                    onClick={() => setGroups(null)}
+                    disabled={saving}
+                    className="px-3 py-2 text-sm"
+                  >
+                    ביטול
+                  </Button>
+                </>
+              ) : (
+                <>
+                  {data.group ? (
+                    <Badge type="primary">
+                      <span className="font-bold">
+                        {`${data.group.name} · ${data.group.itemsCount} שורות`}
+                      </span>
+                    </Badge>
+                  ) : (
+                    <span className="font-medium text-gray-700 dark:text-gray-200">
+                      הלקוח אינו משויך
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={openGroupPicker}
+                    disabled={saving}
+                    className="text-xs text-blue-600 underline focus:outline-none disabled:opacity-40 dark:text-blue-400"
+                  >
+                    {data.group ? "שינוי" : "שיוך למחירון קבוצתי"}
+                  </button>
+                </>
+              )}
+            </div>
+            {groups && groups.length === 0 ? (
+              <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                {'עדיין אין מחירונים קבוצתיים. יוצרים אותם בעמוד הלקוחות, בכפתור "מחירון קבוצתי".'}
+              </p>
+            ) : null}
+            {data.group ? (
+              <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                {'המחירון הקבוצתי גובר על המחירון הפרטי בכל מק"ט שמופיע בו. ' +
+                  "שורות פרטיות שהוא דורס מסומנות בטבלה."}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-2">
             {loadError ? (
@@ -219,7 +337,9 @@ const CustomerPriceListPanel = ({ customerId, customerName = "" }) => {
               </Badge>
             ) : (
               <Badge type="neutral">
-                <span className="font-bold">מחירי קטלוג</span>
+                <span className="font-bold">
+                  {data?.group ? "אין מחירון פרטי" : "מחירי קטלוג"}
+                </span>
               </Badge>
             )}
             {partial ? (
@@ -413,6 +533,16 @@ const CustomerPriceListPanel = ({ customerId, customerName = "" }) => {
                                 className={inputClass}
                                 style={{ width: "7rem" }}
                               />
+                            ) : item.groupPrice != null ? (
+                              // המחיר הפרטי נשאר שמור, אבל הלקוח משלם את הקבוצתי
+                              <>
+                                <span className="text-gray-400 line-through">
+                                  {formatMoney(item.price)}
+                                </span>
+                                <span className="mr-1 font-normal text-blue-600 dark:text-blue-400">
+                                  {`בקבוצתי: ${formatMoney(item.groupPrice)}`}
+                                </span>
+                              </>
                             ) : (
                               formatMoney(item.price)
                             )}

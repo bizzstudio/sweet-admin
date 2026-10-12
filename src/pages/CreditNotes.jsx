@@ -62,6 +62,7 @@ const STATUS_LABELS = {
 };
 
 const SOURCE_LABELS = {
+  groupPriceList: { text: "מחירון קבוצתי", cls: "text-green-600" },
   customerPriceList: { text: "מחירון הלקוח", cls: "text-green-600" },
   catalog: { text: "מחיר קטלוג", cls: "text-yellow-600" },
   manual: { text: "ידני", cls: "text-blue-600" },

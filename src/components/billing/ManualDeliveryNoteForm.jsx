@@ -45,13 +45,22 @@ import { notifyError, notifySuccess } from "@/utils/toast";
 
 import TableHeaderCell from "@/components/table/TableHeaderCell";
 const SOURCE_LABELS = {
+  groupPriceList: { text: "מחירון קבוצתי", cls: "text-green-600" },
   customerPriceList: { text: "מחירון הלקוח", cls: "text-green-600" },
   catalog: { text: "מחיר קטלוג", cls: "text-yellow-600" },
   missing: { text: "אין מחיר!", cls: "text-red-600 font-semibold" },
 };
 
 // הנוסח הקצר של מקור המחיר, לרמז שמתחת לשדה המחיר
-const EXPECTED_SOURCE_TEXT = { customerPriceList: "מחירון הלקוח", catalog: "קטלוג" };
+const EXPECTED_SOURCE_TEXT = {
+  groupPriceList: "מחירון קבוצתי",
+  customerPriceList: "מחירון הלקוח",
+  catalog: "קטלוג",
+};
+
+// מחיר שסוכם עם הלקוח (פרטי או קבוצתי), להבדיל ממחיר קטלוג
+const isPriceListSource = (source) =>
+  source === "customerPriceList" || source === "groupPriceList";
 
 const shekel = (n) =>
   Number(n || 0).toLocaleString("he-IL", {
@@ -97,7 +106,7 @@ const ExpectedPrice = ({ known, typed }) => {
   const base = "mt-1 whitespace-nowrap text-xs leading-tight";
 
   if (typed !== "") {
-    return known.source === "customerPriceList" && Number(typed) !== known.unitPrice ? (
+    return isPriceListSource(known.source) && Number(typed) !== known.unitPrice ? (
       <p className={`${base} text-gray-500`}>במחירון: {shekel(known.unitPrice)} ₪</p>
     ) : null;
   }
@@ -715,8 +724,16 @@ const ManualDeliveryNoteForm = ({
               <ExpectedPrice known={expectedFor(row.sku)} typed={row.unitPrice} />
             </div>
 
-            {/* מופיע רק כשיש מחיר ידני — בלי מחיר אין מה לשמור */}
-            {Number(row.unitPrice) > 0 && row.sku && (
+            {/* מופיע רק כשיש מחיר ידני — בלי מחיר אין מה לשמור. מוצר שמתומחר
+                מהמחירון הקבוצתי אינו מקבל את הסימון: הקבוצתי גובר על המחירון
+                הפרטי, ולכן מחיר שנשמר שם לא היה תופס בפעם הבאה */}
+            {Number(row.unitPrice) > 0 &&
+            row.sku &&
+            expectedFor(row.sku)?.source === "groupPriceList" ? (
+              <span className="py-2 text-xs text-gray-500 shrink-0">
+                המחיר הקבוע — במחירון הקבוצתי
+              </span>
+            ) : Number(row.unitPrice) > 0 && row.sku ? (
               <label className="flex items-center gap-1 py-2 text-xs text-gray-600 dark:text-gray-400 shrink-0">
                 <input
                   type="checkbox"
@@ -861,7 +878,7 @@ const ManualDeliveryNoteForm = ({
                 <FiAlertTriangle /> יש מוצרים ללא מחיר — יש להזין מחיר יח' ידני
                 לפני ההפקה
               </p>
-            )}
+            ) : null}
 
             {discountTooBig && (
               <p className="mt-3 text-sm text-red-600 flex items-center gap-2">
