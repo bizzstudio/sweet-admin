@@ -87,7 +87,6 @@ const CustomerTable = ({
                     <span className="text-gray-500">מחירון</span>
                   )}
                 </button>
-              </TableCell>
                 {/* המחירון הקבוצתי גובר על הפרטי, ולכן שמו מוצג ליד התג */}
                 {priceGroup ? (
                   <span
@@ -97,6 +96,7 @@ const CustomerTable = ({
                     {`קבוצתי: ${priceGroup.name}`}
                   </span>
                 ) : null}
+              </TableCell>
 
               {/* היסטוריית הרכישות: אותה תבנית כמו המחירון — מצב וכפתור
                   באותו אלמנט, כדי לראות במבט אחד את מי עוד צריך להשלים */}

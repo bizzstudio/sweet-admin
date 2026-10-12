@@ -742,7 +742,7 @@ const ManualDeliveryNoteForm = ({
                 />
                 לשמור במחירון הלקוח
               </label>
-            )}
+            ) : null}
 
             {/* המשקל שהוזמן, כדי שיהיה ברור במה השורה שונה ממה שהלקוח ביקש */}
             <span className="py-2 text-xs text-gray-500 w-28 shrink-0">
@@ -878,7 +878,7 @@ const ManualDeliveryNoteForm = ({
                 <FiAlertTriangle /> יש מוצרים ללא מחיר — יש להזין מחיר יח' ידני
                 לפני ההפקה
               </p>
-            ) : null}
+            )}
 
             {discountTooBig && (
               <p className="mt-3 text-sm text-red-600 flex items-center gap-2">
