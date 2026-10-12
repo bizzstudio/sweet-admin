@@ -97,6 +97,7 @@ const Orders = () => {
         total: getNumberTwo(order.total),
         paymentMethod: order.paymentMethod,
         status: order.status,
+        customerNumber: order?.customerNumber || "",
         user_info: `${order?.user_info?.name} ${order?.user_info?.lastName}`,
         createdAt: order.createdAt,
         updatedAt: order.updatedAt,
@@ -324,6 +325,7 @@ const Orders = () => {
                 <TableHeaderCell className="text-center">{t("InvoiceNo")}</TableHeaderCell>
                 <TableHeaderCell className="text-center">{t("orderCreation")}</TableHeaderCell>
                 <TableHeaderCell className="text-center">{t("orderUpdate")}</TableHeaderCell>
+                <TableHeaderCell className="text-center">מספר לקוח</TableHeaderCell>
                 <TableHeaderCell className="text-center">{t("CustomerName")}</TableHeaderCell>
                 <TableHeaderCell className="text-center">{t("AmountTbl")}</TableHeaderCell>
                 <TableHeaderCell className="text-center">{t("OderStatusTbl")}</TableHeaderCell>

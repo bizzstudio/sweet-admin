@@ -38,11 +38,12 @@ const CustomerTable = ({
           return (
             <TableRow key={user._id}>
               {/* מספר הלקוח מההנהח"ש הוא המזהה שמדברים בו מול הלקוחה ובקובצי
-                  האקסל, ולכן הוא מוצג כאן. הפירור מה-_id נשאר כגיבוי ללקוח
-                  שנרשם בחנות ואין לו מספר */}
+                  האקסל, ולכן הוא מוצג כאן. ללקוח שנרשם בחנות ואין לו מספר
+                  מוצג קו: פירור מה-_id תחת הכותרת "מספר לקוח" היה נראה כמו
+                  מספר אמיתי */}
               <TableCell>
-                <span className="font-semibold uppercase text-xs">
-                  {user?.erp?.customerNumber || user?._id?.substring(20, 24)}
+                <span className="font-semibold text-xs">
+                  {user?.erp?.customerNumber || "—"}
                 </span>
               </TableCell>
 

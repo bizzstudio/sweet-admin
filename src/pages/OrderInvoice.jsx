@@ -255,6 +255,12 @@ const OrderInvoice = () => {
                   {t("InvoiceTo")}
                 </span>
                 <span className="text-sm text-gray-500 dark:text-gray-400 block">
+                  {data?.customerNumber && (
+                    <>
+                      מספר לקוח: <span className="font-semibold">{data.customerNumber}</span>
+                      <br />
+                    </>
+                  )}
                   {data?.user_info?.name} {data?.user_info?.lastName}<br />
                   {data?.user_info?.email}{" "}
                   <span className="ml-2">{data?.user_info?.contact}</span>

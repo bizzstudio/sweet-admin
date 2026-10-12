@@ -113,6 +113,13 @@ const OrderTable = ({ orders, isCashierOrders = false }) => {
               </>
             ) : (
               <>
+                {/* מספר הלקוח מההנהח"ש — השרת מצרף אותו מכרטיס הלקוח */}
+                <TableCell className="text-center">
+                  <span className="text-sm font-semibold">
+                    {order?.customerNumber || "—"}
+                  </span>
+                </TableCell>
+
                 <TableCell className="text-xs text-center max-w-[8vw] overflow-hidden truncate"
                   title={customerName(order)}>
                   <span className="text-sm">{customerName(order)}</span>

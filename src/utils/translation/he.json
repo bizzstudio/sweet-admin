@@ -544,7 +544,7 @@
   "sorryProductNotFound": "מצטערים, אין מוצרים כרגע.",
   "CustomersPage": "לקוחות",
   "CustomersPageSearchPlaceholder": "חפש לפי שם/מספר לקוח/מייל/טלפון",
-  "CustomersId": "מזהה",
+  "CustomersId": "מספר לקוח",
   "CustomersJoiningDate": "תאריך הצטרפות",
   "CustomersName": "שם",
   "CustomersEmail": "אימייל",
