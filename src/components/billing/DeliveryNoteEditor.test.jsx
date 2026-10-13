@@ -1,9 +1,11 @@
 // בדיקות לשמירת מחיר ששונה בעריכת תעודת משלוח גם במחירון הלקוח.
 //
 // מה שהן שומרות עליו:
-// 1. רק מחיר ששונה נשלח למחירון — שמירה של תיקון כמות אינה נוגעת בו.
+// 1. מחיר ששונה נשלח למחירון תמיד, בלי בחירה — ושמירה של תיקון כמות
+//    אינה נוגעת בו.
 // 2. המחירון מתעדכן רק אחרי שהתעודה נשמרה, וכישלון שלו נאמר במפורש.
-// 3. מוצר שמתומחר מהמחירון הקבוצתי אינו נכתב למחירון הפרטי.
+// 3. מוצר שמתומחר מהמחירון הקבוצתי נשלח עם applyToGroup, והשורה מזהירה
+//    שהמחיר ישתנה לכל הקבוצה.
 
 import React from "react";
 import { createRoot } from "react-dom/client";
@@ -103,8 +105,6 @@ afterEach(() => {
 describe("DeliveryNoteEditor — מחיר ששונה נשמר במחירון הלקוח", () => {
   it("שמירה בלי שינוי מחיר אינה נוגעת במחירון", async () => {
     await render();
-    expect(checkboxes()).toHaveLength(0);
-
     await type(quantityInputs()[0], "3");
     await click(saveButton());
 
@@ -115,13 +115,14 @@ describe("DeliveryNoteEditor — מחיר ששונה נשמר במחירון ה�
   it("רק השורה שהמחיר שלה שונה נשלחת למחירון, אחרי השמירה", async () => {
     await render();
     await type(priceInputs()[0], "12.5");
-    expect(checkboxes()).toHaveLength(1);
-    expect(checkboxes()[0].checked).toBe(true);
+    // אין בחירה בין קבוע לחד-פעמי
+    expect(checkboxes()).toHaveLength(0);
     await click(saveButton());
 
     expect(BillingServices.updateDeliveryNote).toHaveBeenCalledTimes(1);
     expect(CustomerPriceListServices.upsertItems).toHaveBeenCalledWith("c1", {
       items: [{ sku: "111", price: 12.5 }],
+      applyToGroup: true,
     });
   });
 
@@ -129,19 +130,8 @@ describe("DeliveryNoteEditor — מחיר ששונה נשמר במחירון ה�
     await render();
     await type(priceInputs()[0], "12.5");
     await type(priceInputs()[0], "10");
-    expect(checkboxes()).toHaveLength(0);
 
     await click(saveButton());
-    expect(CustomerPriceListServices.upsertItems).not.toHaveBeenCalled();
-  });
-
-  it("הסרת הסימון משאירה את התיקון בתעודה בלבד", async () => {
-    await render();
-    await type(priceInputs()[0], "12.5");
-    await click(checkboxes()[0]);
-    await click(saveButton());
-
-    expect(BillingServices.updateDeliveryNote.mock.calls[0][1].items[0].unitPrice).toBe(12.5);
     expect(CustomerPriceListServices.upsertItems).not.toHaveBeenCalled();
   });
 
@@ -163,25 +153,26 @@ describe("DeliveryNoteEditor — מחיר ששונה נשמר במחירון ה�
     expect(notifyError).toHaveBeenCalledWith(expect.stringContaining("המחיר לא נשמר במחירון"));
   });
 
-  it("מוצר שהוחלף בשורה אינו מקבל למחירון את המחיר של קודמו", async () => {
+  it("מוצר שהוחלף בשורה אינו יורש את המחיר של קודמו", async () => {
     await render();
     await click(container.querySelectorAll("[data-picker]")[0]);
-
-    // המחיר 10 נשאר בשורה, אבל הוא הוקלד למוצר 111
-    expect(checkboxes()).toHaveLength(1);
-    expect(checkboxes()[0].checked).toBe(false);
+    expect(priceInputs()[0].value).toBe("");
 
     await click(saveButton());
-    expect(BillingServices.updateDeliveryNote.mock.calls[0][1].items[0].sku).toBe("999");
+    // שדה ריק: השרת מתמחר את המוצר החדש מהמחירון
+    expect(BillingServices.updateDeliveryNote.mock.calls[0][1].items[0]).toEqual({
+      sku: "999",
+      quantity: 2,
+      unitPrice: undefined,
+    });
     expect(CustomerPriceListServices.upsertItems).not.toHaveBeenCalled();
   });
 
-  it("מוצר מהמחירון הקבוצתי אינו נכתב למחירון הפרטי", async () => {
+  it("מוצר מהמחירון הקבוצתי נשלח עם הדגל, והשורה אומרת שהקבוצתי ישתנה", async () => {
     BillingServices.priceItems.mockResolvedValue({
       items: [{ sku: "111", unitPrice: 9, source: "groupPriceList" }],
     });
     await render();
-    // נשאל כבר בפתיחה, כדי שהתשובה תהיה כאן לפני השמירה
     expect(BillingServices.priceItems).toHaveBeenCalledWith({
       customer: "c1",
       items: [
@@ -189,9 +180,24 @@ describe("DeliveryNoteEditor — מחיר ששונה נשמר במחירון ה�
         { sku: "222", quantity: 1 },
       ],
     });
+    expect(container.textContent).not.toContain("ישתנה במחירון הקבוצתי");
     await type(priceInputs()[0], "12.5");
-    expect(checkboxes()).toHaveLength(0);
-    expect(container.textContent).toContain("במחירון הקבוצתי");
+    expect(container.textContent).toContain("ישתנה במחירון הקבוצתי");
+
+    await click(saveButton());
+    expect(CustomerPriceListServices.upsertItems).toHaveBeenCalledWith("c1", {
+      items: [{ sku: "111", price: 12.5 }],
+      applyToGroup: true,
+    });
+  });
+
+  it("מחיר שתוקן בחזרה למחיר המחירון הקבוצתי אינו נשלח", async () => {
+    BillingServices.priceItems.mockResolvedValue({
+      items: [{ sku: "111", unitPrice: 9, source: "groupPriceList" }],
+    });
+    await render();
+    await type(priceInputs()[0], "9");
+    expect(container.textContent).not.toContain("ישתנה במחירון הקבוצתי");
 
     await click(saveButton());
     expect(CustomerPriceListServices.upsertItems).not.toHaveBeenCalled();

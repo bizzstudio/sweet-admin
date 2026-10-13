@@ -1,9 +1,8 @@
 // בדיקות לשמירת מחיר ידני במחירון הלקוח מתוך תעודת משלוח ידנית.
 //
 // מה שהן שומרות עליו:
-// 1. האפשרות מופיעה רק כשהוקלד מחיר — בלי מחיר אין מה לשמור.
-// 2. מחיר שהוקלד נשלח למחירון כברירת מחדל (אלא אם הסימון הוסר), ורק אחרי
-//    שהתעודה הופקה.
+// 1. בלי מחיר שהוקלד אין מה לשמור, והמחירון אינו נוגע.
+// 2. מחיר שהוקלד נשלח למחירון תמיד, בלי בחירה, ורק אחרי שהתעודה הופקה.
 // 3. כישלון בשמירת המחירון נאמר במפורש ואינו נבלע.
 
 import React from "react";
@@ -135,12 +134,10 @@ afterEach(() => {
 });
 
 describe("ManualDeliveryNoteForm — שמירת מחיר במחירון", () => {
-  it("מציג את האפשרות רק לשורה שהוקלד בה מחיר", async () => {
+  it("אין בחירה בין קבוע לחד-פעמי — מחיר שהוקלד נשמר תמיד", async () => {
     await render();
-    expect(container.querySelectorAll('input[type="checkbox"]')).toHaveLength(0);
-
     await type(priceInputs()[0], "12.5");
-    expect(container.querySelectorAll('input[type="checkbox"]')).toHaveLength(1);
+    expect(container.querySelectorAll('input[type="checkbox"]')).toHaveLength(0);
   });
 
   it("מחיר שהוקלד נשמר במחירון בלי לסמן דבר, אחרי ההפקה", async () => {
@@ -148,38 +145,30 @@ describe("ManualDeliveryNoteForm — שמירת מחיר במחירון", () => 
     await render();
 
     await type(priceInputs()[0], "12.5");
-    expect(container.querySelector('input[type="checkbox"]').checked).toBe(true);
     await click(createButton());
 
     expect(BillingServices.createManualDeliveryNote).toHaveBeenCalledTimes(1);
     expect(CustomerPriceListServices.upsertItems).toHaveBeenCalledWith("c1", {
       items: [{ sku: "111", price: 12.5 }],
+      applyToGroup: true,
     });
   });
 
-  it("שורה שהסימון הוסר ממנה אינה נשלחת למחירון", async () => {
+  it("כל השורות שהוקלד בהן מחיר נשלחות למחירון", async () => {
     CustomerPriceListServices.upsertItems.mockResolvedValue({ message: "נשמר" });
     await render();
 
     await type(priceInputs()[0], "12.5");
     await type(priceInputs()[1], "8");
-    // מחיר חד-פעמי לשורה השנייה
-    await click(container.querySelectorAll('input[type="checkbox"]')[1]);
     await click(createButton());
 
     expect(CustomerPriceListServices.upsertItems).toHaveBeenCalledWith("c1", {
-      items: [{ sku: "111", price: 12.5 }],
+      items: [
+        { sku: "111", price: 12.5 },
+        { sku: "222", price: 8 },
+      ],
+      applyToGroup: true,
     });
-  });
-
-  it("לא נוגע במחירון כשהסימון הוסר מכל השורות", async () => {
-    await render();
-    await type(priceInputs()[0], "12.5");
-    await click(container.querySelector('input[type="checkbox"]'));
-    await click(createButton());
-
-    expect(BillingServices.createManualDeliveryNote).toHaveBeenCalledTimes(1);
-    expect(CustomerPriceListServices.upsertItems).not.toHaveBeenCalled();
   });
 
   it("לא נוגע במחירון כשלא הוקלד מחיר", async () => {
@@ -210,34 +199,37 @@ describe("ManualDeliveryNoteForm — שמירת מחיר במחירון", () => 
     expect(notifyError).toHaveBeenCalledWith(expect.stringContaining("המחיר לא נשמר במחירון"));
   });
 
-  it("מחיר שנמחק והוקלד מחדש חוזר לברירת המחדל ונשמר", async () => {
+  it("מחיר שנמחק והוקלד מחדש נשמר בערכו האחרון", async () => {
     CustomerPriceListServices.upsertItems.mockResolvedValue({ message: "נשמר" });
     await render();
     await type(priceInputs()[0], "12.5");
-    await click(container.querySelector('input[type="checkbox"]'));
-
     await type(priceInputs()[0], "");
     await type(priceInputs()[0], "9");
-    expect(container.querySelector('input[type="checkbox"]').checked).toBe(true);
 
     await click(createButton());
     expect(CustomerPriceListServices.upsertItems).toHaveBeenCalledWith("c1", {
       items: [{ sku: "111", price: 9 }],
+      applyToGroup: true,
     });
   });
 
-  it("מוצר שהוחלף בשורה אינו מקבל למחירון את המחיר של קודמו", async () => {
+  it("מוצר שהוחלף בשורה אינו יורש את המחיר של קודמו", async () => {
     await render();
     await type(priceInputs()[0], "12.5");
     await click(container.querySelectorAll("[data-picker]")[0]);
-    expect(container.querySelector('input[type="checkbox"]').checked).toBe(false);
+    expect(priceInputs()[0].value).toBe("");
 
     await click(createButton());
-    expect(BillingServices.createManualDeliveryNote).toHaveBeenCalledTimes(1);
+    expect(BillingServices.createManualDeliveryNote.mock.calls[0][0].items[0]).toEqual({
+      sku: "999",
+      quantity: 2,
+      unitPrice: undefined,
+    });
     expect(CustomerPriceListServices.upsertItems).not.toHaveBeenCalled();
   });
 
-  it("מוצר מהמחירון הקבוצתי ומחיר שזהה למחירון אינם נשלחים", async () => {
+  it("מוצר מהמחירון הקבוצתי נשלח עם הדגל, והשורה אומרת שהקבוצתי ישתנה", async () => {
+    CustomerPriceListServices.upsertItems.mockResolvedValue({ message: "נשמר" });
     BillingServices.priceItems.mockResolvedValue({
       items: [
         { sku: "111", unitPrice: 35, source: "groupPriceList" },
@@ -246,7 +238,46 @@ describe("ManualDeliveryNoteForm — שמירת מחיר במחירון", () => 
     });
     await render();
     await type(priceInputs()[0], "40");
+    expect(container.textContent).toContain("ישתנה במחירון הקבוצתי");
+    await click(createButton());
+
+    expect(CustomerPriceListServices.upsertItems).toHaveBeenCalledWith("c1", {
+      items: [{ sku: "111", price: 40 }],
+      applyToGroup: true,
+    });
+  });
+
+  it("אחרי שמירה, חזרה למחיר הישן בתעודה הבאה נשלחת ולא נחשבת 'כבר במחירון'", async () => {
+    CustomerPriceListServices.upsertItems.mockResolvedValue({ message: "נשמר", groupSkus: [] });
+    BillingServices.priceItems.mockResolvedValue({
+      items: [{ sku: "111", unitPrice: 35, source: "customerPriceList" }],
+    });
+    await render();
+    await type(priceInputs()[0], "40");
+    await click(createButton());
+
+    // הטופס נשאר פתוח; במחירון כתוב עכשיו 40
+    await type(priceInputs()[0], "35");
+    expect(container.textContent).toContain("במחירון: 40.00 ₪");
+    await click(createButton());
+
+    expect(CustomerPriceListServices.upsertItems).toHaveBeenLastCalledWith("c1", {
+      items: [{ sku: "111", price: 35 }],
+      applyToGroup: true,
+    });
+  });
+
+  it("מחיר שזהה למה שכבר במחירון, פרטי או קבוצתי, אינו נשלח", async () => {
+    BillingServices.priceItems.mockResolvedValue({
+      items: [
+        { sku: "111", unitPrice: 35, source: "groupPriceList" },
+        { sku: "222", unitPrice: 8, source: "customerPriceList" },
+      ],
+    });
+    await render();
+    await type(priceInputs()[0], "35");
     await type(priceInputs()[1], "8");
+    expect(container.textContent).not.toContain("ישתנה במחירון הקבוצתי");
     await click(createButton());
 
     expect(BillingServices.createManualDeliveryNote).toHaveBeenCalledTimes(1);
@@ -279,8 +310,6 @@ describe("ManualDeliveryNoteForm — הצגת המחיר השמור", () => {
     expect(container.textContent).toContain("35.00 ₪ · מחירון הלקוח");
     expect(container.textContent).toContain("8.90 ₪ · קטלוג");
     expect(priceInputs().map((input) => input.value)).toEqual(["", ""]);
-    // מחיר שמגיע מהמחירון אינו מחיר ידני, ולכן אין מה להציע לשמור
-    expect(container.querySelectorAll('input[type="checkbox"]')).toHaveLength(0);
   });
 
   it("שדה ריק נשלח בלי מחיר, כדי שהשרת יתמחר מהמחירון", async () => {

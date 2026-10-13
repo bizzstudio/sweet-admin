@@ -31,7 +31,9 @@ const CustomerPriceListServices = {
     return requests.post(`/customer-price-list/${customerId}`, body);
   },
 
-  // שמירת מחירים בודדים במחירון (מיזוג, שאר השורות נשארות): {items: [{sku, price}]}
+  // שמירת מחירים בודדים במחירון (מיזוג, שאר השורות נשארות): {items: [{sku, price}]}.
+  // ‏applyToGroup (מתעודת משלוח): מוצר שמתומחר מהמחירון הקבוצתי של הלקוח
+  // מתעדכן שם — לכל לקוחות הקבוצה — במקום במחירון הפרטי
   upsertItems: async (customerId, body) => {
     return requests.put(`/customer-price-list/${customerId}/items`, body);
   },

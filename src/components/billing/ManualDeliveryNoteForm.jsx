@@ -85,10 +85,10 @@ const newKey = () =>
 const SCAN_GAP_MS = 35;
 const SCAN_MIN_CHARS = 4;
 
-// ‏savePrice: לשמור את המחיר הידני גם במחירון הלקוח, כדי שיתפוס מהתעודה הבאה.
-// מסומן מראש (13/10/2026): מחיר ששונה בתעודה משנה גם את המחירון, ומי שרוצה
-// מחיר חד-פעמי מסירה את הסימון
-const emptyRow = () => ({ sku: "", quantity: "", ordered: null, name: "", unitPrice: "", savePrice: true });
+// מחיר שהוקלד בשורה נשמר תמיד גם במחירון, בלי בחירה (בקשת המנהל,
+// 13/10/2026: "לתמיד, אפשר לשנות במחירון אחר כך"). מוצר שמתומחר מהמחירון
+// הקבוצתי מתעדכן שם, לכל לקוחות הקבוצה; כל השאר במחירון הפרטי של הלקוח
+const emptyRow = () => ({ sku: "", quantity: "", ordered: null, name: "", unitPrice: "" });
 
 // שדה הלקוח בהזמנה מגיע לפעמים כמזהה ולפעמים כאובייקט מאוכלס, תלוי במסך
 // שקרא. שליחת אובייקט לשרת הייתה נכשלת על "מזהה לקוח לא תקין"
@@ -222,7 +222,6 @@ const ManualDeliveryNoteForm = ({
                 ordered: i.quantity,
                 name: i.name,
                 unitPrice: "",
-                savePrice: true,
               }))
             : [emptyRow()]
         );
@@ -248,7 +247,7 @@ const ManualDeliveryNoteForm = ({
   // ── המחיר השמור מוצג בשורה, בלי לחכות ל"חשב מחירים" ──
   //
   // שדה מחיר ריק פירושו "המחיר מהמחירון", אבל שדה ריק נראה בדיוק כמו "אין
-  // מחיר שמור": מי שסימנה "לשמור במחירון הלקוח" ופתחה תעודה נוספת לאותו
+  // מחיר שמור": מי ששמרה מחיר במחירון הלקוח ופתחה תעודה נוספת לאותו
   // לקוח ראתה שדה ריק והקלידה הכל מחדש (05/10/2026). לכן המחיר שיחול מוצג
   // מתחת לשדה ברגע שנבחר מוצר. השדה עצמו נשאר ריק בכוונה — מחיר שמולא
   // אוטומטית היה נשלח כמחיר ידני ומציע לשמור למחירון את מה שכבר נמצא בו.
@@ -302,12 +301,9 @@ const ManualDeliveryNoteForm = ({
       prev.map((r, i) => {
         if (i !== index) return r;
         const next = { ...r, [field]: value };
-        // הסימון "לשמור במחירון" שייך למחיר ולמוצר שעליהם נקבע. מחיר שנמחק
-        // חוזר לברירת המחדל, כדי שהמחיר הבא שיוקלד לא יישאר מחוץ למחירון
-        // בגלל בחירה ישנה. מוצר שהוחלף בשורה שכבר נושאת מחיר — להפך: המחיר
-        // הוקלד למוצר הקודם, ואסור שייכנס למחירון של החדש בלי סימון מפורש
-        if (field === "unitPrice" && !(Number(value) > 0)) next.savePrice = true;
-        if (field === "sku") next.savePrice = !(Number(r.unitPrice) > 0);
+        // מוצר שהוחלף בשורה: המחיר שבשדה הוקלד למוצר הקודם. הוא נמחק, אחרת
+        // היה נכנס גם לתעודה וגם למחירון של המוצר החדש בלי שאיש הקליד אותו
+        if (field === "sku" && r.sku?.trim() && value !== r.sku) next.unitPrice = "";
         return next;
       })
     );
@@ -315,10 +311,6 @@ const ManualDeliveryNoteForm = ({
     // הכמות הוא בדיוק המספר שמישהו יאשר בלי לשים לב
     setPriced(null);
   };
-
-  // הסימון אינו משנה את התעודה עצמה, ולכן אינו מבטל את התמחור שהוצג
-  const toggleSavePrice = (index, checked) =>
-    setRows((prev) => prev.map((r, i) => (i === index ? { ...r, savePrice: checked } : r)));
 
   const addRow = () => setRows((prev) => [...prev, emptyRow()]);
 
@@ -423,7 +415,7 @@ const ManualDeliveryNoteForm = ({
         return prev;
       }
 
-      const filled = { sku: String(product.sku), quantity: "", ordered: null, name: product.name, unitPrice: "", savePrice: true };
+      const filled = { sku: String(product.sku), quantity: "", ordered: null, name: product.name, unitPrice: "" };
       const emptyIndex = prev.findIndex((r) => !r.sku?.trim());
       if (emptyIndex === -1) return [...prev, filled];
       return prev.map((r, i) => (i === emptyIndex ? filled : r));
@@ -485,24 +477,42 @@ const ManualDeliveryNoteForm = ({
     }
   };
 
-  // מחירים ידניים נכתבים למחירון הלקוח, אלא אם הסימון הוסר. כישלון כאן
+  // מחירים ידניים נכתבים תמיד גם למחירון. השרת מכריע לכל מוצר אם זה
+  // המחירון הקבוצתי או הפרטי (applyToGroup). כישלון כאן
   // אינו מבטל את התעודה שכבר הופקה — רק אומר במפורש שהמחירון לא עודכן
   const savePricesToPriceList = async (targetCustomer) => {
     const items = validRows
-      .filter((r) => r.savePrice && Number(r.unitPrice) > 0)
+      .filter((r) => Number(r.unitPrice) > 0)
       .filter((r) => {
         const known = expectedFor(r.sku);
-        // הקבוצתי גובר על הפרטי, ולכן מחיר שנשמר שם לא היה תופס (השורה גם
-        // אינה מציגה את הסימון). מחיר שזהה למה שכבר במחירון — אין מה לשמור
-        if (known?.source === "groupPriceList") return false;
-        return !(known?.source === "customerPriceList" && known.unitPrice === Number(r.unitPrice));
+        // מחיר שזהה למה שכבר במחירון — אין מה לשמור
+        return !(isPriceListSource(known?.source) && known.unitPrice === Number(r.unitPrice));
       })
       .map((r) => ({ sku: r.sku.trim(), price: Number(r.unitPrice) }));
     if (!items.length || !targetCustomer) return;
 
     try {
-      const res = await CustomerPriceListServices.upsertItems(customerIdOf(targetCustomer), { items });
+      const res = await CustomerPriceListServices.upsertItems(customerIdOf(targetCustomer), {
+        items,
+        applyToGroup: true,
+      });
       notifySuccess(res.message);
+
+      // הטופס נשאר פתוח לתעודה הבאה של אותו לקוח, והמחיר שמוצג מתחת לשדה
+      // (ולפיו מדלגים על מחיר "שכבר במחירון") חייב להיות זה שנשמר עכשיו
+      const toGroup = new Set(res?.groupSkus || []);
+      const savedFor = customerIdOf(targetCustomer);
+      setExpected((prev) => {
+        if (prev.customer !== savedFor) return prev;
+        const bySku = { ...prev.bySku };
+        for (const { sku, price } of items) {
+          bySku[sku] = {
+            unitPrice: price,
+            source: toGroup.has(sku) ? "groupPriceList" : "customerPriceList",
+          };
+        }
+        return { ...prev, bySku };
+      });
     } catch (err) {
       notifyError(
         `התעודה הופקה, אבל המחיר לא נשמר במחירון: ${err?.response?.data?.message || err.message}`
@@ -816,25 +826,16 @@ const ManualDeliveryNoteForm = ({
               <ExpectedPrice known={expectedFor(row.sku)} typed={row.unitPrice} />
             </div>
 
-            {/* מופיע רק כשיש מחיר ידני — בלי מחיר אין מה לשמור. מוצר שמתומחר
-                מהמחירון הקבוצתי אינו מקבל את הסימון: הקבוצתי גובר על המחירון
-                הפרטי, ולכן מחיר שנשמר שם לא היה תופס בפעם הבאה */}
+            {/* מוצר שמתומחר מהמחירון הקבוצתי: המחיר החדש נשמר שם, ולכן משנה
+                את המחיר לכל לקוחות הקבוצה ולא רק ללקוח שבתעודה */}
             {Number(row.unitPrice) > 0 &&
-            row.sku &&
-            expectedFor(row.sku)?.source === "groupPriceList" ? (
-              <span className="py-2 text-xs text-gray-500 shrink-0">
-                המחיר הקבוע — במחירון הקבוצתי
-              </span>
-            ) : Number(row.unitPrice) > 0 && row.sku ? (
-              <label className="flex items-center gap-1 py-2 text-xs text-gray-600 dark:text-gray-400 shrink-0">
-                <input
-                  type="checkbox"
-                  checked={row.savePrice}
-                  onChange={(e) => toggleSavePrice(i, e.target.checked)}
-                />
-                לשמור במחירון הלקוח
-              </label>
-            ) : null}
+              row.sku &&
+              expectedFor(row.sku)?.source === "groupPriceList" &&
+              Number(row.unitPrice) !== expectedFor(row.sku).unitPrice && (
+                <span className="py-2 text-xs text-yellow-700 dark:text-yellow-500 shrink-0">
+                  ישתנה במחירון הקבוצתי — לכל לקוחות הקבוצה
+                </span>
+              )}
 
             {/* המשקל שהוזמן, כדי שיהיה ברור במה השורה שונה ממה שהלקוח ביקש */}
             <span className="py-2 text-xs text-gray-500 w-28 shrink-0">
@@ -876,9 +877,9 @@ const ManualDeliveryNoteForm = ({
         </p>
         <p className="text-xs text-gray-500 mt-1">
           מחיר יח' ריק — נלקח ממחירון הלקוח, ובהיעדרו ממחיר הקטלוג; המחיר
-          שיחול מופיע מתחת לשדה. מחיר שהוקלד נשמר גם במחירון הלקוח עם הפקת
-          התעודה ויתפוס בפעם הבאה; למחיר חד-פעמי יש להסיר את הסימון
-          "לשמור במחירון הלקוח".
+          שיחול מופיע מתחת לשדה. מחיר שהוקלד נשמר גם במחירון עם הפקת התעודה
+          ויתפוס בפעם הבאה — במחירון הקבוצתי אם המוצר מתומחר ממנו (לכל לקוחות
+          הקבוצה), אחרת במחירון הלקוח. אפשר לשנות אותו אחר כך במחירון.
         </p>
 
         <div className="flex flex-wrap gap-3 mt-4">
