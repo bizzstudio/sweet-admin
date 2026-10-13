@@ -105,3 +105,22 @@ describe("ProductPicker — onlySkus", () => {
     expect(text).toContain("אין למוצרי הלקוח התאמה בקטלוג");
   });
 });
+
+describe("ProductPicker — selectRef", () => {
+  it("מאפשר להעביר את המיקוד לשדה החיפוש של הבורר", async () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    const ref = React.createRef();
+
+    await act(async () => {
+      root.render(React.createElement(ProductPicker, { onChange: () => {}, selectRef: ref }));
+    });
+    await act(async () => ref.current.focus());
+
+    expect(document.activeElement).toBe(container.querySelector("input"));
+
+    act(() => root.unmount());
+    container.remove();
+  });
+});

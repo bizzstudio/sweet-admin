@@ -148,6 +148,8 @@ export const inSkuSet = (skus, product) => {
  * @param {Set<string>|null} [onlySkus] - המק"טים שהלקוח מכיר (היסטוריה ומחירון):
  *   כשהם מועברים, הרשימה מציגה רק אותם ולא את כל הקטלוג. מוצר שכבר נבחר
  *   בשורה מוצג תמיד, גם אם אינו ביניהם.
+ * @param {object} [selectRef] - ref לבורר עצמו, למי שצריך להעביר אליו את
+ *   המיקוד מהמקלדת (focus) בלי עכבר.
  */
 export default function ProductPicker({
   value,
@@ -155,6 +157,7 @@ export default function ProductPicker({
   placeholder = 'חיפוש מוצר לפי שם, ברקוד או מק"ט...',
   className = "",
   onlySkus = null,
+  selectRef,
 }) {
   const { mode } = useContext(WindmillContext);
   const { products, loading, failed } = useSyncExternalStore(
@@ -294,6 +297,7 @@ export default function ProductPicker({
   return (
     <div className={className}>
       <Select
+        ref={selectRef}
         value={selected}
         onChange={(opt) => onChange(opt ? String(opt.sku) : "")}
         onInputChange={setInputValue}

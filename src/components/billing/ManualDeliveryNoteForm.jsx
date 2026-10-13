@@ -18,7 +18,7 @@
 // את התעודה ומחייב אותה מיד (billNow). חשבונית נבנית תמיד מתעודה, ולכן אין
 // כאן מסלול שני שעוקף את הגנת החיוב הכפול.
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Button,
   Card,
@@ -79,6 +79,11 @@ const todayInIsrael = () =>
 const newKey = () =>
   globalThis.crypto?.randomUUID?.() ||
   `dn-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+
+// סורק ברקוד "מקליד" תו כל כמה אלפיות שנייה; אדם אינו מקליד ארבעה תווים
+// ברצף בקצב כזה
+const SCAN_GAP_MS = 35;
+const SCAN_MIN_CHARS = 4;
 
 // ‏savePrice: לשמור את המחיר הידני גם במחירון הלקוח, כדי שיתפוס מהתעודה הבאה.
 // מסומן מראש (13/10/2026): מחיר ששונה בתעודה משנה גם את המחירון, ומי שרוצה
@@ -316,6 +321,80 @@ const ManualDeliveryNoteForm = ({
     setRows((prev) => prev.map((r, i) => (i === index ? { ...r, savePrice: checked } : r)));
 
   const addRow = () => setRows((prev) => [...prev, emptyRow()]);
+
+  // ── הקלדה רצופה בלי עכבר ──
+  //
+  // בחירת מוצר מעבירה את המיקוד לשדה המשקל, ו-Enter שם עובר לשורה הבאה
+  // (ופותח חדשה אם זו האחרונה). בלי זה כל שורה דרשה שתי נגיעות בעכבר: אחת
+  // לשדה המשקל ואחת לכפתור "שורה" (05/10/2026).
+  //
+  // המיקוד עובר דרך state ו-effect ולא ישירות: השדה של שורה שזה עתה נוספה
+  // עוד לא קיים ברגע הלחיצה.
+  const pickerRefs = useRef([]);
+  const quantityRefs = useRef([]);
+  const [focusTarget, setFocusTarget] = useState(null);
+
+  useEffect(() => {
+    if (!focusTarget) return;
+    const refs = focusTarget.field === "sku" ? pickerRefs : quantityRefs;
+    const el = refs.current[focusTarget.row];
+    el?.focus?.();
+    // הערך הקיים מסומן, כדי שהקלדה תחליף את המשקל שהוזמן ולא תתווסף אליו
+    if (focusTarget.field === "quantity") el?.select?.();
+  }, [focusTarget]);
+
+  const pickProduct = (index, sku) => {
+    updateRow(index, "sku", sku);
+    // ניקוי הבחירה (X) אינו סיבה לקפוץ לשדה המשקל
+    if (sku) setFocusTarget({ row: index, field: "quantity" });
+  };
+
+  // ── סריקת ברקוד שנחתה בשדה המשקל ──
+  //
+  // מי שסורק בתוך בורר המוצר (ולא בשדה הברקוד) מקבל את הסמן בשדה המשקל,
+  // והסריקה הבאה הייתה נכנסת לשם: ברקוד 1071 היה הופך ל-1071 ק"ג בתעודה
+  // ופותח שורה. רצף תווים בקצב של סורק שמסתיים ב-Enter נמחק ואינו מתקדם.
+  const burst = useRef({ row: -1, count: 0, last: 0 });
+
+  const onQuantityKeyDown = (e, index) => {
+    const b = burst.current;
+    const fast = b.row === index && e.timeStamp - b.last < SCAN_GAP_MS;
+
+    if (e.key === "Enter") {
+      const scanned = fast && b.count >= SCAN_MIN_CHARS;
+      burst.current = { row: -1, count: 0, last: 0 };
+      if (scanned) {
+        e.preventDefault();
+        updateRow(index, "quantity", "");
+        return notifyError(
+          `נראה שנסרק ברקוד בשדה ${asInvoice ? "הכמות" : "המשקל"} — הערך נמחק. לסריקה יש להשתמש בשדה "הקלדת ברקוד"`
+        );
+      }
+      return onRowEnter(e, index);
+    }
+
+    if (e.key.length !== 1) return;
+    // מקש שנשאר לחוץ חוזר באותו קצב כמו סורק, ואינו סריקה
+    burst.current = { row: index, count: fast && !e.repeat ? b.count + 1 : 1, last: e.timeStamp };
+  };
+
+  const onRowEnter = (e, index) => {
+    // repeat: Enter שנשאר לחוץ מבחירת המוצר לא ידלג הלאה על שדה המשקל
+    if (e.key !== "Enter" || e.repeat) return;
+    e.preventDefault();
+
+    if (index < rows.length - 1) {
+      // שורה שכבר נושאת מוצר (נטענה מההזמנה) — ישר למשקל שלה
+      const next = rows[index + 1];
+      return setFocusTarget({ row: index + 1, field: next.sku?.trim() ? "quantity" : "sku" });
+    }
+
+    // שורה אחרונה שעוד לא מולאה: Enter נוסף לא יערום שורות ריקות מתחתיה
+    const row = rows[index];
+    if (!row.sku?.trim() || !(Number(row.quantity) > 0)) return;
+    addRow();
+    setFocusTarget({ row: index + 1, field: "sku" });
+  };
   // שורה שנשכחה באמצע: נכנסת מעל השורה שנלחצה, כדי שסדר התעודה יישמר.
   // הכפתור שבתחתית ממשיך להוסיף בסוף
   const insertRow = (index) =>
@@ -698,8 +777,9 @@ const ManualDeliveryNoteForm = ({
             <div className="flex-1 min-w-[220px]">
               <ProductPicker
                 value={row.sku}
-                onChange={(sku) => updateRow(i, "sku", sku)}
+                onChange={(sku) => pickProduct(i, sku)}
                 onlySkus={pickerSkus}
+                selectRef={(el) => (pickerRefs.current[i] = el)}
               />
               {/* שורה שנטענה מההזמנה בלי מק"ט — הבורר עובד על מק"טים, ולכן
                   היא מגיעה ריקה. בלי השם המקורי אי אפשר לדעת מה לבחור */}
@@ -717,7 +797,9 @@ const ManualDeliveryNoteForm = ({
                 step="0.01"
                 placeholder={asInvoice ? "כמות" : "משקל בפועל"}
                 value={row.quantity}
+                ref={(el) => (quantityRefs.current[i] = el)}
                 onChange={(e) => updateRow(i, "quantity", e.target.value)}
+                onKeyDown={(e) => onQuantityKeyDown(e, i)}
               />
             </div>
 
@@ -729,6 +811,7 @@ const ManualDeliveryNoteForm = ({
                 placeholder="מחיר יח'"
                 value={row.unitPrice}
                 onChange={(e) => updateRow(i, "unitPrice", e.target.value)}
+                onKeyDown={(e) => onRowEnter(e, i)}
               />
               <ExpectedPrice known={expectedFor(row.sku)} typed={row.unitPrice} />
             </div>
@@ -787,6 +870,10 @@ const ManualDeliveryNoteForm = ({
           </div>
         ))}
 
+        <p className="text-xs text-gray-500 mt-1">
+          הקלדה רצופה: בחירת מוצר מעבירה לשדה {asInvoice ? "הכמות" : "המשקל"}, ו-Enter
+          שם פותח את השורה הבאה.
+        </p>
         <p className="text-xs text-gray-500 mt-1">
           מחיר יח' ריק — נלקח ממחירון הלקוח, ובהיעדרו ממחיר הקטלוג; המחיר
           שיחול מופיע מתחת לשדה. מחיר שהוקלד נשמר גם במחירון הלקוח עם הפקת

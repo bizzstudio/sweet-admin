@@ -32,9 +32,15 @@ vi.mock("@/utils/toast", () => ({
 // רק מתעד את הסינון שקיבל, לבדיקות של "רק מוצרי המחירון"
 const pickerScopes = vi.hoisted(() => []);
 vi.mock("@/components/billing/ProductPicker", () => ({
-  default: ({ onlySkus }) => {
+  // הכפתור מדמה בחירת מוצר ונושא את ה-ref, לבדיקות של ההקלדה הרצופה
+  default: ({ onlySkus, onChange, selectRef }) => {
     pickerScopes.push(onlySkus);
-    return React.createElement("div");
+    return React.createElement("button", {
+      type: "button",
+      "data-picker": true,
+      ref: selectRef,
+      onClick: () => onChange("999"),
+    });
   },
 }));
 vi.mock("@/components/billing/CustomerPicker", () => ({
@@ -220,6 +226,17 @@ describe("ManualDeliveryNoteForm — שמירת מחיר במחירון", () => 
     });
   });
 
+  it("מוצר שהוחלף בשורה אינו מקבל למחירון את המחיר של קודמו", async () => {
+    await render();
+    await type(priceInputs()[0], "12.5");
+    await click(container.querySelectorAll("[data-picker]")[0]);
+    expect(container.querySelector('input[type="checkbox"]').checked).toBe(false);
+
+    await click(createButton());
+    expect(BillingServices.createManualDeliveryNote).toHaveBeenCalledTimes(1);
+    expect(CustomerPriceListServices.upsertItems).not.toHaveBeenCalled();
+  });
+
   it("מוצר מהמחירון הקבוצתי ומחיר שזהה למחירון אינם נשלחים", async () => {
     BillingServices.priceItems.mockResolvedValue({
       items: [
@@ -382,6 +399,61 @@ describe("ManualDeliveryNoteForm — רק מוצרים שהלקוח מכיר", (
 
     expect(lastScope()).toBeNull();
     expect(notifyError).not.toHaveBeenCalled();
+  });
+});
+
+describe("ManualDeliveryNoteForm — הקלדה רצופה", () => {
+  const pickers = () => [...container.querySelectorAll("[data-picker]")];
+  const quantityInputs = () => [...container.querySelectorAll('input[placeholder="משקל בפועל"]')];
+
+  const pressEnter = async (el) => {
+    await act(async () => {
+      el.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    });
+  };
+
+  // טופס עצמאי: שורה ריקה אחת, בלי הזמנה
+  const renderBlank = async () => {
+    await act(async () => {
+      root.render(React.createElement(ManualDeliveryNoteForm, { customerId: "c1", onCreated: () => {} }));
+    });
+  };
+
+  it("בחירת מוצר מעבירה את המיקוד לשדה המשקל של אותה שורה", async () => {
+    await renderBlank();
+
+    await click(pickers()[0]);
+    expect(document.activeElement).toBe(quantityInputs()[0]);
+  });
+
+  it("Enter במשקל של השורה האחרונה פותח שורה חדשה וממקד את בורר המוצר שלה", async () => {
+    await renderBlank();
+
+    await click(pickers()[0]);
+    await type(quantityInputs()[0], "3.2");
+    await pressEnter(quantityInputs()[0]);
+
+    expect(pickers()).toHaveLength(2);
+    expect(document.activeElement).toBe(pickers()[1]);
+  });
+
+  it("Enter בשורה אחרונה שלא מולאה אינו עורם שורות ריקות", async () => {
+    await renderBlank();
+
+    await pressEnter(quantityInputs()[0]);
+    await click(pickers()[0]);
+    await pressEnter(quantityInputs()[0]);
+
+    expect(pickers()).toHaveLength(1);
+  });
+
+  it("בשורות שנטענו מההזמנה Enter יורד למשקל של השורה הבאה", async () => {
+    await render();
+
+    await pressEnter(quantityInputs()[0]);
+
+    expect(pickers()).toHaveLength(2);
+    expect(document.activeElement).toBe(quantityInputs()[1]);
   });
 });
 
