@@ -1,5 +1,7 @@
 import React from 'react';
 
+import StoreImage from '@/components/common/StoreImage';
+
 const DriveImg = ({ src, alt, className }) => {
     // פונקציה לחילוץ מזהה התמונה מהקישור של Google Drive
     const getDriveImageId = (url) => {
@@ -24,7 +26,7 @@ const DriveImg = ({ src, alt, className }) => {
         ? `https://lh3.googleusercontent.com/d/${imageId}?authuser=0`
         : src;
 
-    return <img src={imageUrl} alt={alt} className={className} />;
+    return <StoreImage src={imageUrl} alt={alt} className={className} />;
 };
 
 export default DriveImg;

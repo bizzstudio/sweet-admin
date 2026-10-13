@@ -9,6 +9,7 @@ import {
 import Select from 'react-select';
 import { useTranslation } from "react-i18next";
 import Tooltip from '../tooltip/Tooltip';
+import StoreImage from '@/components/common/StoreImage';
 import { FiTrash2 } from "react-icons/fi";
 import ProductServices from '@/services/ProductServices';
 
@@ -135,7 +136,7 @@ export default function ProductsInOffer({ products = [], setProducts, currency =
 
     const formatOptionLabel = ({ title, prices, image }) => (
         <div className='flex items-center'>
-            <img src={image[0]} alt={title.he} className='w-12 max-h-12 object-contain ml-2' />
+            <StoreImage src={image?.[0]} alt={title.he} className='w-12 max-h-12 object-contain ml-2' />
             <div>
                 <div className='text-gray-900 dark:text-gray-200'>{title.he}</div>
                 <div className='text-gray-600 dark:text-gray-400'>{prices.price} {currency}</div>
@@ -168,7 +169,7 @@ export default function ProductsInOffer({ products = [], setProducts, currency =
                 {products.map((product, i) => (
                     <TableRow key={i + 1}>
                         <TableCell className='pb-0 pt-4'>
-                            <img src={product.image[0]} alt={product.title.he} className='w-16 h-16 object-cover mx-auto rounded' />
+                            <StoreImage src={product.image?.[0]} alt={product.title.he} className='w-16 h-16 object-cover mx-auto rounded' />
                         </TableCell>
                         <TableCell className='pb-0 pt-4 mx-auto text-center text-gray-900 dark:text-gray-200'>
                             {product.title.he}

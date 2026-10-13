@@ -5,6 +5,7 @@ import { GoDotFill } from "react-icons/go";
 
 // Internal import
 import useAsync from "@/hooks/useAsync";
+import StoreImage from "@/components/common/StoreImage";
 import { notifySuccess } from "@/utils/toast";
 import CategoryServices from "@/services/CategoryServices";
 import useUtilsFunction from "@/hooks/useUtilsFunction";
@@ -45,7 +46,7 @@ const ParentCategory = ({
           label={
             <span className="flex items-center gap-2">
               {c.icon ? (
-                <img
+                <StoreImage
                   src={c.icon}
                   alt=""
                   className="w-6 h-6 my-1 object-contain rounded" style={{ filter: mode === 'dark' ? 'brightness(0) saturate(100%) invert(100%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(100%) contrast(100%)' : 'invert(0%)' }}

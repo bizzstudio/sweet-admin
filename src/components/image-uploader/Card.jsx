@@ -2,6 +2,7 @@ import { useRef } from "react";
 import { useDrag, useDrop } from "react-dnd";
 import { FiXCircle } from "react-icons/fi";
 import { ItemTypes } from "./ItemTypes.js";
+import StoreImage from "@/components/common/StoreImage";
 
 const Card = ({ id, image, index, moveCard, handleRemoveImage, slug }) => {
   const ref = useRef(null);
@@ -66,7 +67,7 @@ const Card = ({ id, image, index, moveCard, handleRemoveImage, slug }) => {
   return (
     <div ref={ref} data-handler-id={handlerId}>
       <div className="relative">
-        <img
+        <StoreImage
           // className="inline-flex border rounded-md border-gray-100 dark:border-gray-600 w-24 max-h-24 p-2 m-2"
           className="inline-flex border rounded-md w-24 max-h-24 p-2 border-gray-100 dark:border-gray-600"
           src={image}

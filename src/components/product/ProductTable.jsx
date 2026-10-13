@@ -1,6 +1,5 @@
 // src/components/product/ProductTable.jsx
 import {
-  Avatar,
   Badge,
   TableBody,
   TableCell,
@@ -13,6 +12,7 @@ import { useEffect, useState } from "react";
 
 // Internal import
 import CheckBox from "@/components/form/others/CheckBox";
+import { StoreAvatar } from "@/components/common/StoreImage";
 import DeleteModal from "@/components/modal/DeleteModal";
 import EditDeleteButton from "@/components/table/EditDeleteButton";
 import ShowHideButton from "@/components/table/ShowHideButton";
@@ -123,18 +123,10 @@ const ProductTable = ({
             {/* image */}
             <TableCell className='text-center'>
               <div className="flex items-center">
-                {product?.image[0] ? (
-                  <Avatar
-                    className="hidden p-1 ml-2 md:block bg-gray-50 shadow-none"
-                    src={product?.image[0]}
-                    alt="product"
-                  />
-                ) : (
-                  <Avatar
-                    src={`https://res.cloudinary.com/ahossain/image/upload/v1655097002/placeholder_kvepfp.png`}
-                    alt="product"
-                  />
-                )}
+                <StoreAvatar
+                  className="hidden p-1 ml-2 md:block bg-gray-50 shadow-none"
+                  src={product?.image?.[0]}
+                />
                 <div>
                   {/* שם המוצר הוא הכניסה לעמוד המוצר - החליף את אייקון הצפייה */}
                   <Link

@@ -3,6 +3,7 @@ import React, { useContext, useEffect, useState } from 'react';
 import Select from 'react-select';
 import { useTranslation } from "react-i18next";
 import ProductServices from '@/services/ProductServices';
+import StoreImage from '@/components/common/StoreImage';
 import { WindmillContext } from '@windmill/react-ui';
 
 export default function SingleProductSelector({
@@ -118,13 +119,11 @@ export default function SingleProductSelector({
 
     const formatOptionLabel = ({ title, prices, image }) => (
         <div className='flex items-center gap-2'>
-            {image && image[0] && (
-                <img
-                    src={image[0]}
-                    alt={title?.he || ''}
-                    className='w-12 h-12 object-contain rounded'
-                />
-            )}
+            <StoreImage
+                src={image?.[0]}
+                alt={title?.he || ''}
+                className='w-12 h-12 object-contain rounded'
+            />
             <div className='flex-1'>
                 <div className='font-medium text-gray-900 dark:text-gray-200'>
                     {title?.he}

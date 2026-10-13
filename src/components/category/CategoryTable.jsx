@@ -1,10 +1,11 @@
 // src/components/category/CategoryTable.jsx
-import { Avatar, TableBody, TableCell, TableRow } from "@windmill/react-ui";
+import { TableBody, TableCell, TableRow } from "@windmill/react-ui";
 import { Link } from "react-router-dom";
 import { IoRemoveSharp } from "react-icons/io5";
 
 // Internal import
 import CheckBox from "@/components/form/others/CheckBox";
+import { StoreAvatar } from "@/components/common/StoreImage";
 import DeleteModal from "@/components/modal/DeleteModal";
 import EditDeleteButton from "@/components/table/EditDeleteButton";
 import useUtilsFunction from "@/hooks/useUtilsFunction";
@@ -60,19 +61,7 @@ const CategoryTable = ({
             </TableCell>
 
             <TableCell>
-              {category?.icon ? (
-                <Avatar
-                  className=" md:block bg-gray-50 p-1"
-                  src={category?.icon}
-                  alt={category?.parent}
-                />
-              ) : (
-                <Avatar
-                  src="https://res.cloudinary.com/ahossain/image/upload/v1655097002/placeholder_kvepfp.png"
-                  alt="product"
-                  className="hidden p-1 ml-2 md:block bg-gray-50 shadow-none"
-                />
-              )}
+              <StoreAvatar className="bg-gray-50 p-1" src={category?.icon} />
             </TableCell>
 
             <TableCell title={showingTranslateValue(category?.name)} className="font-medium text-sm overflow-hidden truncate">

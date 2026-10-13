@@ -10,6 +10,7 @@ import Scrollbars from 'react-custom-scrollbars-2';
 import { useTranslation } from 'react-i18next';
 
 // Internal imports
+import StoreImage from "@/components/common/StoreImage";
 import { notifyError } from '@/utils/toast';
 import Error from '@/components/form/others/Error';
 import Title from '@/components/form/others/Title';
@@ -61,7 +62,7 @@ const CategoryDrawer = ({ id, data }) => {
           label={
             <span className="flex items-center gap-2">
               {c.icon ? (
-                <img
+                <StoreImage
                   src={c.icon}
                   alt=""
                   className="w-6 h-6 my-1 object-contain rounded" style={{ filter: mode === 'dark' ? 'brightness(0) saturate(100%) invert(100%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(100%) contrast(100%)' : 'invert(0%)' }}
