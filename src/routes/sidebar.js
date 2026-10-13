@@ -245,35 +245,6 @@ const sidebar = [
   // },
 
   // {
-  //   icon: FiTarget,
-  //   name: "OnlineStore",
-  //   routes: [
-  //     {
-  //       name: "ViewStore",
-  //       path: "http://localhost:3000",
-  //       outside: "store",
-  //     },
-  //     // {
-  //     //   name: "ViewLikutApp",
-  //     //   path: "https://likut.meshek-kirshner.co.il/items",
-  //     //   outside: "likutApp",
-  //     // },
-  //     {
-  //       path: "/store/customization",
-  //       name: "StoreCustomization",
-  //     },
-  //     {
-  //       path: "/store/store-settings",
-  //       name: "StoreSetting",
-  //     },
-  //     {
-  //       path: "/store/scripts",
-  //       name: "Scripts",
-  //     },
-  //   ],
-  // },
-
-  // {
   //   icon: FiSlack,
   //   name: "Pages",
   //   routes: [
@@ -301,12 +272,33 @@ const sidebar = [
     path: "/whatsappbot",
   },
 
-  // קישור חיצוני לחנות. אין לו path: הכתובת נקראת מ-VITE_APP_STORE_DOMAIN
-  // ב-SidebarContent (OUTSIDE_LINKS), ונפתחת בלשונית חדשה.
+  /*
+   * החנות המקוונת: צפייה בחנות, ניהול החנות (התאמה אישית) והגדרות החנות.
+   * "צפייה בחנות" הוא קישור חיצוני בלי path: הכתובת נקראת מ-
+   * VITE_APP_STORE_DOMAIN ב-SidebarSubMenu, ונפתחת בלשונית חדשה.
+   */
   {
     icon: FiTarget,
-    name: "ViewStore",
-    outside: "store",
+    name: "OnlineStore",
+    routes: [
+      {
+        name: "ViewStore",
+        outside: "store",
+      },
+      {
+        path: "/store/customization",
+        name: "StoreCustomization",
+      },
+      {
+        path: "/store/store-settings",
+        name: "StoreSetting",
+      },
+      // ⛔ "ניהול קודים" מוסתר מהתפריט (הדף עצמו נשאר) - להחזרה: להסיר את ההערה
+      // {
+      //   path: "/store/scripts",
+      //   name: "Scripts",
+      // },
+    ],
   },
   // {
   //   icon: IoNewspaperOutline,

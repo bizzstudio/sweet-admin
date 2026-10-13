@@ -14,7 +14,12 @@ import { Route, Router } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/services/BillingServices", () => ({
-  default: { getQuotes: vi.fn(), priceItems: vi.fn(), createQuote: vi.fn() },
+  default: {
+    getQuotes: vi.fn(),
+    priceItems: vi.fn(),
+    createQuote: vi.fn(),
+    updateQuote: vi.fn(),
+  },
 }));
 
 // הבורר האמיתי טוען את כל הלקוחות מהשרת. כאן מספיק לראות איזה ערך קיבל
@@ -22,8 +27,13 @@ vi.mock("@/components/billing/CustomerPicker", () => ({
   default: ({ value }) => <span data-testid="customer-picker">{value || "(ריק)"}</span>,
 }));
 vi.mock("@/components/billing/ProductPicker", () => ({
-  default: ({ value, onChange }) => (
-    <input data-testid="sku" value={value} onChange={(e) => onChange(e.target.value)} />
+  default: ({ value, onChange, selectRef }) => (
+    <input
+      data-testid="sku"
+      ref={selectRef}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+    />
   ),
 }));
 vi.mock("@/components/billing/BarcodeInput", () => ({ default: () => null }));
@@ -58,6 +68,8 @@ beforeEach(() => {
   document.body.appendChild(container);
   root = createRoot(container);
   vi.clearAllMocks();
+  // jsdom אינו מממש גלילה; העריכה גוללת אל הבונה שבראש הדף
+  window.scrollTo = vi.fn();
   BillingServices.getQuotes.mockResolvedValue({ quotes: [], total: 0 });
 });
 
@@ -215,5 +227,151 @@ describe("Quotes — מחיר ידני", () => {
     await type(priceInputs()[0], "4");
 
     expect(findButton("הפק הצעת מחיר").disabled).toBe(true);
+  });
+});
+
+// עריכת הצעה קיימת והקלדה רצופה (בקשת הלקוח, 13/10/26): עד כאן אפשר היה
+// רק להדפיס הצעה או להפיק ממנה תעודה.
+describe("Quotes — עריכה והקלדה רצופה", () => {
+  const type = async (input, value) => {
+    const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
+    await act(async () => {
+      setter.call(input, value);
+      input.dispatchEvent(new window.Event("input", { bubbles: true }));
+    });
+  };
+  const findButton = (text) =>
+    [...container.querySelectorAll("button")].find((b) => b.textContent.includes(text));
+  const click = async (text) => {
+    await act(async () => {
+      findButton(text).dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+  };
+  const enter = async (input) => {
+    await act(async () => {
+      input.dispatchEvent(
+        new window.KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true })
+      );
+    });
+  };
+  const skuInputs = () => [...container.querySelectorAll("[data-testid='sku']")];
+  const quantityInputs = () => [...container.querySelectorAll("input[placeholder='כמות']")];
+
+  const quote = (over = {}) => ({
+    _id: "q1",
+    number: 5007,
+    customer: "c9",
+    customerSnapshot: { name: "מכולת השכונה" },
+    createdAt: "2026-10-01T08:00:00Z",
+    status: "open",
+    notes: "הערה ישנה",
+    total: 50,
+    items: [
+      { sku: "A1", name: "מוצר א", quantity: 2, unitPrice: 10, lineTotal: 20, priceSource: "customerPriceList" },
+      { sku: "B2", name: "מוצר ב", quantity: 3, unitPrice: 10, lineTotal: 30, priceSource: "catalog" },
+    ],
+    ...over,
+  });
+
+  it("עריכה טוענת את ההצעה לבונה ושומרת באותה הצעה, עם המחירים שבה", async () => {
+    BillingServices.getQuotes.mockResolvedValue({ quotes: [quote()], total: 1 });
+    BillingServices.priceItems.mockResolvedValue({
+      items: [
+        // המחירון של היום שונה ממה שבהצעה — המחיר שבהצעה הוא שנשאר
+        { sku: "A1", name: "מוצר א", quantity: 5, unitPrice: 12, lineTotal: 60, source: "customerPriceList" },
+        { sku: "B2", name: "מוצר ב", quantity: 3, unitPrice: 10, lineTotal: 30, source: "catalog" },
+      ],
+    });
+    BillingServices.updateQuote.mockResolvedValue({ message: "ok" });
+    await render("/quotes");
+
+    await click("עריכה");
+    expect(container.textContent).toContain("עריכת הצעה 5007");
+    expect(picker()).toBeNull();
+    expect(skuInputs().map((i) => i.value)).toEqual(["A1", "B2"]);
+
+    await type(quantityInputs()[0], "5");
+    await click("חשב מחירים");
+    // מחיר שלא נגעו בו שומר על המקור שנרשם לו, ואינו מוצג כ"ידני"
+    expect(container.textContent).toContain("מחירון הלקוח");
+    expect(container.textContent).not.toContain("ידני");
+
+    await click("שמור שינויים");
+    expect(BillingServices.createQuote).not.toHaveBeenCalled();
+    expect(BillingServices.updateQuote).toHaveBeenCalledWith("q1", {
+      items: [
+        { sku: "A1", quantity: 5, unitPrice: 10 },
+        { sku: "B2", quantity: 3, unitPrice: 10 },
+      ],
+      notes: "הערה ישנה",
+    });
+    // הבונה נסגר ומתרוקן
+    expect(skuInputs()).toEqual([]);
+  });
+
+  it("החלפת מוצר בשורה שנערכת מנקה את המחיר של המוצר הקודם", async () => {
+    BillingServices.getQuotes.mockResolvedValue({ quotes: [quote()], total: 1 });
+    BillingServices.priceItems.mockResolvedValue({
+      items: [
+        { sku: "C3", name: "מוצר ג", quantity: 2, unitPrice: 4, lineTotal: 8, source: "catalog" },
+        { sku: "B2", name: "מוצר ב", quantity: 3, unitPrice: 10, lineTotal: 30, source: "catalog" },
+      ],
+    });
+    BillingServices.updateQuote.mockResolvedValue({ message: "ok" });
+    await render("/quotes");
+
+    await click("עריכה");
+    await type(skuInputs()[0], "C3");
+    await click("חשב מחירים");
+    await click("שמור שינויים");
+
+    expect(BillingServices.updateQuote.mock.calls[0][1].items).toEqual([
+      { sku: "C3", quantity: 2 },
+      { sku: "B2", quantity: 3, unitPrice: 10 },
+    ]);
+  });
+
+  it("ביטול עריכה אינו משאיר את שורות ההצעה בהצעה חדשה", async () => {
+    BillingServices.getQuotes.mockResolvedValue({ quotes: [quote()], total: 1 });
+    await render("/quotes");
+
+    await click("עריכה");
+    await click("ביטול");
+    await click("הצעה חדשה");
+
+    expect(skuInputs().map((i) => i.value)).toEqual([""]);
+    expect(findButton("שמור שינויים")).toBeUndefined();
+  });
+
+  it("הצעה שהופקה ממנה תעודה אינה ניתנת לעריכה", async () => {
+    BillingServices.getQuotes.mockResolvedValue({
+      quotes: [quote({ convertedNote: "n1", convertedNoteNumber: 301 })],
+      total: 1,
+    });
+    await render("/quotes");
+
+    expect(findButton("עריכה")).toBeUndefined();
+  });
+
+  it("בחירת מוצר מעבירה לכמות, ו-Enter שם פותח שורה חדשה וממקד בה", async () => {
+    await render("/quotes?customer=c1&new=1");
+
+    await type(skuInputs()[0], "A1");
+    expect(document.activeElement).toBe(quantityInputs()[0]);
+
+    await enter(quantityInputs()[0]);
+    expect(skuInputs()).toHaveLength(2);
+    expect(document.activeElement).toBe(skuInputs()[1]);
+
+    // שורה אחרונה ריקה: Enter נוסף לא עורם שורות
+    await enter(quantityInputs()[1]);
+    expect(skuInputs()).toHaveLength(2);
+
+    // Enter בשורה שאינה אחרונה עובר לשורה שמתחתיה
+    await enter(quantityInputs()[0]);
+    expect(document.activeElement).toBe(skuInputs()[1]);
   });
 });

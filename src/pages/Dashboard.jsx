@@ -135,6 +135,16 @@ const TILE_META = {
     accent: "green",
     desc: "פתיחת החנות המקוונת בלשונית חדשה, כדי לראות בדיוק מה הלקוחות רואים.",
   },
+  StoreCustomization: {
+    icon: FiTarget,
+    accent: "green",
+    desc: "התוכן והמראה של החנות: עמוד הבית, מבצעים, אודות, צור קשר, שאלות נפוצות, תקנון ופרטיות, והגדרות SEO.",
+  },
+  StoreSetting: {
+    icon: FiTarget,
+    accent: "green",
+    desc: "הגדרות הפעולה של החנות: קבלת הזמנות ומשלוחים, סף משלוח חינם, סף מלאי נמוך, אמצעי תשלום וחיבורים חיצוניים.",
+  },
   Pickers: {
     icon: FiUsers,
     accent: "green",
@@ -205,6 +215,7 @@ const GROUP_TITLES = {
   Customers: "לקוחות",
   Orders: "הזמנות",
   Billing: "חיוב וגבייה",
+  OnlineStore: "חנות מקוונת",
 };
 
 const GENERAL_GROUP = "כללי";

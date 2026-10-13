@@ -24,7 +24,7 @@ import {
   TableRow,
   Pagination,
 } from "@windmill/react-ui";
-import { FiAlertTriangle, FiCopy, FiFileText, FiPlus, FiPrinter, FiTrash2, FiX } from "react-icons/fi";
+import { FiAlertTriangle, FiCopy, FiEdit2, FiFileText, FiPlus, FiPrinter, FiTrash2, FiX } from "react-icons/fi";
 import { MdOutlineReceiptLong } from "react-icons/md";
 import { Link } from "react-router-dom";
 import useQueryParam from "@/hooks/useQueryParam";
@@ -33,6 +33,7 @@ import PageTitle from "@/components/Typography/PageTitle";
 import ProductPicker from "@/components/billing/ProductPicker";
 import CustomerPicker from "@/components/billing/CustomerPicker";
 import BarcodeInput from "@/components/billing/BarcodeInput";
+import useRowEntryKeys from "@/hooks/useRowEntryKeys";
 import TableLoading from "@/components/preloader/TableLoading";
 import NotFound from "@/components/table/NotFound";
 import BillingServices from "@/services/BillingServices";
@@ -80,6 +81,8 @@ const Quotes = () => {
   const [priced, setPriced] = useState(null);
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
+  // ההצעה שנערכת כרגע בבונה. null = הבונה מפיק הצעה חדשה
+  const [editing, setEditing] = useState(null);
   // ההצעה שעליה רצה כרגע פעולה — כדי לנטרל את הכפתורים שלה בלבד
   const [working, setWorking] = useState(null);
 
@@ -107,7 +110,16 @@ const Quotes = () => {
   }, [openNew, setOpenNew]);
 
   const updateRow = (i, field, value) => {
-    setRows((prev) => prev.map((r, idx) => (idx === i ? { ...r, [field]: value } : r)));
+    setRows((prev) =>
+      prev.map((r, idx) => {
+        if (idx !== i) return r;
+        // בעריכה: שורה שהוחלף בה המוצר לא תישאר עם המחיר של המוצר הקודם
+        if (field === "sku" && r.origPrice !== undefined && value !== r.sku) {
+          return { sku: value, quantity: r.quantity };
+        }
+        return { ...r, [field]: value };
+      })
+    );
     // מחיר ידני אינו משנה את מה שהמחירון החזיר, ולכן הטבלה המתומחרת נשארת
     if (field !== "unitPrice") setPriced(null);
   };
@@ -123,6 +135,18 @@ const Quotes = () => {
   });
 
   const addRow = () => setRows((prev) => [...prev, { sku: "", quantity: 1 }]);
+
+  // הקלדה רצופה בלי עכבר, כמו בתעודת המשלוח: בחירת מוצר מעבירה לכמות,
+  // ו-Enter שם עובר לשורה הבאה ופותח חדשה אם זו האחרונה
+  const keys = useRowEntryKeys({
+    rows,
+    addRow,
+    hasItem: (r) => !!r.sku?.trim(),
+    onScan: (i) => {
+      updateRow(i, "quantity", "");
+      notifyError('נראה שנסרק ברקוד בשדה הכמות — הערך נמחק. לסריקה יש להשתמש בשדה "הקלדת ברקוד"');
+    },
+  });
   // שורה שנשכחה באמצע: נכנסת מעל השורה שנלחצה, כדי שסדר ההצעה יישמר.
   // הכפתור שבתחתית ממשיך להוסיף בסוף
   const insertRow = (i) =>
@@ -175,20 +199,53 @@ const Quotes = () => {
     }
   };
 
+  const resetBuilder = () => {
+    setBuilding(false);
+    setEditing(null);
+    setRows([{ sku: "", quantity: 1 }]);
+    setPriced(null);
+    setNotes("");
+    setCustomerId("");
+  };
+
+  /**
+   * פתיחת הצעה קיימת בבונה לתיקון. השורות נטענות עם המחיר שכבר בהצעה:
+   * זה מה שנמסר ללקוח, ועריכת כמות לא אמורה לתמחר מחדש לפי המחירון של
+   * היום. שורה שמחירה לא נגעו בו שומרת על מקור המחיר שנרשם לה (origSource).
+   */
+  const startEdit = (quote) => {
+    setEditing(quote);
+    setCustomerId(String(quote.customer?._id || quote.customer || ""));
+    setRows(
+      (quote.items || []).map((i) => ({
+        sku: String(i.sku || ""),
+        quantity: i.quantity,
+        unitPrice: i.unitPrice,
+        origPrice: i.unitPrice,
+        origSource: i.priceSource,
+      }))
+    );
+    setNotes(quote.notes || "");
+    setPriced(null);
+    setBuilding(true);
+    window.scrollTo?.({ top: 0, behavior: "smooth" });
+  };
+
   const doCreate = async () => {
     setSaving(true);
     try {
-      const res = await BillingServices.createQuote({
-        customer: customerId,
-        items: validRows.map(toPayload),
-        notes,
-      });
+      const res = editing
+        ? await BillingServices.updateQuote(editing._id, {
+            items: validRows.map(toPayload),
+            notes,
+          })
+        : await BillingServices.createQuote({
+            customer: customerId,
+            items: validRows.map(toPayload),
+            notes,
+          });
       notifySuccess(res.message);
-      setBuilding(false);
-      setRows([{ sku: "", quantity: 1 }]);
-      setPriced(null);
-      setNotes("");
-      setCustomerId("");
+      resetBuilder();
       load();
     } catch (err) {
       notifyError(err?.response?.data?.message || err.message);
@@ -267,11 +324,13 @@ const Quotes = () => {
     const base = { ...item, rowIndex: row?.index, listPrice: item.unitPrice, typed: row?.unitPrice };
     if (!hasManualPrice(row)) return base;
     const unitPrice = Number(row.unitPrice);
+    // בעריכה: מחיר שנשאר כמו שהיה בהצעה לא הוקלד ביד עכשיו
+    const untouched = row.origSource && unitPrice === Number(row.origPrice);
     return {
       ...base,
       unitPrice,
       lineTotal: Number((unitPrice * item.quantity).toFixed(2)),
-      source: "manual",
+      source: untouched ? row.origSource : "manual",
     };
   });
   const pricedTotal = shownItems.reduce((s, i) => s + i.lineTotal, 0);
@@ -292,9 +351,12 @@ const Quotes = () => {
         <PageTitle style={{ margin: 0 }}>הצעות מחיר</PageTitle>
         <Button
           onClick={() => {
+            // ביטול עריכה מנקה את הבונה: שורות של הצעה קיימת לא יישארו בו
+            // ויהפכו להצעה חדשה. טיוטה של הצעה חדשה נשמרת, כמו תמיד
+            if (building) return editing ? resetBuilder() : setBuilding(false);
             // ברשימה המסוננת ללקוח, הצעה חדשה היא כמעט תמיד עבורו
-            if (!building && !customerId && customerFilter) setCustomerId(customerFilter);
-            setBuilding((v) => !v);
+            if (!customerId && customerFilter) setCustomerId(customerFilter);
+            setBuilding(true);
           }}
         >
           {building ? <FiX className="ml-2" /> : <FiPlus className="ml-2" />}
@@ -305,21 +367,28 @@ const Quotes = () => {
       {building && (
         <Card className="min-w-0 shadow-xs overflow-hidden bg-white dark:bg-gray-800 mb-6">
           <CardBody>
-            <div className="flex flex-wrap gap-4 mb-4">
-              {/* הקלדה של השם או של מספר הלקוח מגיעה אליו ישירות — ברשימה
-                  נפתחת רגילה היה צריך לגלול דרך מאות לקוחות */}
-              <Label className="flex-1 min-w-[240px]">
-                <span>לקוח</span>
-                <CustomerPicker
-                  className="mt-1"
-                  value={customerId}
-                  onChange={(id) => {
-                    setCustomerId(id);
-                    setPriced(null);
-                  }}
-                />
-              </Label>
-            </div>
+            {editing ? (
+              // הלקוח של הצעה קיימת אינו משתנה — להצעה ללקוח אחר יש "העתק"
+              <p className="mb-4 font-semibold">
+                עריכת הצעה {editing.number} — {editing.customerSnapshot?.name || "לקוח"}
+              </p>
+            ) : (
+              <div className="flex flex-wrap gap-4 mb-4">
+                {/* הקלדה של השם או של מספר הלקוח מגיעה אליו ישירות — ברשימה
+                    נפתחת רגילה היה צריך לגלול דרך מאות לקוחות */}
+                <Label className="flex-1 min-w-[240px]">
+                  <span>לקוח</span>
+                  <CustomerPicker
+                    className="mt-1"
+                    value={customerId}
+                    onChange={(id) => {
+                      setCustomerId(id);
+                      setPriced(null);
+                    }}
+                  />
+                </Label>
+              </div>
+            )}
 
             <div className="mb-4 max-w-sm">
               <BarcodeInput
@@ -334,7 +403,12 @@ const Quotes = () => {
                 <ProductPicker
                   className="flex-1 min-w-[220px]"
                   value={row.sku}
-                  onChange={(sku) => updateRow(i, "sku", sku)}
+                  selectRef={keys.itemRef(i)}
+                  onChange={(sku) => {
+                    updateRow(i, "sku", sku);
+                    // ניקוי הבחירה (X) אינו סיבה לקפוץ לשדה הכמות
+                    if (sku) keys.focusQuantity(i);
+                  }}
                 />
                 {/* רוחב קבוע על העוטף ולא על ה-Input: ל-Input של Windmill יש
                     w-full בבסיס, והוא גובר על w-28 ומועך את בורר המוצר */}
@@ -344,7 +418,9 @@ const Quotes = () => {
                     min="1"
                     placeholder="כמות"
                     value={row.quantity}
+                    ref={keys.quantityRef(i)}
                     onChange={(e) => updateRow(i, "quantity", e.target.value)}
+                    onKeyDown={(e) => keys.onQuantityKeyDown(e, i)}
                   />
                 </div>
                 {/* ריק = המחיר נלקח ממחירון הלקוח או מהקטלוג */}
@@ -358,6 +434,7 @@ const Quotes = () => {
                     aria-label="מחיר ליחידה"
                     value={row.unitPrice ?? ""}
                     onChange={(e) => updateRow(i, "unitPrice", e.target.value)}
+                    onKeyDown={(e) => keys.onRowEnter(e, i)}
                   />
                 </div>
                 <button
@@ -379,6 +456,10 @@ const Quotes = () => {
                 </button>
               </div>
             ))}
+
+            <p className="text-xs text-gray-500 mt-1">
+              הקלדה רצופה: בחירת מוצר מעבירה לשדה הכמות, ו-Enter שם פותח את השורה הבאה.
+            </p>
 
             <div className="flex flex-wrap gap-3 mt-3">
               <Button size="small" layout="outline" onClick={addRow}>
@@ -463,7 +544,7 @@ const Quotes = () => {
                   </div>
 
                   <Button onClick={doCreate} disabled={saving || hasMissing}>
-                    {saving ? "מפיק..." : "הפק הצעת מחיר"}
+                    {saving ? "שומר..." : editing ? "שמור שינויים" : "הפק הצעת מחיר"}
                   </Button>
                 </div>
 
@@ -584,6 +665,19 @@ const Quotes = () => {
                         >
                           מסמך <FiPrinter />
                         </Link>
+
+                        {/* הצעה שהופקה ממנה תעודה נעולה לעריכה — התעודה
+                            נושאת את השורות כפי שהיו */}
+                        {!q.convertedNote && (
+                          <button
+                            onClick={() => startEdit(q)}
+                            disabled={working === q._id}
+                            className="text-sm text-gray-600 dark:text-gray-300 hover:underline flex items-center gap-1 disabled:opacity-40"
+                            title="תיקון שורות, כמויות ומחירים בהצעה"
+                          >
+                            <FiEdit2 /> עריכה
+                          </button>
+                        )}
 
                         <button
                           onClick={() => duplicate(q)}

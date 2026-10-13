@@ -9,7 +9,7 @@
 // שתי הפעולות מפיקות מסמכי מס ב-iCount שאי אפשר למחוק, ולכן שתיהן עוברות
 // דרך דיאלוג אישור עם פירוט מה עומד לקרות — ולא לחיצה אחת בטבלה.
 
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Badge,
   Button,
@@ -95,17 +95,24 @@ const Invoices = () => {
   const [details, setDetails] = useState({});
   const [reason, setReason] = useState("");
 
+  // איזו טעינה היא האחרונה. החלפה מהירה של הסינון שולחת שתי בקשות,
+  // והתשובה של הישנה יכולה להגיע אחרונה ולדרוס את החדשה
+  const loadSeq = useRef(0);
+
   const load = useCallback(async () => {
+    const seq = ++loadSeq.current;
     setLoading(true);
     try {
       const res = await BillingServices.getInvoices({ status, customer: customerFilter });
+      if (seq !== loadSeq.current) return;
       setInvoices(res.invoices || []);
       setTermsConfirmed(res.termsConfirmed !== false);
     } catch (err) {
+      if (seq !== loadSeq.current) return;
       notifyError(err?.response?.data?.message || err.message);
       setInvoices([]);
     } finally {
-      setLoading(false);
+      if (seq === loadSeq.current) setLoading(false);
     }
   }, [status, customerFilter]);
 
@@ -113,7 +120,7 @@ const Invoices = () => {
     load();
   }, [load]);
 
-  const openPayment = async (inv) => {
+  const openPayment = useCallback(async (inv) => {
     setMethod("transfer");
     setDetails({});
     setIcountTotal(null);
@@ -148,7 +155,7 @@ const Invoices = () => {
     // מה שנשאר לגבות: החשבונית פחות יתרת הזכות, או בתוספת חוב קודם
     setAmount(String(Math.max(0, round2((total?.totalWithVat ?? inv.grossEstimate) - fresh))));
     setLoadingTotal(false);
-  };
+  }, []);
 
   // סכום החשבונית שמולו נמדד התשלום, ומה יישאר ביתרה אחריו. אותו חשבון
   // שהשרת עושה ברישום — כאן רק כדי להראות מראש מה עומד לקרות.
@@ -207,6 +214,146 @@ const Invoices = () => {
     .filter((i) => !i.isPaid)
     .reduce((s, i) => s + i.grossEstimate, 0);
   const overdueCount = invoices.filter((i) => i.isOverdue).length;
+
+  // השורות נבנות מחדש רק כשהרשימה משתנה. בלי זה כל הקלדה בחלון התשלום
+  // או הזיכוי מרנדרת מחדש את כל הטבלה
+  const rows = useMemo(
+    () =>
+      invoices.map((inv) => (
+        <TableRow key={`${inv.customer}-${inv.docNum}`}>
+          <TableCell className="font-mono font-semibold">
+            {inv.icountDocUrl ? (
+              <a
+                href={inv.icountDocUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="text-blue-600 hover:underline inline-flex items-center gap-1"
+                title="פתיחת המסמך ב-iCount"
+              >
+                {inv.docNum} <FiExternalLink />
+              </a>
+            ) : (
+              inv.docNum
+            )}
+          </TableCell>
+          <TableCell>
+            {inv.customerName}
+            {inv.customerNumber && (
+              <span className="block text-xs text-gray-500">
+                מס' {inv.customerNumber}
+              </span>
+            )}
+            {hasBalance(inv.customerBalance) && (
+              <span
+                className={`block text-xs ${
+                  inv.customerBalance > 0 ? "text-green-700" : "text-red-600"
+                }`}
+              >
+                {inv.customerBalance > 0 ? "יתרת זכות" : "יתרת חוב"}{" "}
+                {shekel(Math.abs(inv.customerBalance))} ₪
+              </span>
+            )}
+            {inv.credits?.length > 0 && (
+              <span className="block text-xs text-red-600">
+                {inv.credits.length} זיכויים
+                {/* זיכוי חלקי (מתעודת זיכוי) אינו מבטל את החשבונית,
+                    ולכן הסכום שלו מוצג — זה מה שיורד מהגבייה */}
+                {inv.credits.some((c) => c.partial) &&
+                  ` · ${shekel(
+                    inv.credits
+                      .filter((c) => c.partial)
+                      .reduce((s, c) => s + (c.grossEstimate || 0), 0)
+                  )} ₪`}
+              </span>
+            )}
+          </TableCell>
+          <TableCell>{hebDate(inv.billedAt)}</TableCell>
+          <TableCell>
+            {hebDate(inv.dueDate)}
+            {inv.termsLabel && (
+              <span className="block text-xs text-gray-500">{inv.termsLabel}</span>
+            )}
+          </TableCell>
+          <TableCell className="text-left">{shekel(inv.grossEstimate)} ₪</TableCell>
+          <TableCell className="text-center" title={inv.notes.join(", ")}>
+            {inv.notes.length}
+          </TableCell>
+          <TableCell>
+            {inv.isPaid ? (
+              <div className="flex flex-col gap-1">
+                <Badge type="success">שולמה</Badge>
+                {inv.paidFromBalance && !inv.receiptDocNum && (
+                  <span className="text-xs text-gray-500">מיתרת הזכות</span>
+                )}
+                {inv.receiptDocNum &&
+                  (inv.receiptDocUrl ? (
+                    <a
+                      href={inv.receiptDocUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-xs text-blue-600 hover:underline inline-flex items-center gap-1"
+                    >
+                      קבלה {inv.receiptDocNum} <FiExternalLink />
+                    </a>
+                  ) : (
+                    <span className="text-xs text-gray-500">
+                      קבלה {inv.receiptDocNum}
+                    </span>
+                  ))}
+              </div>
+            ) : inv.isOverdue ? (
+              <Badge type="danger">באיחור {inv.daysLate} ימים</Badge>
+            ) : (
+              <Badge type="warning">ממתינה</Badge>
+            )}
+          </TableCell>
+          <TableCell>
+            <div className="flex items-center gap-3">
+              {!inv.isPaid && (
+                <button
+                  onClick={() => openPayment(inv)}
+                  className="text-green-600 text-sm hover:underline flex items-center gap-1"
+                >
+                  <FiDollarSign /> רשום תשלום
+                </button>
+              )}
+              {/* הנספח שמצורף לחשבונית: כל תעודות המשלוח שהיא
+                  סגרה, עם התאריכים והסכומים. זה מה שהלקוח מצליב
+                  מול הניירות שקיבל */}
+              <Link
+                to={`/invoice-summary/${encodeURIComponent(inv.docNum)}`}
+                className="text-blue-600 text-sm hover:underline flex items-center gap-1"
+                title="ריכוז תעודות המשלוח שנסגרו בחשבונית"
+              >
+                <FiList /> ריכוז תעודות
+              </Link>
+
+              {/* תיקון: זיכוי + תעודות מתוקנות + חשבונית חדשה,
+                  במסך אחד. חשבונית מס אינה ניתנת לעריכה, ולכן
+                  "עריכה" כאן היא תמיד הפקה מחדש */}
+              <Link
+                to={`/invoice-reissue/${encodeURIComponent(inv.docNum)}`}
+                className="text-yellow-600 text-sm hover:underline flex items-center gap-1"
+                title="זיכוי, תיקון התעודות והפקת חשבונית חדשה"
+              >
+                <FiEdit2 /> תיקון והפקה מחדש
+              </Link>
+
+              <button
+                onClick={() => {
+                  setReason("");
+                  setCreditFor(inv);
+                }}
+                className="text-red-500 text-sm hover:underline flex items-center gap-1"
+              >
+                <FiCornerUpLeft /> זיכוי
+              </button>
+            </div>
+          </TableCell>
+        </TableRow>
+      )),
+    [invoices, openPayment]
+  );
 
   return (
     <>
@@ -305,139 +452,7 @@ const Invoices = () => {
               </tr>
             </TableHeader>
             <TableBody>
-              {invoices.map((inv) => (
-                <TableRow key={`${inv.customer}-${inv.docNum}`}>
-                  <TableCell className="font-mono font-semibold">
-                    {inv.icountDocUrl ? (
-                      <a
-                        href={inv.icountDocUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-blue-600 hover:underline inline-flex items-center gap-1"
-                        title="פתיחת המסמך ב-iCount"
-                      >
-                        {inv.docNum} <FiExternalLink />
-                      </a>
-                    ) : (
-                      inv.docNum
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {inv.customerName}
-                    {inv.customerNumber && (
-                      <span className="block text-xs text-gray-500">
-                        מס' {inv.customerNumber}
-                      </span>
-                    )}
-                    {hasBalance(inv.customerBalance) && (
-                      <span
-                        className={`block text-xs ${
-                          inv.customerBalance > 0 ? "text-green-700" : "text-red-600"
-                        }`}
-                      >
-                        {inv.customerBalance > 0 ? "יתרת זכות" : "יתרת חוב"}{" "}
-                        {shekel(Math.abs(inv.customerBalance))} ₪
-                      </span>
-                    )}
-                    {inv.credits?.length > 0 && (
-                      <span className="block text-xs text-red-600">
-                        {inv.credits.length} זיכויים
-                        {/* זיכוי חלקי (מתעודת זיכוי) אינו מבטל את החשבונית,
-                            ולכן הסכום שלו מוצג — זה מה שיורד מהגבייה */}
-                        {inv.credits.some((c) => c.partial) &&
-                          ` · ${shekel(
-                            inv.credits
-                              .filter((c) => c.partial)
-                              .reduce((s, c) => s + (c.grossEstimate || 0), 0)
-                          )} ₪`}
-                      </span>
-                    )}
-                  </TableCell>
-                  <TableCell>{hebDate(inv.billedAt)}</TableCell>
-                  <TableCell>
-                    {hebDate(inv.dueDate)}
-                    {inv.termsLabel && (
-                      <span className="block text-xs text-gray-500">{inv.termsLabel}</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-left">{shekel(inv.grossEstimate)} ₪</TableCell>
-                  <TableCell className="text-center" title={inv.notes.join(", ")}>
-                    {inv.notes.length}
-                  </TableCell>
-                  <TableCell>
-                    {inv.isPaid ? (
-                      <div className="flex flex-col gap-1">
-                        <Badge type="success">שולמה</Badge>
-                        {inv.paidFromBalance && !inv.receiptDocNum && (
-                          <span className="text-xs text-gray-500">מיתרת הזכות</span>
-                        )}
-                        {inv.receiptDocNum &&
-                          (inv.receiptDocUrl ? (
-                            <a
-                              href={inv.receiptDocUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="text-xs text-blue-600 hover:underline inline-flex items-center gap-1"
-                            >
-                              קבלה {inv.receiptDocNum} <FiExternalLink />
-                            </a>
-                          ) : (
-                            <span className="text-xs text-gray-500">
-                              קבלה {inv.receiptDocNum}
-                            </span>
-                          ))}
-                      </div>
-                    ) : inv.isOverdue ? (
-                      <Badge type="danger">באיחור {inv.daysLate} ימים</Badge>
-                    ) : (
-                      <Badge type="warning">ממתינה</Badge>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      {!inv.isPaid && (
-                        <button
-                          onClick={() => openPayment(inv)}
-                          className="text-green-600 text-sm hover:underline flex items-center gap-1"
-                        >
-                          <FiDollarSign /> רשום תשלום
-                        </button>
-                      )}
-                      {/* הנספח שמצורף לחשבונית: כל תעודות המשלוח שהיא
-                          סגרה, עם התאריכים והסכומים. זה מה שהלקוח מצליב
-                          מול הניירות שקיבל */}
-                      <Link
-                        to={`/invoice-summary/${encodeURIComponent(inv.docNum)}`}
-                        className="text-blue-600 text-sm hover:underline flex items-center gap-1"
-                        title="ריכוז תעודות המשלוח שנסגרו בחשבונית"
-                      >
-                        <FiList /> ריכוז תעודות
-                      </Link>
-
-                      {/* תיקון: זיכוי + תעודות מתוקנות + חשבונית חדשה,
-                          במסך אחד. חשבונית מס אינה ניתנת לעריכה, ולכן
-                          "עריכה" כאן היא תמיד הפקה מחדש */}
-                      <Link
-                        to={`/invoice-reissue/${encodeURIComponent(inv.docNum)}`}
-                        className="text-yellow-600 text-sm hover:underline flex items-center gap-1"
-                        title="זיכוי, תיקון התעודות והפקת חשבונית חדשה"
-                      >
-                        <FiEdit2 /> תיקון והפקה מחדש
-                      </Link>
-
-                      <button
-                        onClick={() => {
-                          setReason("");
-                          setCreditFor(inv);
-                        }}
-                        className="text-red-500 text-sm hover:underline flex items-center gap-1"
-                      >
-                        <FiCornerUpLeft /> זיכוי
-                      </button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
+              {rows}
             </TableBody>
           </Table>
         </TableContainer>

@@ -39,6 +39,7 @@ import useQueryParam from "@/hooks/useQueryParam";
 
 import PageTitle from "@/components/Typography/PageTitle";
 import ProductPicker from "@/components/billing/ProductPicker";
+import useRowEntryKeys from "@/hooks/useRowEntryKeys";
 import CustomerPicker from "@/components/billing/CustomerPicker";
 import BarcodeInput from "@/components/billing/BarcodeInput";
 import TableLoading from "@/components/preloader/TableLoading";
@@ -183,6 +184,18 @@ const CreditNotes = () => {
     setRows((prev) => [...prev, row]);
     setPreview(null);
   };
+
+  // הקלדה רצופה בלי עכבר, כמו בתעודת המשלוח: בחירת מוצר מעבירה לכמות,
+  // ו-Enter שם עובר לשורה הבאה. שורה חדשה שנפתחת כך היא שורת מוצר
+  const keys = useRowEntryKeys({
+    rows,
+    addRow: () => addRow(emptyProductRow()),
+    hasItem: (r) => (r.kind === "free" ? !!r.name?.trim() : !!r.sku?.trim()),
+    onScan: (i) => {
+      updateRow(i, "quantity", "");
+      notifyError('נראה שנסרק ברקוד בשדה הכמות — הערך נמחק. לסריקה יש להשתמש בשדה "הקלדת ברקוד"');
+    },
+  });
 
   // שורה שנשכחה באמצע: נכנסת מעל השורה שנלחצה, כדי שסדר הזיכוי יישמר.
   // הכפתור שבתחתית ממשיך להוסיף בסוף
@@ -433,6 +446,7 @@ const CreditNotes = () => {
                       maxLength={200}
                       placeholder="תיאור חופשי — למשל: הפרש מחיר"
                       aria-label="תיאור השורה"
+                      ref={keys.itemRef(i)}
                       onChange={(e) => updateRow(i, "name", e.target.value)}
                     />
                   </div>
@@ -440,7 +454,12 @@ const CreditNotes = () => {
                   <ProductPicker
                     className="flex-1 min-w-[220px]"
                     value={row.sku}
-                    onChange={(sku) => updateRow(i, "sku", sku)}
+                    selectRef={keys.itemRef(i)}
+                    onChange={(sku) => {
+                      updateRow(i, "sku", sku);
+                      // ניקוי הבחירה (X) אינו סיבה לקפוץ לשדה הכמות
+                      if (sku) keys.focusQuantity(i);
+                    }}
                   />
                 )}
                 {/* רוחב קבוע על העוטף ולא על ה-Input: ל-Input של Windmill יש
@@ -453,7 +472,9 @@ const CreditNotes = () => {
                     placeholder="כמות"
                     aria-label="כמות"
                     value={row.quantity}
+                    ref={keys.quantityRef(i)}
                     onChange={(e) => updateRow(i, "quantity", e.target.value)}
+                    onKeyDown={(e) => keys.onQuantityKeyDown(e, i)}
                   />
                 </div>
                 <div className="w-36">
@@ -466,6 +487,7 @@ const CreditNotes = () => {
                     aria-label="מחיר ליחידה"
                     value={row.unitPrice}
                     onChange={(e) => updateRow(i, "unitPrice", e.target.value)}
+                    onKeyDown={(e) => keys.onRowEnter(e, i)}
                   />
                 </div>
                 <button
@@ -488,6 +510,10 @@ const CreditNotes = () => {
                 </button>
               </div>
             ))}
+
+            <p className="text-xs text-gray-500 mt-1">
+              הקלדה רצופה: בחירת מוצר מעבירה לשדה הכמות, ו-Enter שם פותח את השורה הבאה.
+            </p>
 
             <div className="flex flex-wrap gap-3 mt-3">
               <Button size="small" layout="outline" onClick={() => addRow(emptyProductRow())}>

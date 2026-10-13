@@ -277,6 +277,11 @@ const BillingServices = {
     return requests.post("/billing/quotes", body);
   },
 
+  // עריכת הצעה קיימת: { items, notes }. הלקוח והמספר אינם משתנים
+  updateQuote: async (id, body) => {
+    return requests.patch(`/billing/quotes/${id}`, body);
+  },
+
   acceptQuote: async (id, orderId) => {
     return requests.patch(`/billing/quotes/${id}/accept`, { orderId });
   },
