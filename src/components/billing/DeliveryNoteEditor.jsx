@@ -9,13 +9,16 @@
 // המחירים נטענים כמו שהם ולא מתומחרים מחדש: התעודה היא צילום מצב, ומחירון
 // שהתעדכן בינתיים אינו אמור לשנות משלוח שכבר יצא. שינוי מחיר נעשה ביד.
 //
+// הכיוון ההפוך כן קיים (13/10/2026): מחיר ששונה כאן נשמר גם במחירון הלקוח,
+// כדי שיתפוס בתעודה הבאה. מי שרוצה תיקון חד-פעמי מסירה את הסימון בשורה.
+//
 // תעודה שחויבה אינה מגיעה לכאן — השרת חוסם אותה, והמסך לא מציג את הכפתור.
 // התיקון שם עובר דרך זיכוי, שמחזיר את התעודה למצב פתוח.
 //
 // ⚠️ תעודה שנערכה מסומנת manuallyEdited, והסנכרון מההזמנה מפסיק לגעת בה.
 //    בלי זה עריכה של ההזמנה הייתה מוחקת בשקט את מה שתוקן כאן.
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Button,
   Card,
@@ -28,6 +31,7 @@ import { FiAlertTriangle, FiPlus, FiTrash2 } from "react-icons/fi";
 import ProductPicker from "@/components/billing/ProductPicker";
 import BarcodeInput from "@/components/billing/BarcodeInput";
 import BillingServices from "@/services/BillingServices";
+import CustomerPriceListServices from "@/services/CustomerPriceListServices";
 import useCustomerKnownSkus from "@/hooks/useCustomerKnownSkus";
 import { notifyError, notifySuccess } from "@/utils/toast";
 
@@ -55,6 +59,10 @@ const DeliveryNoteEditor = ({ note, onSaved, onCancel }) => {
       barcode: i.barcode || "",
       quantity: String(i.quantity ?? ""),
       unitPrice: String(i.unitPrice ?? ""),
+      // המוצר והמחיר כפי שהיו על התעודה — לפיהם נקבע אם המחיר שונה
+      originalSku: String(i.sku || ""),
+      originalPrice: Number(i.unitPrice),
+      savePrice: true,
       // שורה שהגיעה מהתעודה עצמה. ההבחנה נחוצה כדי לא לאבד שורה בשקט:
       // שורת מק"ט ריקה שנוספה עכשיו היא סתם שורה שלא מולאה, אבל שורה
       // *מהתעודה* בלי מק"ט (יכולה להיווצר מהזמנה שנקלטה בלי מק"ט) הייתה
@@ -78,16 +86,97 @@ const DeliveryNoteEditor = ({ note, onSaved, onCancel }) => {
 
   // כמו בטופס התעודה הידנית: הבורר מציג רק מוצרים שהלקוח קנה או שבמחירון שלו,
   // ו"כל הקטלוג" פותח את השאר. שדה הלקוח מגיע כמזהה או כאובייקט מאוכלס
-  const knownSkus = useCustomerKnownSkus(
-    String(note.customer?._id || note.customer || "")
-  );
+  const customerId = String(note.customer?._id || note.customer || "");
+  const knownSkus = useCustomerKnownSkus(customerId);
   const [wholeCatalog, setWholeCatalog] = useState(false);
   const pickerSkus = wholeCatalog ? null : knownSkus;
 
   const updateRow = (index, field, value) =>
-    setRows((prev) => prev.map((r, i) => (i === index ? { ...r, [field]: value } : r)));
+    setRows((prev) =>
+      prev.map((r, i) => {
+        if (i !== index) return r;
+        const next = { ...r, [field]: value };
+        // כמו בטופס הידני: מחיר שנמחק חוזר לברירת המחדל, ומוצר שהוחלף
+        // בשורה שנושאת מחיר (של המוצר הקודם) נשמר למחירון רק בסימון מפורש
+        if (field === "unitPrice" && !(Number(value) > 0)) next.savePrice = true;
+        if (field === "sku") next.savePrice = !(Number(r.unitPrice) > 0);
+        return next;
+      })
+    );
 
-  const emptyRow = () => ({ sku: "", name: "", barcode: "", quantity: "", unitPrice: "", fromNote: false });
+  const emptyRow = () => ({ sku: "", name: "", barcode: "", quantity: "", unitPrice: "", fromNote: false, savePrice: true });
+
+  // מחיר ששונה: הוקלד מחיר, והוא אינו המחיר שהיה על התעודה לאותו מוצר.
+  // שורה חדשה עם מחיר ידני נחשבת גם היא
+  const priceChanged = (r) =>
+    Boolean(r.sku?.trim()) &&
+    Number(r.unitPrice) > 0 &&
+    !(r.fromNote && r.sku.trim() === r.originalSku && Number(r.unitPrice) === r.originalPrice);
+
+  // ── מה כתוב היום במחירון, לכל מוצר שבתעודה ──
+  //
+  // נחוץ בשביל המחירון הקבוצתי: הוא גובר על הפרטי, ולכן מחיר שנשמר בפרטי
+  // לא היה תופס. נשאל כבר כשהמוצר נכנס לטופס ולא כשהמחיר משתנה, כדי
+  // שהתשובה תהיה כאן לפני השמירה. { [sku]: { unitPrice, source } }
+  const [expected, setExpected] = useState({});
+  const skuKey = useMemo(
+    () => [...new Set(rows.map((r) => r.sku?.trim()).filter(Boolean))].sort().join("\n"),
+    [rows]
+  );
+
+  useEffect(() => {
+    if (!customerId || !skuKey) return;
+    const missing = skuKey
+      .split("\n")
+      .filter((sku) => !Object.prototype.hasOwnProperty.call(expected, sku));
+    if (!missing.length) return;
+
+    let cancelled = false;
+    BillingServices.priceItems({
+      customer: customerId,
+      items: missing.map((sku) => ({ sku, quantity: 1 })),
+    })
+      .then((res) => {
+        if (cancelled) return;
+        const found = {};
+        for (const item of res?.items || []) {
+          found[String(item.sku)] = { unitPrice: item.unitPrice, source: item.source };
+        }
+        setExpected((prev) => ({ ...prev, ...found }));
+      })
+      // תצוגת עזר: בלי התשובה המחיר נשמר במחירון הפרטי כרגיל
+      .catch(() => {});
+
+    return () => {
+      cancelled = true;
+    };
+    // expected נקרא רק כדי לדלג על מה שכבר ידוע
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customerId, skuKey]);
+
+  const inGroupPriceList = (r) => expected[r.sku?.trim()]?.source === "groupPriceList";
+
+  // כישלון כאן אינו מבטל את התעודה שכבר נשמרה — רק אומר במפורש שהמחירון
+  // לא עודכן
+  const savePricesToPriceList = async () => {
+    const items = validRows
+      .filter((r) => r.savePrice && priceChanged(r) && !inGroupPriceList(r))
+      .filter((r) => {
+        const known = expected[r.sku.trim()];
+        return !(known?.source === "customerPriceList" && known.unitPrice === Number(r.unitPrice));
+      })
+      .map((r) => ({ sku: r.sku.trim(), price: Number(r.unitPrice) }));
+    if (!items.length || !customerId) return;
+
+    try {
+      const res = await CustomerPriceListServices.upsertItems(customerId, { items });
+      notifySuccess(res.message);
+    } catch (err) {
+      notifyError(
+        `התעודה עודכנה, אבל המחיר לא נשמר במחירון: ${err?.response?.data?.message || err.message}`
+      );
+    }
+  };
 
   const addRow = () => setRows((prev) => [...prev, emptyRow()]);
   // שורה שנשכחה באמצע: נכנסת מעל השורה שנלחצה, כדי שסדר התעודה יישמר.
@@ -111,6 +200,7 @@ const DeliveryNoteEditor = ({ note, onSaved, onCancel }) => {
         quantity: "1",
         unitPrice: "",
         fromNote: false,
+        savePrice: true,
       };
       const emptyIndex = prev.findIndex((r) => !r.sku?.trim());
       if (emptyIndex === -1) return [...prev, filled];
@@ -162,6 +252,9 @@ const DeliveryNoteEditor = ({ note, onSaved, onCancel }) => {
         discount: Number(discount) || 0,
       });
       notifySuccess(res.message);
+      // אחרי השמירה ולא לפניה: מחיר שנכנס למחירון כשהתעודה לא עודכנה היה
+      // משנה ללקוח את המחיר בלי שום תעודה שמסבירה למה
+      await savePricesToPriceList();
       onSaved?.(res.note);
     } catch (err) {
       notifyError(err?.response?.data?.message || err.message);
@@ -301,6 +394,23 @@ const DeliveryNoteEditor = ({ note, onSaved, onCancel }) => {
                 onChange={(e) => updateRow(i, "unitPrice", e.target.value)}
               />
             </div>
+            {/* מופיע רק כשהמחיר שונה. מוצר שמתומחר מהמחירון הקבוצתי אינו מקבל
+                את הסימון: הקבוצתי גובר, ומחיר שנשמר בפרטי לא היה תופס */}
+            {priceChanged(row) &&
+              (inGroupPriceList(row) ? (
+                <span className="text-xs text-gray-500 shrink-0">
+                  המחיר הקבוע — במחירון הקבוצתי
+                </span>
+              ) : (
+                <label className="flex items-center gap-1 text-xs text-gray-600 dark:text-gray-400 shrink-0">
+                  <input
+                    type="checkbox"
+                    checked={row.savePrice}
+                    onChange={(e) => updateRow(i, "savePrice", e.target.checked)}
+                  />
+                  לשמור במחירון הלקוח
+                </label>
+              ))}
             <button
               type="button"
               onClick={() => insertRow(i)}
@@ -325,6 +435,10 @@ const DeliveryNoteEditor = ({ note, onSaved, onCancel }) => {
         <Button size="small" layout="outline" onClick={addRow} className="mt-2">
           <FiPlus className="ml-1" /> שורה
         </Button>
+        <p className="text-xs text-gray-500 mt-2">
+          מחיר ששונה כאן נשמר גם במחירון הלקוח ויתפוס בתעודה הבאה; לתיקון
+          חד-פעמי יש להסיר את הסימון "לשמור במחירון הלקוח".
+        </p>
 
         <Label className="mt-4">
           <span>הערות (מופיעות על התעודה)</span>

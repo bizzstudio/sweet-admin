@@ -2,7 +2,8 @@
 //
 // מה שהן שומרות עליו:
 // 1. האפשרות מופיעה רק כשהוקלד מחיר — בלי מחיר אין מה לשמור.
-// 2. רק שורות שסומנו נשלחות למחירון, ורק אחרי שהתעודה הופקה.
+// 2. מחיר שהוקלד נשלח למחירון כברירת מחדל (אלא אם הסימון הוסר), ורק אחרי
+//    שהתעודה הופקה.
 // 3. כישלון בשמירת המחירון נאמר במפורש ואינו נבלע.
 
 import React from "react";
@@ -136,14 +137,12 @@ describe("ManualDeliveryNoteForm — שמירת מחיר במחירון", () => 
     expect(container.querySelectorAll('input[type="checkbox"]')).toHaveLength(1);
   });
 
-  it("שולח למחירון רק שורות שסומנו, אחרי ההפקה", async () => {
+  it("מחיר שהוקלד נשמר במחירון בלי לסמן דבר, אחרי ההפקה", async () => {
     CustomerPriceListServices.upsertItems.mockResolvedValue({ message: "נשמר" });
     await render();
 
     await type(priceInputs()[0], "12.5");
-    await type(priceInputs()[1], "8");
-    // מסמנים רק את השורה הראשונה
-    await click(container.querySelectorAll('input[type="checkbox"]')[0]);
+    expect(container.querySelector('input[type="checkbox"]').checked).toBe(true);
     await click(createButton());
 
     expect(BillingServices.createManualDeliveryNote).toHaveBeenCalledTimes(1);
@@ -152,9 +151,33 @@ describe("ManualDeliveryNoteForm — שמירת מחיר במחירון", () => 
     });
   });
 
-  it("לא נוגע במחירון כשלא סומן דבר", async () => {
+  it("שורה שהסימון הוסר ממנה אינה נשלחת למחירון", async () => {
+    CustomerPriceListServices.upsertItems.mockResolvedValue({ message: "נשמר" });
+    await render();
+
+    await type(priceInputs()[0], "12.5");
+    await type(priceInputs()[1], "8");
+    // מחיר חד-פעמי לשורה השנייה
+    await click(container.querySelectorAll('input[type="checkbox"]')[1]);
+    await click(createButton());
+
+    expect(CustomerPriceListServices.upsertItems).toHaveBeenCalledWith("c1", {
+      items: [{ sku: "111", price: 12.5 }],
+    });
+  });
+
+  it("לא נוגע במחירון כשהסימון הוסר מכל השורות", async () => {
     await render();
     await type(priceInputs()[0], "12.5");
+    await click(container.querySelector('input[type="checkbox"]'));
+    await click(createButton());
+
+    expect(BillingServices.createManualDeliveryNote).toHaveBeenCalledTimes(1);
+    expect(CustomerPriceListServices.upsertItems).not.toHaveBeenCalled();
+  });
+
+  it("לא נוגע במחירון כשלא הוקלד מחיר", async () => {
+    await render();
     await click(createButton());
 
     expect(BillingServices.createManualDeliveryNote).toHaveBeenCalledTimes(1);
@@ -165,7 +188,6 @@ describe("ManualDeliveryNoteForm — שמירת מחיר במחירון", () => 
     BillingServices.createManualDeliveryNote.mockRejectedValue(new Error("נכשל"));
     await render();
     await type(priceInputs()[0], "12.5");
-    await click(container.querySelector('input[type="checkbox"]'));
     await click(createButton());
 
     expect(CustomerPriceListServices.upsertItems).not.toHaveBeenCalled();
@@ -177,22 +199,40 @@ describe("ManualDeliveryNoteForm — שמירת מחיר במחירון", () => 
     });
     await render();
     await type(priceInputs()[0], "12.5");
-    await click(container.querySelector('input[type="checkbox"]'));
     await click(createButton());
 
     expect(notifyError).toHaveBeenCalledWith(expect.stringContaining("המחיר לא נשמר במחירון"));
   });
 
-  it("מחיר שנמחק והוקלד מחדש אינו נשמר עם הסימון הישן", async () => {
+  it("מחיר שנמחק והוקלד מחדש חוזר לברירת המחדל ונשמר", async () => {
+    CustomerPriceListServices.upsertItems.mockResolvedValue({ message: "נשמר" });
     await render();
     await type(priceInputs()[0], "12.5");
     await click(container.querySelector('input[type="checkbox"]'));
 
     await type(priceInputs()[0], "");
     await type(priceInputs()[0], "9");
-    expect(container.querySelector('input[type="checkbox"]').checked).toBe(false);
+    expect(container.querySelector('input[type="checkbox"]').checked).toBe(true);
 
     await click(createButton());
+    expect(CustomerPriceListServices.upsertItems).toHaveBeenCalledWith("c1", {
+      items: [{ sku: "111", price: 9 }],
+    });
+  });
+
+  it("מוצר מהמחירון הקבוצתי ומחיר שזהה למחירון אינם נשלחים", async () => {
+    BillingServices.priceItems.mockResolvedValue({
+      items: [
+        { sku: "111", unitPrice: 35, source: "groupPriceList" },
+        { sku: "222", unitPrice: 8, source: "customerPriceList" },
+      ],
+    });
+    await render();
+    await type(priceInputs()[0], "40");
+    await type(priceInputs()[1], "8");
+    await click(createButton());
+
+    expect(BillingServices.createManualDeliveryNote).toHaveBeenCalledTimes(1);
     expect(CustomerPriceListServices.upsertItems).not.toHaveBeenCalled();
   });
 });

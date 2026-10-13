@@ -80,8 +80,10 @@ const newKey = () =>
   globalThis.crypto?.randomUUID?.() ||
   `dn-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 
-// ‏savePrice: לשמור את המחיר הידני גם במחירון הלקוח, כדי שיתפוס מהתעודה הבאה
-const emptyRow = () => ({ sku: "", quantity: "", ordered: null, name: "", unitPrice: "", savePrice: false });
+// ‏savePrice: לשמור את המחיר הידני גם במחירון הלקוח, כדי שיתפוס מהתעודה הבאה.
+// מסומן מראש (13/10/2026): מחיר ששונה בתעודה משנה גם את המחירון, ומי שרוצה
+// מחיר חד-פעמי מסירה את הסימון
+const emptyRow = () => ({ sku: "", quantity: "", ordered: null, name: "", unitPrice: "", savePrice: true });
 
 // שדה הלקוח בהזמנה מגיע לפעמים כמזהה ולפעמים כאובייקט מאוכלס, תלוי במסך
 // שקרא. שליחת אובייקט לשרת הייתה נכשלת על "מזהה לקוח לא תקין"
@@ -215,7 +217,7 @@ const ManualDeliveryNoteForm = ({
                 ordered: i.quantity,
                 name: i.name,
                 unitPrice: "",
-                savePrice: false,
+                savePrice: true,
               }))
             : [emptyRow()]
         );
@@ -295,12 +297,12 @@ const ManualDeliveryNoteForm = ({
       prev.map((r, i) => {
         if (i !== index) return r;
         const next = { ...r, [field]: value };
-        // סימון "לשמור במחירון" שייך למחיר ולמוצר שעליהם סומן. בלי האיפוס,
-        // מחיר שנמחק והוקלד מחדש, או מוצר שהוחלף בשורה, היו נשמרים למחירון
-        // עם סימון ישן שכבר לא נראה על המסך
-        if (field === "sku" || (field === "unitPrice" && !(Number(value) > 0))) {
-          next.savePrice = false;
-        }
+        // הסימון "לשמור במחירון" שייך למחיר ולמוצר שעליהם נקבע. מחיר שנמחק
+        // חוזר לברירת המחדל, כדי שהמחיר הבא שיוקלד לא יישאר מחוץ למחירון
+        // בגלל בחירה ישנה. מוצר שהוחלף בשורה שכבר נושאת מחיר — להפך: המחיר
+        // הוקלד למוצר הקודם, ואסור שייכנס למחירון של החדש בלי סימון מפורש
+        if (field === "unitPrice" && !(Number(value) > 0)) next.savePrice = true;
+        if (field === "sku") next.savePrice = !(Number(r.unitPrice) > 0);
         return next;
       })
     );
@@ -342,7 +344,7 @@ const ManualDeliveryNoteForm = ({
         return prev;
       }
 
-      const filled = { sku: String(product.sku), quantity: "", ordered: null, name: product.name, unitPrice: "", savePrice: false };
+      const filled = { sku: String(product.sku), quantity: "", ordered: null, name: product.name, unitPrice: "", savePrice: true };
       const emptyIndex = prev.findIndex((r) => !r.sku?.trim());
       if (emptyIndex === -1) return [...prev, filled];
       return prev.map((r, i) => (i === emptyIndex ? filled : r));
@@ -404,11 +406,18 @@ const ManualDeliveryNoteForm = ({
     }
   };
 
-  // מחירים ידניים שסומנו "לשמור לפעם הבאה" נכתבים למחירון הלקוח. כישלון כאן
+  // מחירים ידניים נכתבים למחירון הלקוח, אלא אם הסימון הוסר. כישלון כאן
   // אינו מבטל את התעודה שכבר הופקה — רק אומר במפורש שהמחירון לא עודכן
   const savePricesToPriceList = async (targetCustomer) => {
     const items = validRows
       .filter((r) => r.savePrice && Number(r.unitPrice) > 0)
+      .filter((r) => {
+        const known = expectedFor(r.sku);
+        // הקבוצתי גובר על הפרטי, ולכן מחיר שנשמר שם לא היה תופס (השורה גם
+        // אינה מציגה את הסימון). מחיר שזהה למה שכבר במחירון — אין מה לשמור
+        if (known?.source === "groupPriceList") return false;
+        return !(known?.source === "customerPriceList" && known.unitPrice === Number(r.unitPrice));
+      })
       .map((r) => ({ sku: r.sku.trim(), price: Number(r.unitPrice) }));
     if (!items.length || !targetCustomer) return;
 
@@ -780,8 +789,9 @@ const ManualDeliveryNoteForm = ({
 
         <p className="text-xs text-gray-500 mt-1">
           מחיר יח' ריק — נלקח ממחירון הלקוח, ובהיעדרו ממחיר הקטלוג; המחיר
-          שיחול מופיע מתחת לשדה. מחיר שסומן
-          "לשמור במחירון הלקוח" יישמר עם הפקת התעודה ויתפוס גם בפעם הבאה.
+          שיחול מופיע מתחת לשדה. מחיר שהוקלד נשמר גם במחירון הלקוח עם הפקת
+          התעודה ויתפוס בפעם הבאה; למחיר חד-פעמי יש להסיר את הסימון
+          "לשמור במחירון הלקוח".
         </p>
 
         <div className="flex flex-wrap gap-3 mt-4">
