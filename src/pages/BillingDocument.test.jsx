@@ -415,3 +415,48 @@ describe("המסמך המודפס — הסיכום והחתימות באותו �
     expect(block.contains(itemsTable())).toBe(false);
   });
 });
+
+describe("כפתור חזרה", () => {
+  const renderWithList = async (entry) => {
+    await act(async () => {
+      root.render(
+        <MemoryRouter initialEntries={[entry]}>
+          <Route path="/delivery-note/:id">
+            <BillingDocument />
+          </Route>
+          <Route
+            path="/delivery-notes"
+            render={({ location }) => <p id="list">{location.pathname + location.search}</p>}
+          />
+        </MemoryRouter>
+      );
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+  };
+
+  const back = () =>
+    [...container.querySelectorAll("button")].find((b) => b.textContent.trim() === "חזרה");
+
+  it("חוזר לרשימה שממנה נפתחה התעודה, עם הסינון והעמוד שלה", async () => {
+    await renderWithList({
+      pathname: "/delivery-note/n1",
+      state: { from: "/delivery-notes?month=2026-09&page=2" },
+    });
+
+    await act(async () => back().click());
+
+    expect(container.querySelector("#list").textContent).toBe(
+      "/delivery-notes?month=2026-09&page=2"
+    );
+  });
+
+  it("תעודה שנפתחה מקישור ישיר חוזרת לרשימת התעודות", async () => {
+    await renderWithList("/delivery-note/n1");
+
+    await act(async () => back().click());
+
+    expect(container.querySelector("#list").textContent).toBe("/delivery-notes");
+  });
+});

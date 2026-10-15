@@ -71,7 +71,12 @@ const PAYMENT_METHODS = [
 const Invoices = () => {
   const [invoices, setInvoices] = useState([]);
   const [termsConfirmed, setTermsConfirmed] = useState(true);
-  const [status, setStatus] = useState("unpaid");
+  // התצוגה בכתובת, כדי שחזרה מ"ריכוז תעודות" או מ"תיקון והפקה מחדש" תנחת
+  // על אותה תצוגה. ברירת המחדל "לא שולמו" אינה נכתבת; "הכל" נכתב כ-all,
+  // כי ערך ריק פירושו ברירת המחדל
+  const [statusParam, setStatusParam] = useQueryParam("status");
+  const status = statusParam === "all" ? "" : statusParam || "unpaid";
+  const setStatus = (next) => setStatusParam(next === "unpaid" ? null : next || "all");
   const [loading, setLoading] = useState(true);
 
   const [customerFilter, setCustomerFilter] = useQueryParam("customer");
@@ -321,7 +326,7 @@ const Invoices = () => {
                   סגרה, עם התאריכים והסכומים. זה מה שהלקוח מצליב
                   מול הניירות שקיבל */}
               <Link
-                to={`/invoice-summary/${encodeURIComponent(inv.docNum)}`}
+                to={(loc) => ({ pathname: `/invoice-summary/${encodeURIComponent(inv.docNum)}`, state: { from: loc.pathname + loc.search } })}
                 className="text-blue-600 text-sm hover:underline flex items-center gap-1"
                 title="ריכוז תעודות המשלוח שנסגרו בחשבונית"
               >
@@ -332,7 +337,7 @@ const Invoices = () => {
                   במסך אחד. חשבונית מס אינה ניתנת לעריכה, ולכן
                   "עריכה" כאן היא תמיד הפקה מחדש */}
               <Link
-                to={`/invoice-reissue/${encodeURIComponent(inv.docNum)}`}
+                to={(loc) => ({ pathname: `/invoice-reissue/${encodeURIComponent(inv.docNum)}`, state: { from: loc.pathname + loc.search } })}
                 className="text-yellow-600 text-sm hover:underline flex items-center gap-1"
                 title="זיכוי, תיקון התעודות והפקת חשבונית חדשה"
               >
@@ -637,7 +642,7 @@ const Invoices = () => {
             <p className="mt-2 text-red-700 dark:text-red-400">
               אם המטרה היא לתקן את החשבונית ולא לבטלה — עדיף{" "}
               <Link
-                to={`/invoice-reissue/${encodeURIComponent(creditFor?.docNum || "")}`}
+                to={(loc) => ({ pathname: `/invoice-reissue/${encodeURIComponent(creditFor?.docNum || "")}`, state: { from: loc.pathname + loc.search } })}
                 className="underline font-semibold"
               >
                 תיקון והפקה מחדש

@@ -18,7 +18,7 @@
 // כלום בדרך.
 
 import React, { useCallback, useEffect, useState } from "react";
-import { useParams, useHistory, Link } from "react-router-dom";
+import { useParams, useHistory, useLocation, Link } from "react-router-dom";
 import { Badge, Button, Card, CardBody, Input, Label } from "@windmill/react-ui";
 import {
   FiAlertTriangle,
@@ -369,6 +369,8 @@ const NoteEditor = ({ note, state, onChange, onReset, readOnly = false }) => {
 const InvoiceReissue = () => {
   const { docNum } = useParams();
   const history = useHistory();
+  // חזרה לרשימת החשבוניות באותה תצוגה שממנה הגיעו (ראה Invoices)
+  const backTo = useLocation().state?.from || "/invoices";
 
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -491,7 +493,7 @@ const InvoiceReissue = () => {
         <Card className="shadow-xs bg-white dark:bg-gray-800">
           <CardBody>
             <p>לא נמצאו תעודות לחשבונית {docNum}.</p>
-            <Button className="mt-4" layout="outline" onClick={() => history.push("/invoices")}>
+            <Button className="mt-4" layout="outline" onClick={() => history.push(backTo)}>
               חזרה לחשבוניות
             </Button>
           </CardBody>
@@ -571,7 +573,7 @@ const InvoiceReissue = () => {
             )}
 
             <div className="flex gap-2">
-              <Button onClick={() => history.push("/invoices")}>חזרה לחשבוניות</Button>
+              <Button onClick={() => history.push(backTo)}>חזרה לחשבוניות</Button>
               <Button layout="outline" onClick={() => history.push("/delivery-notes")}>
                 תעודות משלוח
               </Button>
@@ -619,7 +621,7 @@ const InvoiceReissue = () => {
                 )}
               </p>
             </div>
-            <Link to="/invoices" className="text-sm text-blue-600 hover:underline">
+            <Link to={backTo} className="text-sm text-blue-600 hover:underline">
               חזרה לחשבוניות
             </Link>
           </div>
@@ -766,7 +768,7 @@ const InvoiceReissue = () => {
             <Button onClick={submit} disabled={blocked || working}>
               {working ? "מפיק..." : "הפק זיכוי וחשבונית חדשה"}
             </Button>
-            <Button layout="outline" onClick={() => history.push("/invoices")} disabled={working}>
+            <Button layout="outline" onClick={() => history.push(backTo)} disabled={working}>
               ביטול
             </Button>
           </div>

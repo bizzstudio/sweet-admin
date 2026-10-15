@@ -29,7 +29,13 @@ const PrintNoteOffer = ({ note, onClose }) => {
         תעודת משלוח {note.number} הופקה. להדפיס אותה עכשיו?
       </p>
       <div className="flex items-center gap-2">
-        <Button onClick={() => history.push(`/delivery-note/${note._id}?print=1`)}>
+        <Button
+          onClick={() =>
+            history.push(`/delivery-note/${note._id}?print=1`, {
+              from: history.location.pathname + history.location.search,
+            })
+          }
+        >
           <FiPrinter className="ml-2" /> הדפסה
         </Button>
         <Button layout="outline" onClick={onClose}>

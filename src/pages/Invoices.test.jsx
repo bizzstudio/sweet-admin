@@ -178,3 +178,35 @@ describe("רישום תשלום — יתרת הלקוח", () => {
     expect(BillingServices.createReceipt).not.toHaveBeenCalled();
   });
 });
+
+describe("התצוגה נשמרת בכתובת", () => {
+  const renderAt = async (entry) => {
+    BillingServices.getInvoices.mockResolvedValue({ invoices: [] });
+    await act(async () => {
+      root.render(
+        <MemoryRouter initialEntries={[entry]}>
+          <Invoices />
+        </MemoryRouter>
+      );
+    });
+    await flush();
+  };
+
+  const lastStatus = () => BillingServices.getInvoices.mock.calls.at(-1)[0].status;
+
+  it("בלי פרמטר — ברירת המחדל לא שולמו", async () => {
+    await renderAt("/invoices");
+    expect(lastStatus()).toBe("unpaid");
+  });
+
+  it("status=all — כל החשבוניות, וה-select מציג הכל", async () => {
+    await renderAt("/invoices?status=all");
+    expect(lastStatus()).toBe("");
+    expect(document.querySelector("select").value).toBe("");
+  });
+
+  it("status=overdue נטען כמו שהוא", async () => {
+    await renderAt("/invoices?status=overdue");
+    expect(lastStatus()).toBe("overdue");
+  });
+});

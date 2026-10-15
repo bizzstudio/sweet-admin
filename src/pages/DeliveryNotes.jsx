@@ -11,7 +11,6 @@ import {
   CardBody,
   Input,
   Label,
-  Pagination,
   Select,
   Table,
   TableBody,
@@ -21,7 +20,7 @@ import {
   TableHeader,
   TableRow,
 } from "@windmill/react-ui";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { FiCopy, FiPlus, FiX } from "react-icons/fi";
 import { MdOutlineReceiptLong } from "react-icons/md";
 import useQueryParam from "@/hooks/useQueryParam";
@@ -29,6 +28,7 @@ import useQueryParam from "@/hooks/useQueryParam";
 import PageTitle from "@/components/Typography/PageTitle";
 import ManualDeliveryNoteForm from "@/components/billing/ManualDeliveryNoteForm";
 import TableLoading from "@/components/preloader/TableLoading";
+import ListPager from "@/components/table/ListPager";
 import PrintNoteOffer from "@/components/billing/PrintNoteOffer";
 import NotFound from "@/components/table/NotFound";
 import BillingServices from "@/services/BillingServices";
@@ -57,21 +57,20 @@ const DeliveryNotes = () => {
   // תעודה ידנית שהופקה זה עתה — מציעים להדפיס אותה בלי לחפש אותה ברשימה
   const [printOffer, setPrintOffer] = useState(null);
   const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(1);
-  // רכיב העימוד של Windmill מחזיק את העמוד הפעיל בעצמו ואינו מקבל אותו
-  // מבחוץ. כדי להחזיר אותו לעמוד 1 בונים אותו מחדש — זה המפתח שלו.
-  const [pagerKey, setPagerKey] = useState(0);
-  const toFirstPage = useCallback(() => {
-    setPage(1);
-    setPagerKey((k) => k + 1);
-  }, []);
-  const [status, setStatus] = useState("");
-  const [month, setMonth] = useState("");
-  const [kind, setKind] = useState("");
+  // כל הסינון והעמוד יושבים בכתובת ולא ב-state: מי שפותחת תעודה מתוך
+  // "ספטמבר, עמוד 2" ולוחצת "חזרה" צריכה לנחות בדיוק שם, ולא ברשימה מאופסת
+  const location = useLocation();
+  const [pageParam, setPageParam] = useQueryParam("page");
+  const page = Number(pageParam) || 1;
+  const setPage = useCallback((p) => setPageParam(p > 1 ? String(p) : null), [setPageParam]);
+  const toFirstPage = useCallback(() => setPageParam(null), [setPageParam]);
+  const [status, setStatus] = useQueryParam("status");
+  const [month, setMonth] = useQueryParam("month");
+  const [kind, setKind] = useQueryParam("kind");
   // searchInput הוא מה שמוקלד; search הוא מה שנשלח לשרת, אחרי השהיה קצרה —
   // כדי שלא תצא בקשה על כל אות
-  const [searchInput, setSearchInput] = useState("");
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useQueryParam("q");
+  const [searchInput, setSearchInput] = useState(search);
   const [loading, setLoading] = useState(true);
   const [building, setBuilding] = useState(false);
   // התעודה שעליה רצה כרגע פעולה — מנטרל את הכפתורים שלה בלבד, כדי
@@ -102,6 +101,10 @@ const DeliveryNotes = () => {
       if (seq !== requestSeq.current) return;
       setNotes(res.notes || []);
       setTotal(res.total || 0);
+      // עמוד מהכתובת שכבר לא קיים — למשל חזרה לעמוד האחרון אחרי שהמסמך
+      // היחיד בו בוטל ויצא מהסינון. בלי זה: מסך ריק בלי עימוד לצאת ממנו
+      const lastPage = Math.ceil((res.total || 0) / LIMIT);
+      if (lastPage && page > lastPage) setPage(lastPage);
     } catch (err) {
       if (seq !== requestSeq.current) return;
       notifyError(err?.response?.data?.message || err.message);
@@ -110,7 +113,7 @@ const DeliveryNotes = () => {
     } finally {
       if (seq === requestSeq.current) setLoading(false);
     }
-  }, [page, status, month, kind, search, customerFilter]);
+  }, [page, setPage, status, month, kind, search, customerFilter]);
 
   useEffect(() => {
     load();
@@ -343,7 +346,11 @@ const DeliveryNotes = () => {
                     <TableCell>
                       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                         <Link
-                          to={`/delivery-note/${note._id}`}
+                          to={{
+                            pathname: `/delivery-note/${note._id}`,
+                            // לכפתור "חזרה" בתעודה — הרשימה עם הסינון שלה
+                            state: { from: location.pathname + location.search },
+                          }}
                           className="text-blue-600 hover:underline text-sm"
                         >
                           פתיחה
@@ -379,10 +386,10 @@ const DeliveryNotes = () => {
           </Table>
 
           <TableFooter>
-            <Pagination
-              key={`${pagerKey}|${customerFilter}`}
+            <ListPager
               totalResults={total}
               resultsPerPage={LIMIT}
+              page={page}
               onChange={setPage}
               label="ניווט בין עמודים"
             />

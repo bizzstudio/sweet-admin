@@ -20,7 +20,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useLocation, useHistory } from "react-router-dom";
 import ReactToPrint from "react-to-print";
 import { Badge, Button, Card, CardBody } from "@windmill/react-ui";
-import { FiCopy, FiEdit2, FiFileText, FiPrinter, FiRefreshCw, FiXCircle } from "react-icons/fi";
+import { FiArrowRight, FiCopy, FiEdit2, FiFileText, FiPrinter, FiRefreshCw, FiXCircle } from "react-icons/fi";
 import { MdOutlineReceiptLong } from "react-icons/md";
 
 import DeliveryNoteEditor from "@/components/billing/DeliveryNoteEditor";
@@ -120,7 +120,7 @@ const PRINT_PAGE_STYLE = `
 
 const BillingDocument = () => {
   const { id } = useParams();
-  const { pathname, search } = useLocation();
+  const { pathname, search, state: navState } = useLocation();
   const printRef = useRef();
   const printerRef = useRef();
   const { globalSetting } = useUtilsFunction();
@@ -145,6 +145,14 @@ const BillingDocument = () => {
   // כדי שלא ייווצרו שתי תעודות או שתי חשבוניות מלחיצה כפולה
   const [busy, setBusy] = useState("");
   const history = useHistory();
+
+  // לאן "חזרה" מוביל: הרשימה שממנה נפתח המסמך, כולל הסינון והעמוד שלה
+  // (הרשימות מעבירות אותה ב-state של הקישור). מסמך שנפתח מקישור שהודבק —
+  // אין מאיפה לדעת, ולכן הרשימה של הסוג בלי סינון
+  const backTo =
+    navState?.from || (isQuote ? "/quotes" : isCredit ? "/credit-notes" : "/delivery-notes");
+  // מעבר ממסמך למסמך (העתקה, הפיכת הצעה לתעודה) שומר את אותה נקודת חזרה
+  const keepBack = { from: backTo };
   // הרענון המושהה אחרי "שלח שוב" חייב להתבטל ביציאה מהמסך, אחרת הוא
   // יורה על רכיב שכבר אינו קיים
   const refreshTimer = useRef(null);
@@ -197,7 +205,7 @@ const BillingDocument = () => {
   useEffect(() => {
     if (!autoPrint || !doc || !globalSetting) return;
     printerRef.current?.handlePrint();
-    history.replace(pathname);
+    history.replace(pathname, navState);
   }, [autoPrint, doc, globalSetting, history, pathname]);
 
   // מעבר בין מסמכים (העתקה, המרה מהצעה) משאיר את מצב העריכה פתוח על
@@ -258,13 +266,13 @@ const BillingDocument = () => {
       if (isQuote) {
         const res = await BillingServices.duplicateQuote(id);
         notifySuccess(res.message);
-        history.push(`/quote/${res.quote._id}`);
+        history.push(`/quote/${res.quote._id}`, keepBack);
       } else {
         const res = await BillingServices.duplicateDeliveryNote(id, {
           idempotencyKey: newIdempotencyKey(),
         });
         notifySuccess(res.message);
-        history.push(`/delivery-note/${res.note._id}`);
+        history.push(`/delivery-note/${res.note._id}`, keepBack);
       }
     } catch (err) {
       notifyError(err?.response?.data?.message || err.message);
@@ -383,7 +391,7 @@ const BillingDocument = () => {
     try {
       const res = await BillingServices.convertQuote(id, { target });
       notifySuccess(res.message);
-      history.push(`/delivery-note/${res.note._id}`);
+      history.push(`/delivery-note/${res.note._id}`, keepBack);
     } catch (err) {
       notifyError(err?.response?.data?.message || err.message);
       await reload();
@@ -628,9 +636,15 @@ const BillingDocument = () => {
   return (
     <>
       <div className="flex flex-wrap items-center justify-between gap-3 my-6">
-        <PageTitle style={{ margin: 0 }}>
-          {title} {doc.number}
-        </PageTitle>
+        <div className="flex flex-wrap items-center gap-3">
+          <Button layout="outline" onClick={() => history.push(backTo)}>
+            <FiArrowRight className="ml-2" />
+            חזרה
+          </Button>
+          <PageTitle style={{ margin: 0 }}>
+            {title} {doc.number}
+          </PageTitle>
+        </div>
 
         <div className="flex flex-wrap items-center gap-3">
           {/* מצב החיוב — קובע אילו פעולות מותרות, ולכן מוצג לצידן */}

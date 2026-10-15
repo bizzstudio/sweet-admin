@@ -41,7 +41,7 @@ const NoteRow = ({ note }) => {
         <FiFileText className="text-2xl text-gray-500 shrink-0" />
         <div>
           <Link
-            to={`/delivery-note/${note._id}`}
+            to={(loc) => ({ pathname: `/delivery-note/${note._id}`, state: { from: loc.pathname + loc.search } })}
             className="font-semibold text-blue-600 hover:underline"
           >
             תעודת משלוח {note.number}

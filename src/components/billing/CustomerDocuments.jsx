@@ -293,7 +293,7 @@ const CustomerDocuments = ({ docs, customerId }) => {
               return (
                 <div key={note._id} className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
                   <Link
-                    to={`/delivery-note/${note._id}`}
+                    to={(loc) => ({ pathname: `/delivery-note/${note._id}`, state: { from: loc.pathname + loc.search } })}
                     className="font-mono font-semibold text-blue-600 hover:underline"
                   >
                     {note.number}
@@ -345,7 +345,7 @@ const CustomerDocuments = ({ docs, customerId }) => {
               return (
                 <div key={q._id} className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
                   <Link
-                    to={`/quote/${q._id}`}
+                    to={(loc) => ({ pathname: `/quote/${q._id}`, state: { from: loc.pathname + loc.search } })}
                     className="font-mono font-semibold text-blue-600 hover:underline"
                   >
                     {q.number}

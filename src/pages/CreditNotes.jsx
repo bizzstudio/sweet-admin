@@ -30,11 +30,10 @@ import {
   TableFooter,
   TableHeader,
   TableRow,
-  Pagination,
 } from "@windmill/react-ui";
 import { FiAlertTriangle, FiPlus, FiPrinter, FiTrash2, FiX, FiXCircle } from "react-icons/fi";
 import { MdOutlineReceiptLong } from "react-icons/md";
-import { Link, useHistory } from "react-router-dom";
+import { Link, useHistory, useLocation } from "react-router-dom";
 import useQueryParam from "@/hooks/useQueryParam";
 
 import PageTitle from "@/components/Typography/PageTitle";
@@ -43,6 +42,7 @@ import useRowEntryKeys from "@/hooks/useRowEntryKeys";
 import CustomerPicker from "@/components/billing/CustomerPicker";
 import BarcodeInput from "@/components/billing/BarcodeInput";
 import TableLoading from "@/components/preloader/TableLoading";
+import ListPager from "@/components/table/ListPager";
 import NotFound from "@/components/table/NotFound";
 import TableHeaderCell from "@/components/table/TableHeaderCell";
 import BillingServices from "@/services/BillingServices";
@@ -90,8 +90,12 @@ const CreditNotes = () => {
 
   const [notes, setNotes] = useState([]);
   const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(1);
-  const [status, setStatus] = useState("");
+  // העמוד והסטטוס בכתובת, כדי שכפתור "חזרה" במסמך ינחת על אותה רשימה
+  const location = useLocation();
+  const [pageParam, setPageParam] = useQueryParam("page");
+  const page = Number(pageParam) || 1;
+  const setPage = useCallback((p) => setPageParam(p > 1 ? String(p) : null), [setPageParam]);
+  const [status, setStatus] = useQueryParam("status");
   const [loading, setLoading] = useState(true);
   // התעודה שעליה רצה כרגע פעולה — כדי לנטרל את הכפתורים שלה בלבד
   const [working, setWorking] = useState(null);
@@ -125,12 +129,16 @@ const CreditNotes = () => {
       });
       setNotes(res.creditNotes || []);
       setTotal(res.total || 0);
+      // עמוד מהכתובת שכבר לא קיים — למשל חזרה לעמוד האחרון אחרי שהמסמך
+      // היחיד בו בוטל ויצא מהסינון. בלי זה: מסך ריק בלי עימוד לצאת ממנו
+      const lastPage = Math.ceil((res.total || 0) / LIMIT);
+      if (lastPage && page > lastPage) setPage(lastPage);
     } catch (err) {
       notifyError(err?.response?.data?.message || err.message);
     } finally {
       setLoading(false);
     }
-  }, [page, status, customerFilter]);
+  }, [page, setPage, status, customerFilter]);
 
   useEffect(() => {
     load();
@@ -304,7 +312,7 @@ const CreditNotes = () => {
       else notifySuccess(res.message);
 
       resetForm();
-      history.push(`/credit-note/${res.note._id}`);
+      history.push(`/credit-note/${res.note._id}`, { from: location.pathname + location.search });
     } catch (err) {
       notifyError(err?.response?.data?.message || err.message);
     } finally {
@@ -758,7 +766,7 @@ const CreditNotes = () => {
                     <TableCell>
                       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                         <Link
-                          to={`/credit-note/${n._id}`}
+                          to={{ pathname: `/credit-note/${n._id}`, state: { from: location.pathname + location.search } }}
                           className="text-blue-600 hover:underline flex items-center gap-1 text-sm"
                         >
                           מסמך <FiPrinter />
@@ -792,9 +800,10 @@ const CreditNotes = () => {
           </Table>
 
           <TableFooter>
-            <Pagination
+            <ListPager
               totalResults={total}
               resultsPerPage={LIMIT}
+              page={page}
               onChange={setPage}
               label="ניווט בין עמודים"
             />

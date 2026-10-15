@@ -18,7 +18,7 @@
 // פירוט שאומר דבר אחד וחשבונית שאומרת אחר.
 
 import React, { useEffect, useRef, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, useLocation, Link } from "react-router-dom";
 import ReactToPrint from "react-to-print";
 import { Button, Card, CardBody } from "@windmill/react-ui";
 import { FiPrinter } from "react-icons/fi";
@@ -69,6 +69,8 @@ const orderCell = (note) => {
 
 const InvoiceNotesSummary = () => {
   const { docNum } = useParams();
+  // חזרה לרשימת החשבוניות באותה תצוגה שממנה הגיעו (ראה Invoices)
+  const backTo = useLocation().state?.from || "/invoices";
   const printRef = useRef();
   const { globalSetting } = useUtilsFunction();
 
@@ -207,7 +209,7 @@ const InvoiceNotesSummary = () => {
       </Card>
 
       <div className="mb-8">
-        <Link to="/invoices" className="text-sm text-blue-600 hover:underline">
+        <Link to={backTo} className="text-sm text-blue-600 hover:underline">
           ← חזרה לחשבוניות וגבייה
         </Link>
       </div>

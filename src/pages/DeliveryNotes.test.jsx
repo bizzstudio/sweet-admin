@@ -9,11 +9,13 @@
 // 4. "נקה סינון" מנקה גם את החיפוש.
 // 5. מעבר עמוד נשאר בעמוד שנבחר (הטבלה נעלמת בזמן טעינה, ורכיב העימוד
 //    של Windmill נבנה מחדש — הבדיקה מוודאת שזה לא מחזיר לעמוד 1).
+// 6. הסינון והעמוד נשמרים בכתובת, וקישור "פתיחה" מעביר אותה לתעודה — כך
+//    "חזרה" מהתעודה מחזיר לאותה רשימה ולא לרשימה מאופסת.
 
 import React from "react";
 import { createRoot } from "react-dom/client";
 import { act } from "react-dom/test-utils";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, Route } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/services/BillingServices", () => ({
@@ -153,7 +155,7 @@ describe("DeliveryNotes — חיפוש לפי לקוח", () => {
     await render();
 
     const next = [...container.querySelectorAll("button")].find(
-      (b) => b.getAttribute("aria-label") === "Next"
+      (b) => b.getAttribute("aria-label") === "עמוד הבא"
     );
     await act(async () => next.click());
     await flush();
@@ -170,7 +172,7 @@ describe("DeliveryNotes — חיפוש לפי לקוח", () => {
     await render();
 
     const next = [...container.querySelectorAll("button")].find(
-      (b) => b.getAttribute("aria-label") === "Next"
+      (b) => b.getAttribute("aria-label") === "עמוד הבא"
     );
     await act(async () => next.click());
     await flush();
@@ -268,5 +270,54 @@ describe("DeliveryNotes — חיפוש לפי לקוח", () => {
 
     expect(container.textContent).toContain("לא נמצאו תעודות משלוח");
     expect(searchInput().value).toBe("אין כזה");
+  });
+});
+
+describe("DeliveryNotes — חזרה מתעודה לאותה רשימה", () => {
+  it("סינון ועמוד מהכתובת נשלחים לשרת ומוצגים בשדות", async () => {
+    BillingServices.getDeliveryNotes.mockResolvedValue(pageOf("מכולת הדר", 60));
+    await render("/delivery-notes?month=2026-09&status=open&q=%D7%94%D7%93%D7%A8&page=2");
+
+    expect(callCount()).toBe(1);
+    expect(lastCall()).toMatchObject({ page: 2, month: "2026-09", status: "open", search: "הדר" });
+    expect(searchInput().value).toBe("הדר");
+    expect(container.querySelector('input[type="month"]').value).toBe("2026-09");
+    const active = container.querySelector('nav [aria-current="page"]');
+    expect(active.textContent).toBe("2");
+  });
+
+  it("עמוד שכבר לא קיים (המסמך היחיד בו בוטל) עובר לעמוד האחרון", async () => {
+    // 26 תוצאות = 2 עמודים; הכתובת מבקשת את עמוד 3
+    BillingServices.getDeliveryNotes.mockResolvedValue(pageOf("מכולת הדר", 26));
+    await render("/delivery-notes?page=3");
+    await flush();
+
+    expect(callCount()).toBe(2);
+    expect(lastCall().page).toBe(2);
+  });
+
+  it("קישור הפתיחה מעביר לתעודה את כתובת הרשימה עם הסינון", async () => {
+    BillingServices.getDeliveryNotes.mockResolvedValue(pageOf("מכולת הדר", 60));
+    await act(async () => {
+      root.render(
+        <MemoryRouter initialEntries={["/delivery-notes?month=2026-09&page=2"]}>
+          <Route path="/delivery-notes">
+            <DeliveryNotes />
+          </Route>
+          <Route
+            path="/delivery-note/:id"
+            render={({ location }) => <p id="from">{location.state?.from}</p>}
+          />
+        </MemoryRouter>
+      );
+    });
+    await flush();
+
+    const open = [...container.querySelectorAll("a")].find((a) => a.textContent === "פתיחה");
+    await act(async () => open.click());
+
+    expect(container.querySelector("#from").textContent).toBe(
+      "/delivery-notes?month=2026-09&page=2"
+    );
   });
 });
