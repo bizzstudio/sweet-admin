@@ -43,6 +43,11 @@ vi.mock("@/components/billing/ProductPicker", () => ({
   ),
 }));
 vi.mock("@/components/billing/BarcodeInput", () => ({ default: () => null }));
+// החלון האמיתי טוען היסטוריה ולקוחות מהשרת. כאן מספיק לראות שנפתח ולמי
+vi.mock("@/components/customer/CustomerHistoryWindow", () => ({
+  default: ({ isOpen, customerId }) =>
+    isOpen ? <div data-testid="history-window">{customerId}</div> : null,
+}));
 
 import BillingServices from "@/services/BillingServices";
 import Quotes from "@/pages/Quotes";
@@ -381,5 +386,78 @@ describe("Quotes — עריכה והקלדה רצופה", () => {
     // Enter בשורה שאינה אחרונה עובר לשורה שמתחתיה
     await enter(quantityInputs()[0]);
     expect(document.activeElement).toBe(skuInputs()[1]);
+  });
+});
+
+// בקשת הלקוחה (19/10/2026): בהצעת מחיר אין היסטוריית לקוח כמו בתעודה, ו"למה
+// הוא לא לוקח את המחיר שלו". המחיר נלקח — אבל הוצג רק אחרי "חשב מחירים".
+describe("Quotes — מחיר הלקוח והיסטוריה, כמו בתעודה", () => {
+  const type = async (input, value) => {
+    const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
+    await act(async () => {
+      setter.call(input, value);
+      input.dispatchEvent(new window.Event("input", { bubbles: true }));
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+  };
+
+  it("מחיר המחירון של הלקוח מוצג בשורה מיד כשנבחר מוצר", async () => {
+    BillingServices.priceItems.mockResolvedValue({
+      items: [{ sku: "A1", unitPrice: 7.5, source: "customerPriceList" }],
+    });
+    await render("/quotes?customer=c1&new=1");
+
+    await type(container.querySelector("[data-testid='sku']"), "A1");
+
+    expect(BillingServices.priceItems).toHaveBeenCalledWith({
+      customer: "c1",
+      items: [{ sku: "A1", quantity: 1 }],
+    });
+    expect(container.textContent).toContain("7.50 ₪ · מחירון הלקוח");
+  });
+
+  it("מחיר ידני בהצעה אינו מבטיח שמירה במחירון", async () => {
+    BillingServices.priceItems.mockResolvedValue({
+      items: [{ sku: "A1", unitPrice: 7.5, source: "customerPriceList" }],
+    });
+    await render("/quotes?customer=c1&new=1");
+    await type(container.querySelector("[data-testid='sku']"), "A1");
+
+    await type(container.querySelector("input[aria-label='מחיר ליחידה']"), "9");
+
+    expect(container.textContent).toContain("במחירון: 7.50 ₪");
+    expect(container.textContent).not.toContain("יתעדכן");
+    expect(container.textContent).not.toContain("יישמר במחירון");
+  });
+
+  it("כפתור היסטוריית הלקוח פותח את החלון של הלקוח הנבחר", async () => {
+    await render("/quotes?customer=c1&new=1");
+    expect(container.querySelector("[data-testid='history-window']")).toBeNull();
+
+    const button = [...container.querySelectorAll("button")].find((b) =>
+      b.textContent.includes("היסטוריית הלקוח")
+    );
+    await act(async () => {
+      button.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+    });
+
+    expect(container.querySelector("[data-testid='history-window']")?.textContent).toBe("c1");
+  });
+
+  it("בלי לקוח נבחר כפתור ההיסטוריה מנוטרל", async () => {
+    await render("/quotes");
+    const newButton = [...container.querySelectorAll("button")].find((b) =>
+      b.textContent.includes("הצעה חדשה")
+    );
+    await act(async () => {
+      newButton.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+    });
+
+    const button = [...container.querySelectorAll("button")].find((b) =>
+      b.textContent.includes("היסטוריית הלקוח")
+    );
+    expect(button.disabled).toBe(true);
   });
 });

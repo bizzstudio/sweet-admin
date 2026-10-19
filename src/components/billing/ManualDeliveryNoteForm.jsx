@@ -36,9 +36,10 @@ import { FiAlertTriangle, FiClock, FiPlus, FiTrash2 } from "react-icons/fi";
 
 import ProductPicker from "@/components/billing/ProductPicker";
 import CatalogScopeToggle from "@/components/billing/CatalogScopeToggle";
-import CustomerPicker, { customerNameOf, useCustomers } from "@/components/billing/CustomerPicker";
+import CustomerPicker from "@/components/billing/CustomerPicker";
+import ExpectedPrice, { isPriceListSource, useExpectedPrices } from "@/components/billing/ExpectedPrice";
 import BarcodeInput from "@/components/billing/BarcodeInput";
-import CustomerHistoryModal from "@/components/customer/CustomerHistoryModal";
+import CustomerHistoryWindow from "@/components/customer/CustomerHistoryWindow";
 import BillingServices from "@/services/BillingServices";
 import CustomerPriceListServices from "@/services/CustomerPriceListServices";
 import useCustomerKnownSkus from "@/hooks/useCustomerKnownSkus";
@@ -52,16 +53,6 @@ const SOURCE_LABELS = {
   missing: { text: "אין מחיר!", cls: "text-red-600 font-semibold" },
 };
 
-// הנוסח הקצר של מקור המחיר, לרמז שמתחת לשדה המחיר
-const EXPECTED_SOURCE_TEXT = {
-  groupPriceList: "מחירון קבוצתי",
-  customerPriceList: "מחירון הלקוח",
-  catalog: "קטלוג",
-};
-
-// מחיר שסוכם עם הלקוח (פרטי או קבוצתי), להבדיל ממחיר קטלוג
-const isPriceListSource = (source) =>
-  source === "customerPriceList" || source === "groupPriceList";
 
 const shekel = (n) =>
   Number(n || 0).toLocaleString("he-IL", {
@@ -96,63 +87,6 @@ const emptyRow = () => ({ sku: "", quantity: "", ordered: null, name: "", unitPr
 const customerIdOf = (value) =>
   value && typeof value === "object" ? String(value._id || "") : value ? String(value) : "";
 
-// מק"ט הוא טקסט חופשי מהקטלוג, ולכן הבדיקה היא על שדות האובייקט עצמו:
-// "sku in obj" היה מוצא גם שמות כמו "constructor" שכל אובייקט נושא
-const hasOwn = (obj, key) => Object.prototype.hasOwnProperty.call(obj, key);
-
-/**
- * המחיר שיחול על השורה, מתחת לשדה המחיר.
- *
- * שדה ריק — המחיר שייכנס לתעודה ומאיפה הוא מגיע. מחיר שהוקלד — רק תזכורת
- * למה שכתוב במחירון הלקוח, כדי שיהיה ברור שהמחיר הידני מחליף אותו.
- */
-const ExpectedPrice = ({ known, typed }) => {
-  if (!known) return null;
-
-  // שורה אחת, בלי שבירה: העמודה צרה (רוחב שדה המחיר), ורמז שנשבר לשתי
-  // שורות היה מגביה רק חלק מהשורות בטופס
-  const base = "mt-1 whitespace-nowrap text-xs leading-tight";
-
-  // מחיר שהוקלד נשמר במחירון עם ההפקה, בלי כפתור. הלקוחה שאלה (19/10/2026)
-  // איפה שומרים אותו, ולכן זה נאמר ליד השדה עצמו ולא רק בהערה שבתחתית
-  if (typed !== "") {
-    if (!(Number(typed) > 0)) return null;
-    if (!isPriceListSource(known.source)) {
-      return <p className={`${base} text-green-600`}>יישמר במחירון</p>;
-    }
-    return Number(typed) !== known.unitPrice ? (
-      <p className={`${base} text-gray-500`}>
-        במחירון: {shekel(known.unitPrice)} ₪ · יתעדכן
-      </p>
-    ) : null;
-  }
-
-  const label = SOURCE_LABELS[known.source] || SOURCE_LABELS.catalog;
-  return (
-    <p className={`${base} ${label.cls}`}>
-      {known.source === "missing"
-        ? label.text
-        : `${shekel(known.unitPrice)} ₪ · ${EXPECTED_SOURCE_TEXT[known.source] || EXPECTED_SOURCE_TEXT.catalog}`}
-    </p>
-  );
-};
-
-/**
- * חלון ההיסטוריה של הלקוח — אותו חלון שנפתח מרשימת הלקוחות.
- *
- * רכיב נפרד כדי שרשימת הלקוחות תימשך רק כשהחלון נפתח: כשמגיעים מהזמנה
- * הטופס אינו טוען אותה, והיא נחוצה כאן רק לשם שבכותרת. בלי השם אין מה
- * שיאשר שההיסטוריה שמוצגת היא של הלקוח הנכון.
- */
-const CustomerHistoryWindow = ({ customerId, ...modalProps }) => {
-  const { customers } = useCustomers();
-  const customerName = useMemo(
-    () => customerNameOf(customers.find((c) => String(c._id) === String(customerId))),
-    [customers, customerId]
-  );
-
-  return <CustomerHistoryModal {...modalProps} customerId={customerId} customerName={customerName} />;
-};
 
 /**
  * @param {string}   [orderId]      - הזמנה שממנה נטענות השורות הממתינות
@@ -185,10 +119,6 @@ const ManualDeliveryNoteForm = ({
   const [loading, setLoading] = useState(Boolean(orderId));
   const [saving, setSaving] = useState(false);
   const [idempotencyKey, setIdempotencyKey] = useState(newKey);
-  // המחיר שיחול על כל מק"ט ללקוח הנבחר אם שדה המחיר יישאר ריק:
-  // { [sku]: { unitPrice, source } }. נשמר יחד עם הלקוח שעבורו נשאל, כדי
-  // שהחלפת לקוח לא תציג לרגע את המחירים של הלקוח הקודם
-  const [expected, setExpected] = useState({ customer: "", bySku: {} });
 
   // הבורר מציג רק מוצרים שהלקוח הנבחר קנה בעבר או שבמחירון שלו, ולא את כל
   // הקטלוג שרובו מוצרים של לקוחות אחרים. ללקוח בלי היסטוריה ובלי מחירון
@@ -253,57 +183,8 @@ const ManualDeliveryNoteForm = ({
     };
   }, [orderId]);
 
-  // ── המחיר השמור מוצג בשורה, בלי לחכות ל"חשב מחירים" ──
-  //
-  // שדה מחיר ריק פירושו "המחיר מהמחירון", אבל שדה ריק נראה בדיוק כמו "אין
-  // מחיר שמור": מי ששמרה מחיר במחירון הלקוח ופתחה תעודה נוספת לאותו
-  // לקוח ראתה שדה ריק והקלידה הכל מחדש (05/10/2026). לכן המחיר שיחול מוצג
-  // מתחת לשדה ברגע שנבחר מוצר. השדה עצמו נשאר ריק בכוונה — מחיר שמולא
-  // אוטומטית היה נשלח כמחיר ידני ומציע לשמור למחירון את מה שכבר נמצא בו.
-  const skuKey = useMemo(
-    () => [...new Set(rows.map((r) => r.sku?.trim()).filter(Boolean))].sort().join("\n"),
-    [rows]
-  );
-
-  useEffect(() => {
-    if (!customerId || !skuKey) return;
-    const known = expected.customer === customerId ? expected.bySku : {};
-    const missing = skuKey.split("\n").filter((sku) => !hasOwn(known, sku));
-    if (!missing.length) return;
-
-    let cancelled = false;
-    // הכמות אינה משנה את מחיר היחידה; 1 רק כדי שהבקשה תהיה תקינה
-    BillingServices.priceItems({
-      customer: customerId,
-      items: missing.map((sku) => ({ sku, quantity: 1 })),
-    })
-      .then((res) => {
-        if (cancelled) return;
-        const found = {};
-        for (const item of res?.items || []) {
-          found[String(item.sku)] = { unitPrice: item.unitPrice, source: item.source };
-        }
-        setExpected((prev) => ({
-          customer: customerId,
-          bySku: { ...(prev.customer === customerId ? prev.bySku : {}), ...found },
-        }));
-      })
-      // זו תצוגת עזר בלבד: כשל כאן לא חוסם דבר, והשרת מתמחר בהפקה ממילא
-      .catch(() => {});
-
-    return () => {
-      cancelled = true;
-    };
-    // expected נקרא רק כדי לדלג על מה שכבר ידוע, ואסור שיפעיל את הבקשה מחדש
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [customerId, skuKey]);
-
-  const expectedFor = (sku) => {
-    const key = sku?.trim();
-    return key && expected.customer === customerId && hasOwn(expected.bySku, key)
-      ? expected.bySku[key]
-      : null;
-  };
+  // המחיר השמור מוצג בשורה, בלי לחכות ל"חשב מחירים" (ראו ExpectedPrice)
+  const { expectedFor, remember: rememberExpected } = useExpectedPrices(customerId, rows);
 
   const updateRow = (index, field, value) => {
     setRows((prev) =>
@@ -514,17 +395,14 @@ const ManualDeliveryNoteForm = ({
       // (ולפיו מדלגים על מחיר "שכבר במחירון") חייב להיות זה שנשמר עכשיו
       const toGroup = new Set(res?.groupSkus || []);
       const savedFor = customerIdOf(targetCustomer);
-      setExpected((prev) => {
-        if (prev.customer !== savedFor) return prev;
-        const bySku = { ...prev.bySku };
-        for (const { sku, price } of items) {
-          bySku[sku] = {
-            unitPrice: price,
-            source: toGroup.has(sku) ? "groupPriceList" : "customerPriceList",
-          };
-        }
-        return { ...prev, bySku };
-      });
+      const bySku = {};
+      for (const { sku, price } of items) {
+        bySku[sku] = {
+          unitPrice: price,
+          source: toGroup.has(sku) ? "groupPriceList" : "customerPriceList",
+        };
+      }
+      rememberExpected(savedFor, bySku);
     } catch (err) {
       notifyError(
         `התעודה הופקה, אבל המחיר לא נשמר במחירון: ${err?.response?.data?.message || err.message}`

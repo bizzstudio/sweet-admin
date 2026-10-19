@@ -23,7 +23,7 @@ import {
   TableHeader,
   TableRow,
 } from "@windmill/react-ui";
-import { FiAlertTriangle, FiCopy, FiEdit2, FiFileText, FiPlus, FiPrinter, FiTrash2, FiX } from "react-icons/fi";
+import { FiAlertTriangle, FiClock, FiCopy, FiEdit2, FiFileText, FiPlus, FiPrinter, FiTrash2, FiX } from "react-icons/fi";
 import { MdOutlineReceiptLong } from "react-icons/md";
 import { Link, useLocation } from "react-router-dom";
 import useQueryParam from "@/hooks/useQueryParam";
@@ -35,6 +35,8 @@ import BarcodeInput from "@/components/billing/BarcodeInput";
 import useRowEntryKeys from "@/hooks/useRowEntryKeys";
 import useCustomerKnownSkus from "@/hooks/useCustomerKnownSkus";
 import CatalogScopeToggle from "@/components/billing/CatalogScopeToggle";
+import ExpectedPrice, { useExpectedPrices } from "@/components/billing/ExpectedPrice";
+import CustomerHistoryWindow from "@/components/customer/CustomerHistoryWindow";
 import TableLoading from "@/components/preloader/TableLoading";
 import ListPager from "@/components/table/ListPager";
 import NotFound from "@/components/table/NotFound";
@@ -87,7 +89,17 @@ const Quotes = () => {
 
   // הבורר מציג רק מוצרים שהלקוח קנה או שבמחירון שלו (בקשת הלקוחה,
   // 19/10/2026), כמו בתעודת המשלוח; "כל הקטלוג" פותח את השאר
-  const knownSkus = useCustomerKnownSkus(customerId);
+  //
+  // historyVersion: היסטוריה שהועלתה או הוסרה מחלון ההיסטוריה משנה את
+  // הרשימה הזו, והבורר צריך לקבל אותה בלי לבחור את הלקוח מחדש
+  const [historyVersion, setHistoryVersion] = useState(0);
+  const knownSkus = useCustomerKnownSkus(customerId, historyVersion);
+  // חלון ההיסטוריה של הלקוח, כמו בתעודת המשלוח (בקשת הלקוחה, 19/10/2026).
+  // null — עוד לא נפתח, ואז אינו מורכב כלל
+  const [historyOpen, setHistoryOpen] = useState(null);
+  // המחיר של הלקוח מוצג מתחת לשדה המחיר מיד כשנבחר מוצר, ולא רק אחרי
+  // "חשב מחירים" — אחרת נראה כאילו ההצעה מתעלמת מהמחירון שלו
+  const { expectedFor } = useExpectedPrices(customerId, rows);
   const [wholeCatalog, setWholeCatalog] = useState(false);
   const pickerSkus = wholeCatalog ? null : knownSkus;
   const [priced, setPriced] = useState(null);
@@ -383,6 +395,28 @@ const Quotes = () => {
       {building && (
         <Card className="min-w-0 shadow-xs overflow-hidden bg-white dark:bg-gray-800 mb-6">
           <CardBody>
+            {historyOpen !== null && (
+              <CustomerHistoryWindow
+                isOpen={historyOpen}
+                onClose={() => setHistoryOpen(false)}
+                customerId={customerId}
+                onChanged={() => setHistoryVersion((v) => v + 1)}
+              />
+            )}
+
+            <div className="flex justify-end mb-2">
+              <Button
+                type="button"
+                size="small"
+                layout="outline"
+                onClick={() => setHistoryOpen(true)}
+                disabled={!customerId}
+                title={customerId ? "מה הלקוח קנה בעבר" : "יש לבחור לקוח"}
+              >
+                <FiClock className="ml-1" /> היסטוריית הלקוח
+              </Button>
+            </div>
+
             {editing ? (
               // הלקוח של הצעה קיימת אינו משתנה — להצעה ללקוח אחר יש "העתק"
               <p className="mb-4 font-semibold">
@@ -422,7 +456,7 @@ const Quotes = () => {
               />
             </div>
             {rows.map((row, i) => (
-              <div key={i} className="flex flex-wrap gap-2 mb-2 items-center">
+              <div key={i} className="flex flex-wrap gap-2 mb-2 items-start">
                 <ProductPicker
                   className="flex-1 min-w-[220px]"
                   value={row.sku}
@@ -460,6 +494,8 @@ const Quotes = () => {
                     onChange={(e) => updateRow(i, "unitPrice", e.target.value)}
                     onKeyDown={(e) => keys.onRowEnter(e, i)}
                   />
+                  {/* מחיר ידני בהצעה נשאר בהצעה בלבד — לא נשמר במחירון */}
+                  <ExpectedPrice known={expectedFor(row.sku)} typed={row.unitPrice} savesTyped={false} />
                 </div>
                 <button
                   type="button"
