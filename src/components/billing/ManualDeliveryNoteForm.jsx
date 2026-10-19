@@ -35,6 +35,7 @@ import {
 import { FiAlertTriangle, FiClock, FiPlus, FiTrash2 } from "react-icons/fi";
 
 import ProductPicker from "@/components/billing/ProductPicker";
+import CatalogScopeToggle from "@/components/billing/CatalogScopeToggle";
 import CustomerPicker, { customerNameOf, useCustomers } from "@/components/billing/CustomerPicker";
 import BarcodeInput from "@/components/billing/BarcodeInput";
 import CustomerHistoryModal from "@/components/customer/CustomerHistoryModal";
@@ -112,9 +113,17 @@ const ExpectedPrice = ({ known, typed }) => {
   // שורות היה מגביה רק חלק מהשורות בטופס
   const base = "mt-1 whitespace-nowrap text-xs leading-tight";
 
+  // מחיר שהוקלד נשמר במחירון עם ההפקה, בלי כפתור. הלקוחה שאלה (19/10/2026)
+  // איפה שומרים אותו, ולכן זה נאמר ליד השדה עצמו ולא רק בהערה שבתחתית
   if (typed !== "") {
-    return isPriceListSource(known.source) && Number(typed) !== known.unitPrice ? (
-      <p className={`${base} text-gray-500`}>במחירון: {shekel(known.unitPrice)} ₪</p>
+    if (!(Number(typed) > 0)) return null;
+    if (!isPriceListSource(known.source)) {
+      return <p className={`${base} text-green-600`}>יישמר במחירון</p>;
+    }
+    return Number(typed) !== known.unitPrice ? (
+      <p className={`${base} text-gray-500`}>
+        במחירון: {shekel(known.unitPrice)} ₪ · יתעדכן
+      </p>
     ) : null;
   }
 
@@ -304,6 +313,9 @@ const ManualDeliveryNoteForm = ({
         // מוצר שהוחלף בשורה: המחיר שבשדה הוקלד למוצר הקודם. הוא נמחק, אחרת
         // היה נכנס גם לתעודה וגם למחירון של המוצר החדש בלי שאיש הקליד אותו
         if (field === "sku" && r.sku?.trim() && value !== r.sku) next.unitPrice = "";
+        // מוצר שנבחר בשורה בלי כמות מקבל 1 (בקשת הלקוחה, 19/10/2026). הערך
+        // מסומן כשהמיקוד עובר לשדה, ולכן הקלדה מחליפה אותו
+        if (field === "sku" && value && String(r.quantity ?? "").trim() === "") next.quantity = "1";
         return next;
       })
     );
@@ -415,7 +427,7 @@ const ManualDeliveryNoteForm = ({
         return prev;
       }
 
-      const filled = { sku: String(product.sku), quantity: "", ordered: null, name: product.name, unitPrice: "" };
+      const filled = { sku: String(product.sku), quantity: "1", ordered: null, name: product.name, unitPrice: "" };
       const emptyIndex = prev.findIndex((r) => !r.sku?.trim());
       if (emptyIndex === -1) return [...prev, filled];
       return prev.map((r, i) => (i === emptyIndex ? filled : r));
@@ -764,21 +776,11 @@ const ManualDeliveryNoteForm = ({
 
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mb-2">
           <p className="text-sm font-medium">שורות</p>
-          {knownSkus && (
-            <label className="flex items-center gap-1 text-xs text-gray-600 dark:text-gray-400">
-              <input
-                type="checkbox"
-                checked={wholeCatalog}
-                onChange={(e) => setWholeCatalog(e.target.checked)}
-              />
-              כל הקטלוג
-              <span className="text-gray-500">
-                {wholeCatalog
-                  ? "— מוצגים גם מוצרים שהלקוח לא קנה"
-                  : "— מוצגים רק מוצרים שהלקוח קנה או שבמחירון שלו"}
-              </span>
-            </label>
-          )}
+          <CatalogScopeToggle
+            knownSkus={knownSkus}
+            wholeCatalog={wholeCatalog}
+            onChange={setWholeCatalog}
+          />
         </div>
         {rows.map((row, i) => (
           // items-start: הרמז שמתחת לשדה המחיר מגביה רק את העמודה שלו, ויישור

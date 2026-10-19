@@ -33,6 +33,8 @@ import ProductPicker from "@/components/billing/ProductPicker";
 import CustomerPicker from "@/components/billing/CustomerPicker";
 import BarcodeInput from "@/components/billing/BarcodeInput";
 import useRowEntryKeys from "@/hooks/useRowEntryKeys";
+import useCustomerKnownSkus from "@/hooks/useCustomerKnownSkus";
+import CatalogScopeToggle from "@/components/billing/CatalogScopeToggle";
 import TableLoading from "@/components/preloader/TableLoading";
 import ListPager from "@/components/table/ListPager";
 import NotFound from "@/components/table/NotFound";
@@ -82,6 +84,12 @@ const Quotes = () => {
     openNew === "1" ? customerFilter : ""
   );
   const [rows, setRows] = useState([{ sku: "", quantity: 1 }]);
+
+  // הבורר מציג רק מוצרים שהלקוח קנה או שבמחירון שלו (בקשת הלקוחה,
+  // 19/10/2026), כמו בתעודת המשלוח; "כל הקטלוג" פותח את השאר
+  const knownSkus = useCustomerKnownSkus(customerId);
+  const [wholeCatalog, setWholeCatalog] = useState(false);
+  const pickerSkus = wholeCatalog ? null : knownSkus;
   const [priced, setPriced] = useState(null);
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
@@ -405,12 +413,20 @@ const Quotes = () => {
               />
             </div>
 
-            <p className="text-sm font-medium mb-2">פריטים</p>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mb-2">
+              <p className="text-sm font-medium">פריטים</p>
+              <CatalogScopeToggle
+                knownSkus={knownSkus}
+                wholeCatalog={wholeCatalog}
+                onChange={setWholeCatalog}
+              />
+            </div>
             {rows.map((row, i) => (
               <div key={i} className="flex flex-wrap gap-2 mb-2 items-center">
                 <ProductPicker
                   className="flex-1 min-w-[220px]"
                   value={row.sku}
+                  onlySkus={pickerSkus}
                   selectRef={keys.itemRef(i)}
                   onChange={(sku) => {
                     updateRow(i, "sku", sku);

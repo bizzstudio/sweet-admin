@@ -31,6 +31,7 @@ import {
 import { FiAlertTriangle, FiPlus, FiTrash2 } from "react-icons/fi";
 
 import ProductPicker from "@/components/billing/ProductPicker";
+import CatalogScopeToggle from "@/components/billing/CatalogScopeToggle";
 import BarcodeInput from "@/components/billing/BarcodeInput";
 import BillingServices from "@/services/BillingServices";
 import CustomerPriceListServices from "@/services/CustomerPriceListServices";
@@ -101,6 +102,9 @@ const DeliveryNoteEditor = ({ note, onSaved, onCancel }) => {
         // אחרת המחיר היה נכנס גם למחירון של המוצר החדש. שדה ריק מתומחר
         // בשרת מהמחירון
         if (field === "sku" && r.sku?.trim() && value !== r.sku) next.unitPrice = "";
+        // מוצר שנבחר בשורה בלי כמות מקבל 1 (בקשת הלקוחה, 19/10/2026). הערך
+        // מסומן כשהמיקוד עובר לשדה, ולכן הקלדה מחליפה אותו
+        if (field === "sku" && value && String(r.quantity ?? "").trim() === "") next.quantity = "1";
         return next;
       })
     );
@@ -344,21 +348,11 @@ const DeliveryNoteEditor = ({ note, onSaved, onCancel }) => {
 
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mb-2">
           <p className="text-sm font-medium">שורות</p>
-          {knownSkus && (
-            <label className="flex items-center gap-1 text-xs text-gray-600 dark:text-gray-400">
-              <input
-                type="checkbox"
-                checked={wholeCatalog}
-                onChange={(e) => setWholeCatalog(e.target.checked)}
-              />
-              כל הקטלוג
-              <span className="text-gray-500">
-                {wholeCatalog
-                  ? "— מוצגים גם מוצרים שהלקוח לא קנה"
-                  : "— מוצגים רק מוצרים שהלקוח קנה או שבמחירון שלו"}
-              </span>
-            </label>
-          )}
+          <CatalogScopeToggle
+            knownSkus={knownSkus}
+            wholeCatalog={wholeCatalog}
+            onChange={setWholeCatalog}
+          />
         </div>
         {rows.map((row, i) => (
           <div key={i} className="flex flex-wrap gap-2 mb-2 items-center">

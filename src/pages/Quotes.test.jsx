@@ -26,10 +26,16 @@ vi.mock("@/services/BillingServices", () => ({
 vi.mock("@/components/billing/CustomerPicker", () => ({
   default: ({ value }) => <span data-testid="customer-picker">{value || "(ריק)"}</span>,
 }));
+// מוצרי הלקוח: c1 מכיר רק את A1. בלי ה-mock ה-hook היה פונה לשרת אמיתי
+vi.mock("@/hooks/useCustomerKnownSkus", () => {
+  const known = new Set(["A1"]);
+  return { default: (id) => (id === "c1" ? known : null) };
+});
 vi.mock("@/components/billing/ProductPicker", () => ({
-  default: ({ value, onChange, selectRef }) => (
+  default: ({ value, onChange, selectRef, onlySkus }) => (
     <input
       data-testid="sku"
+      data-only={onlySkus ? [...onlySkus].join(",") : "*"}
       ref={selectRef}
       value={value}
       onChange={(e) => onChange(e.target.value)}
@@ -84,6 +90,8 @@ describe("Quotes — הצעה חדשה מכרטיס הלקוח", () => {
 
     expect(picker()?.textContent).toBe("c1");
     expect(history.location.search).toBe("?customer=c1");
+    // בורר המוצרים מסונן למוצרים של הלקוח
+    expect(container.querySelector("[data-testid='sku']").dataset.only).toBe("A1");
     // הרשימה שמתחת לבונה מסוננת לאותו לקוח
     expect(BillingServices.getQuotes).toHaveBeenLastCalledWith(
       expect.objectContaining({ customer: "c1" })

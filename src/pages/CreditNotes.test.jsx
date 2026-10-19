@@ -36,9 +36,19 @@ vi.mock("@/components/billing/CustomerPicker", () => ({
     <input data-testid="customer" value={value} onChange={(e) => onChange(e.target.value)} />
   ),
 }));
+// מוצרי הלקוח: c1 מכיר רק את A1. בלי ה-mock ה-hook היה פונה לשרת אמיתי
+vi.mock("@/hooks/useCustomerKnownSkus", () => {
+  const known = new Set(["A1"]);
+  return { default: (id) => (id === "c1" ? known : null) };
+});
 vi.mock("@/components/billing/ProductPicker", () => ({
-  default: ({ value, onChange }) => (
-    <input data-testid="sku" value={value} onChange={(e) => onChange(e.target.value)} />
+  default: ({ value, onChange, onlySkus }) => (
+    <input
+      data-testid="sku"
+      data-only={onlySkus ? [...onlySkus].join(",") : "*"}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+    />
   ),
 }));
 vi.mock("@/components/billing/BarcodeInput", () => ({ default: () => null }));
@@ -135,6 +145,23 @@ afterEach(async () => {
 });
 
 describe("CreditNotes — הטופס", () => {
+  it("הבורר מציג רק מוצרים של הלקוח, ו'כל הקטלוג' פותח את השאר", async () => {
+    await render();
+    await click("תעודת משלוח זיכוי");
+    const sku = () => container.querySelector("[data-testid='sku']");
+    expect(sku().dataset.only).toBe("*");
+
+    await type(container.querySelector("[data-testid='customer']"), "c1");
+    await flush();
+    expect(sku().dataset.only).toBe("A1");
+
+    const toggle = [...container.querySelectorAll("label")]
+      .find((l) => l.textContent.includes("כל הקטלוג"))
+      .querySelector("input");
+    await act(async () => toggle.click());
+    expect(sku().dataset.only).toBe("*");
+  });
+
   it("סגור בכניסה, ונפתח בכל אחד משני הכפתורים עם הכותרת שלו", async () => {
     await render();
     expect(container.querySelector("[data-testid='customer']")).toBeNull();

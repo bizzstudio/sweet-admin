@@ -247,6 +247,22 @@ describe("ManualDeliveryNoteForm — שמירת מחיר במחירון", () => 
     });
   });
 
+  it("מחיר שהוקלד למוצר בלי מחירון אומר ליד השדה שיישמר — ואכן נשמר", async () => {
+    CustomerPriceListServices.upsertItems.mockResolvedValue({ message: "נשמר", groupSkus: [] });
+    BillingServices.priceItems.mockResolvedValue({
+      items: [{ sku: "111", unitPrice: 12, source: "catalog" }],
+    });
+    await render();
+    await type(priceInputs()[0], "40");
+    expect(container.textContent).toContain("יישמר במחירון");
+    await click(createButton());
+
+    expect(CustomerPriceListServices.upsertItems).toHaveBeenCalledWith("c1", {
+      items: [{ sku: "111", price: 40 }],
+      applyToGroup: true,
+    });
+  });
+
   it("אחרי שמירה, חזרה למחיר הישן בתעודה הבאה נשלחת ולא נחשבת 'כבר במחירון'", async () => {
     CustomerPriceListServices.upsertItems.mockResolvedValue({ message: "נשמר", groupSkus: [] });
     BillingServices.priceItems.mockResolvedValue({
@@ -471,9 +487,21 @@ describe("ManualDeliveryNoteForm — הקלדה רצופה", () => {
 
     await pressEnter(quantityInputs()[0]);
     await click(pickers()[0]);
+    // בחירת מוצר ממלאת 1; כמות שנמחקה ביד עדיין חוסמת שורה חדשה
+    expect(quantityInputs()[0].value).toBe("1");
+    await type(quantityInputs()[0], "");
     await pressEnter(quantityInputs()[0]);
 
     expect(pickers()).toHaveLength(1);
+  });
+
+  it("בחירת מוצר לא דורסת כמות שכבר הוקלדה", async () => {
+    await renderBlank();
+
+    await type(quantityInputs()[0], "4");
+    await click(pickers()[0]);
+
+    expect(quantityInputs()[0].value).toBe("4");
   });
 
   it("בשורות שנטענו מההזמנה Enter יורד למשקל של השורה הבאה", async () => {

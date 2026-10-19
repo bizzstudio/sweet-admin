@@ -109,7 +109,15 @@ const NoteEditor = ({ note, state, onChange, onReset, readOnly = false }) => {
   const patch = (fields) => onChange({ ...state, ...fields, touched: true });
 
   const setRow = (index, field, value) =>
-    patch({ rows: state.rows.map((r, i) => (i === index ? { ...r, [field]: value } : r)) });
+    patch({
+      rows: state.rows.map((r, i) => {
+        if (i !== index) return r;
+        const next = { ...r, [field]: value };
+        // מוצר שנבחר בשורה בלי כמות מקבל 1, כמו בטופס התעודה
+        if (field === "sku" && value && String(r.quantity ?? "").trim() === "") next.quantity = "1";
+        return next;
+      }),
+    });
 
   const emptyRow = () => ({ sku: "", name: "", barcode: "", quantity: "", unitPrice: "", fromNote: false });
 

@@ -39,6 +39,8 @@ import useQueryParam from "@/hooks/useQueryParam";
 import PageTitle from "@/components/Typography/PageTitle";
 import ProductPicker from "@/components/billing/ProductPicker";
 import useRowEntryKeys from "@/hooks/useRowEntryKeys";
+import useCustomerKnownSkus from "@/hooks/useCustomerKnownSkus";
+import CatalogScopeToggle from "@/components/billing/CatalogScopeToggle";
 import CustomerPicker from "@/components/billing/CustomerPicker";
 import BarcodeInput from "@/components/billing/BarcodeInput";
 import TableLoading from "@/components/preloader/TableLoading";
@@ -110,6 +112,12 @@ const CreditNotes = () => {
   const [reason, setReason] = useState("");
   const [docNotes, setDocNotes] = useState("");
   const [rows, setRows] = useState([emptyProductRow()]);
+
+  // הבורר מציג רק מוצרים שהלקוח קנה או שבמחירון שלו (בקשת הלקוחה,
+  // 19/10/2026), כמו בתעודת המשלוח; "כל הקטלוג" פותח את השאר
+  const knownSkus = useCustomerKnownSkus(customerId);
+  const [wholeCatalog, setWholeCatalog] = useState(false);
+  const pickerSkus = wholeCatalog ? null : knownSkus;
   const [discount, setDiscount] = useState("");
   const [applyCustomerDiscount, setApplyCustomerDiscount] = useState(true);
   const [preview, setPreview] = useState(null);
@@ -444,7 +452,14 @@ const CreditNotes = () => {
               />
             </div>
 
-            <p className="text-sm font-medium mb-2">מה מזוכה</p>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mb-2">
+              <p className="text-sm font-medium">מה מזוכה</p>
+              <CatalogScopeToggle
+                knownSkus={knownSkus}
+                wholeCatalog={wholeCatalog}
+                onChange={setWholeCatalog}
+              />
+            </div>
             {rows.map((row, i) => (
               <div key={i} className="flex flex-wrap gap-2 mb-2 items-center">
                 {row.kind === "free" ? (
@@ -462,6 +477,7 @@ const CreditNotes = () => {
                   <ProductPicker
                     className="flex-1 min-w-[220px]"
                     value={row.sku}
+                    onlySkus={pickerSkus}
                     selectRef={keys.itemRef(i)}
                     onChange={(sku) => {
                       updateRow(i, "sku", sku);
