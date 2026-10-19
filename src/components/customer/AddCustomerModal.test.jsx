@@ -3,6 +3,7 @@
 // מה שהן שומרות עליו: אין שליחה לשרת בלי שם ובלי מספר לקוח (המספר הוא
 // המפתח ב-iCount וביבוא האקסל), שליחה תקינה עוברת לכרטיס הלקוח החדש,
 // ושגיאת שרת מוצגת כמו שהיא — בלי לסגור את החלון ולאבד את מה שהוקלד.
+// בנוסף: מספר הלקוח מתמלא מראש במספר הבא ברצף, ונשאר ניתן לשינוי.
 
 import React from "react";
 import { createRoot } from "react-dom/client";
@@ -16,7 +17,7 @@ vi.mock("@/utils/toast", () => ({
 }));
 
 vi.mock("@/services/CustomerServices", () => ({
-  default: { createCustomer: vi.fn() },
+  default: { createCustomer: vi.fn(), getNextCustomerNumber: vi.fn() },
 }));
 
 import { notifyError, notifySuccess } from "@/utils/toast";
@@ -78,6 +79,8 @@ const submit = async () => {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // ברירת מחדל: אין הצעה (כמו שרת שלא עונה), כדי שהבדיקות הישנות יבדקו טופס ריק
+  CustomerServices.getNextCustomerNumber.mockRejectedValue(new Error("offline"));
   onClose = vi.fn();
   onCreated = vi.fn();
   location = null;
@@ -149,5 +152,30 @@ describe("AddCustomerModal", () => {
     expect(onClose).not.toHaveBeenCalled();
     expect(location.pathname).toBe("/customers");
     expect(inputByLabel("מספר לקוח").value).toBe("555");
+  });
+
+  it("ממלא מראש את המספר הבא אחרי הלקוח האחרון", async () => {
+    CustomerServices.getNextCustomerNumber.mockResolvedValue({
+      lastNumber: "787",
+      nextNumber: "788",
+    });
+    await render();
+
+    expect(inputByLabel("מספר לקוח").value).toBe("788");
+    expect(document.body.textContent).toContain("הלקוח האחרון: 787");
+  });
+
+  it("אפשר לשנות את המספר המוצע, ונשלח המספר שהוקלד", async () => {
+    CustomerServices.getNextCustomerNumber.mockResolvedValue({
+      lastNumber: "787",
+      nextNumber: "788",
+    });
+    CustomerServices.createCustomer.mockResolvedValue({ _id: "x1" });
+    await render();
+    await type("שם הלקוח", "מאפיית כהן");
+    await type("מספר לקוח", "900");
+    await submit();
+
+    expect(CustomerServices.createCustomer.mock.calls[0][0].customerNumber).toBe("900");
   });
 });

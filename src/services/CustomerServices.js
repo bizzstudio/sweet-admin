@@ -18,6 +18,10 @@ const CustomerServices = {
     return requests.post(`/customer/create`, body);
   },
 
+  getNextCustomerNumber: async () => {
+    return requests.get(`/customer/next-number`);
+  },
+
   filterCustomer: async (email) => {
     return requests.post(`/customer/filter/${email}`);
   },

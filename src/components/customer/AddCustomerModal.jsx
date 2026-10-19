@@ -5,8 +5,11 @@
 // במקום ליצור כפיל, והוא גם המפתח של כרטיס הלקוח ב-iCount — בלעדיו אי אפשר
 // להפיק לו חשבונית. אחרי השמירה עוברים לכרטיס הלקוח, ושם משלימים מחירון,
 // הגדרות חיוב וכל השאר.
+//
+// בפתיחת החלון מספר הלקוח מתמלא במספר הבא ברצף (הגבוה ביותר שקיים + 1).
+// אפשר לשנות אותו — למשל כשהלקוח כבר נפתח בהנהח"ש עם מספר אחר.
 import { Button, Input, Modal, ModalBody, ModalFooter } from "@windmill/react-ui";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { FiUserPlus } from "react-icons/fi";
 import { useHistory } from "react-router-dom";
 
@@ -50,6 +53,29 @@ const AddCustomerModal = ({ isOpen, onClose, onCreated }) => {
   const history = useHistory();
   const [form, setForm] = useState(EMPTY_FORM);
   const [isSaving, setIsSaving] = useState(false);
+  const [lastNumber, setLastNumber] = useState(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    let cancelled = false;
+    // רמז מפתיחה קודמת לא מוצג אם הבקשה הפעם נכשלת
+    setLastNumber(null);
+    CustomerServices.getNextCustomerNumber()
+      .then((res) => {
+        if (cancelled) return;
+        setLastNumber(res?.lastNumber || null);
+        // לא דורסים מספר שכבר הוקלד
+        setForm((prev) =>
+          prev.customerNumber ? prev : { ...prev, customerNumber: res?.nextNumber || "" }
+        );
+      })
+      .catch(() => {
+        // בלי הצעה החלון עדיין עובד — מקלידים את המספר ידנית
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen]);
 
   const handleClose = () => {
     if (isSaving) return;
@@ -117,6 +143,11 @@ const AddCustomerModal = ({ isOpen, onClose, onCreated }) => {
                   }
                   className="h-10"
                 />
+                {field.key === "customerNumber" && lastNumber && (
+                  <span className="block mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    {`הלקוח האחרון: ${lastNumber}. אפשר לשנות.`}
+                  </span>
+                )}
               </label>
             ))}
           </div>
