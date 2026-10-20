@@ -41,6 +41,7 @@ import ProductPicker from "@/components/billing/ProductPicker";
 import useRowEntryKeys from "@/hooks/useRowEntryKeys";
 import useCustomerKnownSkus from "@/hooks/useCustomerKnownSkus";
 import CatalogScopeToggle from "@/components/billing/CatalogScopeToggle";
+import ExpectedPrice, { useExpectedPrices } from "@/components/billing/ExpectedPrice";
 import CustomerPicker from "@/components/billing/CustomerPicker";
 import BarcodeInput from "@/components/billing/BarcodeInput";
 import TableLoading from "@/components/preloader/TableLoading";
@@ -118,6 +119,10 @@ const CreditNotes = () => {
   const knownSkus = useCustomerKnownSkus(customerId);
   const [wholeCatalog, setWholeCatalog] = useState(false);
   const pickerSkus = wholeCatalog ? null : knownSkus;
+  // המחיר של הלקוח מוצג מתחת לשדה המחיר מיד כשנבחר מוצר. הלקוחה ביקשה
+  // (20/10/2026) שהזיכוי ייתן את המחיר שלו בלי לחפש — שדה ריק תומחר לפי
+  // המחירון גם קודם, אבל זה נראה רק אחרי "חשב סכומים"
+  const { expectedFor } = useExpectedPrices(customerId, rows);
   const [discount, setDiscount] = useState("");
   const [applyCustomerDiscount, setApplyCustomerDiscount] = useState(true);
   const [preview, setPreview] = useState(null);
@@ -461,7 +466,7 @@ const CreditNotes = () => {
               />
             </div>
             {rows.map((row, i) => (
-              <div key={i} className="flex flex-wrap gap-2 mb-2 items-center">
+              <div key={i} className="flex flex-wrap gap-2 mb-2 items-start">
                 {row.kind === "free" ? (
                   <div className="flex-1 min-w-[220px]">
                     <Input
@@ -513,6 +518,10 @@ const CreditNotes = () => {
                     onChange={(e) => updateRow(i, "unitPrice", e.target.value)}
                     onKeyDown={(e) => keys.onRowEnter(e, i)}
                   />
+                  {/* מחיר ידני בזיכוי נשאר בזיכוי בלבד — לא נשמר במחירון */}
+                  {row.kind === "product" && (
+                    <ExpectedPrice known={expectedFor(row.sku)} typed={row.unitPrice} savesTyped={false} />
+                  )}
                 </div>
                 <button
                   type="button"

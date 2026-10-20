@@ -7,6 +7,7 @@
 // 4. טופס שאינו תקין אינו מגיע לשרת.
 // 5. אותו מפתח ייחודיות נשלח בשליחה חוזרת של אותו טופס.
 // 6. פעולות על תעודה מוצגות רק כשהיא פתוחה.
+// 7. המחיר של הלקוח מוצג בשורה מיד כשנבחר מוצר, בשני סוגי הזיכוי.
 
 import React from "react";
 import { createRoot } from "react-dom/client";
@@ -28,6 +29,7 @@ vi.mock("@/services/BillingServices", () => ({
     createCreditNote: vi.fn(),
     issueCreditNoteInvoice: vi.fn(),
     cancelCreditNote: vi.fn(),
+    priceItems: vi.fn(),
   },
 }));
 
@@ -136,6 +138,7 @@ beforeEach(() => {
   BillingServices.getInvoices.mockResolvedValue({ invoices: [] });
   BillingServices.previewCreditNote.mockResolvedValue(PREVIEW);
   BillingServices.createCreditNote.mockResolvedValue({ message: "ok", note: { _id: "n9" } });
+  BillingServices.priceItems.mockResolvedValue({ items: [] });
 });
 
 afterEach(async () => {
@@ -145,6 +148,44 @@ afterEach(async () => {
 });
 
 describe("CreditNotes — הטופס", () => {
+  it.each(["חשבונית זיכוי", "תעודת משלוח זיכוי"])(
+    "%s: המחיר של הלקוח מוצג בשורה מיד כשנבחר מוצר",
+    async (button) => {
+      BillingServices.priceItems.mockResolvedValue({
+        items: [{ sku: "A1", unitPrice: 7.5, source: "groupPriceList" }],
+      });
+      await render();
+      await click(button);
+      await type(container.querySelector("[data-testid='customer']"), "c1");
+      await type(container.querySelector("[data-testid='sku']"), "A1");
+      await flush();
+
+      expect(BillingServices.priceItems).toHaveBeenCalledWith({
+        customer: "c1",
+        items: [{ sku: "A1", quantity: 1 }],
+      });
+      expect(container.textContent).toContain("7.50 ₪ · מחירון קבוצתי");
+      // השדה נשאר ריק: מחיר שמולא אוטומטית היה נשלח כמחיר ידני
+      expect(byLabel("מחיר ליחידה").value).toBe("");
+    }
+  );
+
+  it("מחיר ידני בזיכוי אינו מבטיח שמירה במחירון", async () => {
+    BillingServices.priceItems.mockResolvedValue({
+      items: [{ sku: "A1", unitPrice: 7.5, source: "customerPriceList" }],
+    });
+    await render();
+    await click("תעודת משלוח זיכוי");
+    await type(container.querySelector("[data-testid='customer']"), "c1");
+    await type(container.querySelector("[data-testid='sku']"), "A1");
+    await flush();
+
+    await type(byLabel("מחיר ליחידה"), "9");
+
+    expect(container.textContent).toContain("במחירון: 7.50 ₪");
+    expect(container.textContent).not.toContain("יתעדכן");
+  });
+
   it("הבורר מציג רק מוצרים של הלקוח, ו'כל הקטלוג' פותח את השאר", async () => {
     await render();
     await click("תעודת משלוח זיכוי");
