@@ -17,6 +17,10 @@
 // asInvoice — "חשבונית חדשה" ממסך החשבוניות. אותו טופס בדיוק, והשרת יוצר
 // את התעודה ומחייב אותה מיד (billNow). חשבונית נבנית תמיד מתעודה, ולכן אין
 // כאן מסלול שני שעוקף את הגנת החיוב הכפול.
+//
+// draftId — הטופס שומר את עצמו כטיוטה בכל שינוי (utils/noteDrafts), כדי
+// שאפשר יהיה להשהות אותו, לעבור לתעודה אחרת ולחזור. רק לטופס עצמאי: טופס
+// של הזמנה נטען ממילא מחדש מההזמנה.
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -44,6 +48,7 @@ import BillingServices from "@/services/BillingServices";
 import CustomerPriceListServices from "@/services/CustomerPriceListServices";
 import useCustomerKnownSkus from "@/hooks/useCustomerKnownSkus";
 import { notifyError, notifySuccess } from "@/utils/toast";
+import { deleteDraft, loadDraft, saveDraft } from "@/utils/noteDrafts";
 
 import TableHeaderCell from "@/components/table/TableHeaderCell";
 const SOURCE_LABELS = {
@@ -92,25 +97,32 @@ const customerIdOf = (value) =>
  * @param {string}   [orderId]      - הזמנה שממנה נטענות השורות הממתינות
  * @param {string}   [customerId]   - לקוח קבוע מראש (כשמגיעים מהזמנה)
  * @param {boolean}  [asInvoice]    - להפיק חשבונית מס מיד, ולא רק תעודה
+ * @param {string}   [draftId]      - הטיוטה שהטופס נטען ממנה ונשמר אליה
  * @param {function} onCreated      - נקרא עם התעודה שנוצרה
  * @param {function} onCancel
+ * @param {function} [onPause]      - סגירה שמשאירה את הטיוטה להמשך
  */
 const ManualDeliveryNoteForm = ({
   orderId,
   customerId: rawFixedCustomer,
   asInvoice = false,
+  draftId,
   onCreated,
   onCancel,
+  onPause,
 }) => {
   const fixedCustomer = customerIdOf(rawFixedCustomer);
+  // טיוטה רק לטופס עצמאי (ראו הערת הקובץ)
+  const draftKey = orderId ? null : draftId || null;
+  const [draft] = useState(() => loadDraft(draftKey));
 
-  const [customerId, setCustomerId] = useState(fixedCustomer);
-  const [rows, setRows] = useState([emptyRow()]);
-  const [manualReference, setManualReference] = useState("");
-  const [issuedAt, setIssuedAt] = useState(todayInIsrael());
-  const [notes, setNotes] = useState("");
-  const [shippingCost, setShippingCost] = useState(0);
-  const [discount, setDiscount] = useState(0);
+  const [customerId, setCustomerId] = useState(draft?.customerId || fixedCustomer);
+  const [rows, setRows] = useState(draft?.rows?.length ? draft.rows : [emptyRow()]);
+  const [manualReference, setManualReference] = useState(draft?.manualReference || "");
+  const [issuedAt, setIssuedAt] = useState(draft?.issuedAt || todayInIsrael());
+  const [notes, setNotes] = useState(draft?.notes || "");
+  const [shippingCost, setShippingCost] = useState(draft?.shippingCost ?? 0);
+  const [discount, setDiscount] = useState(draft?.discount ?? 0);
 
   const [priced, setPriced] = useState(null);
   // asInvoice: התעודה נוצרה והחיוב נכשל. מכאן הטופס נעול — שליחה חוזרת שלו
@@ -118,7 +130,9 @@ const ManualDeliveryNoteForm = ({
   const [unbilledNote, setUnbilledNote] = useState(null);
   const [loading, setLoading] = useState(Boolean(orderId));
   const [saving, setSaving] = useState(false);
-  const [idempotencyKey, setIdempotencyKey] = useState(newKey);
+  // נשמר גם בטיוטה: תעודה שנשלחה, התשובה אבדה והטיוטה נפתחה שוב — השליחה
+  // החוזרת מחזירה את אותה תעודה ולא יוצרת שנייה
+  const [idempotencyKey, setIdempotencyKey] = useState(() => draft?.idempotencyKey || newKey());
 
   // הבורר מציג רק מוצרים שהלקוח הנבחר קנה בעבר או שבמחירון שלו, ולא את כל
   // הקטלוג שרובו מוצרים של לקוחות אחרים. ללקוח בלי היסטוריה ובלי מחירון
@@ -182,6 +196,56 @@ const ManualDeliveryNoteForm = ({
       cancelled = true;
     };
   }, [orderId]);
+
+  // ── שמירה אוטומטית כטיוטה ──
+  //
+  // finished: אחרי הפקה הטיוטה נמחקת, ועדכון state שמגיע אחריה (מפתח חדש)
+  // אסור שיחזיר אותה לרשימה
+  const finished = useRef(false);
+  const hasContent = Boolean(
+    (!fixedCustomer && customerId) || rows.some((r) => r.sku?.trim()) || notes.trim() || manualReference.trim()
+  );
+
+  useEffect(() => {
+    if (!draftKey || finished.current) return;
+    if (!hasContent) {
+      deleteDraft(draftKey);
+      return;
+    }
+    saveDraft({
+      id: draftKey,
+      kind: asInvoice ? "invoice" : "note",
+      customerId,
+      rows: rows.map(({ sku, quantity, ordered, name, unitPrice }) => ({ sku, quantity, ordered, name, unitPrice })),
+      manualReference,
+      issuedAt,
+      notes,
+      shippingCost,
+      discount,
+      idempotencyKey,
+    });
+  }, [draftKey, asInvoice, hasContent, customerId, rows, manualReference, issuedAt, notes, shippingCost, discount, idempotencyKey]);
+
+  const finishDraft = () => {
+    finished.current = true;
+    if (draftKey) deleteDraft(draftKey);
+  };
+
+  // "ביטול" מוחק את מה שהוקלד; מי שרוצה לחזור לזה משהה במקום
+  const discard = () => {
+    if (
+      draftKey &&
+      hasContent &&
+      !window.confirm(
+        `לבטל את ${asInvoice ? "החשבונית" : "התעודה"}? מה שהוקלד יימחק.\n\n` +
+          "כדי לחזור אליה אחר כך יש ללחוץ \"השהה\"."
+      )
+    ) {
+      return;
+    }
+    finishDraft();
+    onCancel?.();
+  };
 
   // המחיר השמור מוצג בשורה, בלי לחכות ל"חשב מחירים" (ראו ExpectedPrice)
   const { expectedFor, remember: rememberExpected } = useExpectedPrices(customerId, rows);
@@ -443,6 +507,7 @@ const ManualDeliveryNoteForm = ({
       });
 
       notifySuccess(res.message);
+      finishDraft();
       // אחרי ההפקה ולא לפניה: מחיר שנשמר למחירון כשההפקה נכשלה היה משנה
       // ללקוח את המחיר בלי שום תעודה שמסבירה למה
       await savePricesToPriceList(res.note?.customer || customerId);
@@ -458,6 +523,8 @@ const ManualDeliveryNoteForm = ({
       // שאף שליחה של הטופס לא תיפול עליה בטעות
       const created = err?.response?.data?.note;
       if (asInvoice && created?._id) {
+        // השורות כבר בתעודה שנוצרה; טיוטה שלהן הייתה מפיקה אותן פעמיים
+        finishDraft();
         setUnbilledNote(created);
         setIdempotencyKey(newKey());
         await savePricesToPriceList(created.customer || customerId);
@@ -837,8 +904,13 @@ const ManualDeliveryNoteForm = ({
               </div>
 
               <div className="flex gap-2">
+                {onPause && draftKey && (
+                  <Button layout="outline" onClick={onPause} disabled={saving} title="הטופס נשמר ואפשר לחזור אליו מרשימת הטיוטות">
+                    השהה
+                  </Button>
+                )}
                 {onCancel && (
-                  <Button layout="outline" onClick={onCancel} disabled={saving}>
+                  <Button layout="outline" onClick={discard} disabled={saving}>
                     ביטול
                   </Button>
                 )}
@@ -868,8 +940,13 @@ const ManualDeliveryNoteForm = ({
 
         {!priced && (
           <div className="mt-5 flex justify-end gap-2">
+            {onPause && draftKey && (
+              <Button layout="outline" onClick={onPause} disabled={saving} title="הטופס נשמר ואפשר לחזור אליו מרשימת הטיוטות">
+                השהה
+              </Button>
+            )}
             {onCancel && (
-              <Button layout="outline" onClick={onCancel} disabled={saving}>
+              <Button layout="outline" onClick={discard} disabled={saving}>
                 ביטול
               </Button>
             )}

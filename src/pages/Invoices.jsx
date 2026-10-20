@@ -45,6 +45,8 @@ import useQueryParam from "@/hooks/useQueryParam";
 import PageTitle from "@/components/Typography/PageTitle";
 import DemoModeBanner from "@/components/common/DemoModeBanner";
 import ManualDeliveryNoteForm from "@/components/billing/ManualDeliveryNoteForm";
+import NoteDraftsBar from "@/components/billing/NoteDraftsBar";
+import { newDraftId } from "@/utils/noteDrafts";
 import TableLoading from "@/components/preloader/TableLoading";
 import NotFound from "@/components/table/NotFound";
 import BillingServices from "@/services/BillingServices";
@@ -84,7 +86,9 @@ const Invoices = () => {
   const [payFor, setPayFor] = useState(null);
   const [creditFor, setCreditFor] = useState(null);
   const [working, setWorking] = useState(false);
-  const [building, setBuilding] = useState(false);
+  // הטיוטה שפתוחה בטופס (null — הטופס סגור). כל טופס נשמר כטיוטה, וסגירה
+  // מהכותרת או "השהה" משאירות אותה ברשימה להמשך (בקשת הלקוחה, 19/10/2026)
+  const [building, setBuilding] = useState(null);
   // הסכום המחייב מ-iCount, או null אם לא נטען (iCount לא זמין)
   const [icountTotal, setIcountTotal] = useState(null);
   const [loadingTotal, setLoadingTotal] = useState(false);
@@ -364,20 +368,25 @@ const Invoices = () => {
     <>
       <div className="flex items-center justify-between my-6">
         <PageTitle style={{ margin: 0 }}>חשבוניות וגבייה</PageTitle>
-        <Button onClick={() => setBuilding((v) => !v)}>
+        <Button onClick={() => setBuilding((v) => (v ? null : newDraftId()))}>
           {building ? <FiX className="ml-2" /> : <FiPlus className="ml-2" />}
-          {building ? "ביטול" : "חשבונית חדשה"}
+          {building ? "השהה" : "חשבונית חדשה"}
         </Button>
       </div>
 
       <DemoModeBanner />
 
+      <NoteDraftsBar kind="invoice" activeId={building} onResume={setBuilding} />
+
       {building && (
         <ManualDeliveryNoteForm
+          key={building}
           asInvoice
-          onCancel={() => setBuilding(false)}
+          draftId={building}
+          onCancel={() => setBuilding(null)}
+          onPause={() => setBuilding(null)}
           onCreated={() => {
-            setBuilding(false);
+            setBuilding(null);
             load();
           }}
         />

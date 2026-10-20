@@ -27,6 +27,8 @@ import useQueryParam from "@/hooks/useQueryParam";
 
 import PageTitle from "@/components/Typography/PageTitle";
 import ManualDeliveryNoteForm from "@/components/billing/ManualDeliveryNoteForm";
+import NoteDraftsBar from "@/components/billing/NoteDraftsBar";
+import { newDraftId } from "@/utils/noteDrafts";
 import TableLoading from "@/components/preloader/TableLoading";
 import ListPager from "@/components/table/ListPager";
 import PrintNoteOffer from "@/components/billing/PrintNoteOffer";
@@ -72,7 +74,9 @@ const DeliveryNotes = () => {
   const [search, setSearch] = useQueryParam("q");
   const [searchInput, setSearchInput] = useState(search);
   const [loading, setLoading] = useState(true);
-  const [building, setBuilding] = useState(false);
+  // הטיוטה שפתוחה בטופס (null — הטופס סגור). כל טופס נשמר כטיוטה, וסגירה
+  // מהכותרת או "השהה" משאירות אותה ברשימה להמשך (בקשת הלקוחה, 19/10/2026)
+  const [building, setBuilding] = useState(null);
   // התעודה שעליה רצה כרגע פעולה — מנטרל את הכפתורים שלה בלבד, כדי
   // שלחיצה כפולה לא תיצור שתי תעודות או שתי חשבוניות
   const [working, setWorking] = useState(null);
@@ -181,17 +185,22 @@ const DeliveryNotes = () => {
     <>
       <div className="flex items-center justify-between my-6">
         <PageTitle style={{ margin: 0 }}>תעודות משלוח</PageTitle>
-        <Button onClick={() => setBuilding((v) => !v)}>
+        <Button onClick={() => setBuilding((v) => (v ? null : newDraftId()))}>
           {building ? <FiX className="ml-2" /> : <FiPlus className="ml-2" />}
-          {building ? "ביטול" : "תעודה ידנית"}
+          {building ? "השהה" : "תעודה ידנית"}
         </Button>
       </div>
 
+      <NoteDraftsBar kind="note" activeId={building} onResume={setBuilding} />
+
       {building && (
         <ManualDeliveryNoteForm
-          onCancel={() => setBuilding(false)}
+          key={building}
+          draftId={building}
+          onCancel={() => setBuilding(null)}
+          onPause={() => setBuilding(null)}
           onCreated={(created) => {
-            setBuilding(false);
+            setBuilding(null);
             setPrintOffer(created || null);
             toFirstPage();
             load();
