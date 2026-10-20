@@ -210,3 +210,69 @@ describe("התצוגה נשמרת בכתובת", () => {
     expect(lastStatus()).toBe("overdue");
   });
 });
+
+// חיפוש לפי לקוח (בקשת הלקוחה, 20/10/2026): מסנן את הרשימה שנטענה לפי שם
+// לקוח, מספר לקוח או מספר חשבונית, והסיכומים מתעדכנים לפי מה שמוצג
+describe("חיפוש לקוח במסך החשבוניות", () => {
+  const list = [
+    { ...invoice(0), docNum: "5001", customer: "c1", customerName: "מנורה מבטחים", customerNumber: "104" },
+    { ...invoice(0), docNum: "5002", customer: "c2", customerName: "אווינסד", customerNumber: "207" },
+  ];
+
+  const renderAt = async (entry) => {
+    BillingServices.getInvoices.mockResolvedValue({ invoices: list });
+    await act(async () => {
+      root.render(
+        <MemoryRouter initialEntries={[entry]}>
+          <Invoices />
+        </MemoryRouter>
+      );
+    });
+    await flush();
+  };
+
+  const search = () => document.querySelector('input[type="search"]');
+  const typeSearch = async (value) => {
+    const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
+    await act(async () => {
+      setter.call(search(), value);
+      search().dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await flush();
+  };
+  const shownDocs = () =>
+    [...document.querySelectorAll("tbody tr")].map((tr) => tr.querySelector("td").textContent.trim());
+
+  it("בלי חיפוש — כל החשבוניות", async () => {
+    await renderAt("/invoices");
+    expect(shownDocs()).toEqual(["5001", "5002"]);
+  });
+
+  it("חלק משם הלקוח מסנן לשורות שלו בלבד", async () => {
+    await renderAt("/invoices");
+    await typeSearch("מנורה");
+    expect(shownDocs()).toEqual(["5001"]);
+    expect(container.textContent).toContain("800");
+  });
+
+  it("גם לפי מספר לקוח ומספר חשבונית", async () => {
+    await renderAt("/invoices");
+    await typeSearch("207");
+    expect(shownDocs()).toEqual(["5002"]);
+    await typeSearch("5001");
+    expect(shownDocs()).toEqual(["5001"]);
+  });
+
+  it("החיפוש נשמר בכתובת ושורד חזרה למסך", async () => {
+    await renderAt("/invoices?q=" + encodeURIComponent("אווינסד"));
+    expect(search().value).toBe("אווינסד");
+    expect(shownDocs()).toEqual(["5002"]);
+  });
+
+  it("אין התאמה בתצוגת 'לא שולמו' — מציע לעבור ל'הכל'", async () => {
+    await renderAt("/invoices");
+    await typeSearch("אין כזה");
+    expect(shownDocs()).toEqual([]);
+    expect(container.textContent).toContain('נסו "הצג: הכל"');
+  });
+});

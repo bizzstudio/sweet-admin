@@ -82,6 +82,10 @@ const Invoices = () => {
   const [loading, setLoading] = useState(true);
 
   const [customerFilter, setCustomerFilter] = useQueryParam("customer");
+  // חיפוש חופשי לפי שם לקוח, מספר לקוח או מספר חשבונית (בקשת הלקוחה,
+  // 20/10/2026). מסנן את מה שכבר נטען — הרשימה מהשרת אינה מדפדפת
+  const [searchParam, setSearchParam] = useQueryParam("q");
+  const search = searchParam || "";
 
   const [payFor, setPayFor] = useState(null);
   const [creditFor, setCreditFor] = useState(null);
@@ -219,16 +223,26 @@ const Invoices = () => {
     }
   };
 
-  const totalOwed = invoices
+  const shown = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return invoices;
+    return invoices.filter((inv) =>
+      [inv.customerName, inv.customerNumber, inv.docNum].some((v) =>
+        String(v ?? "").toLowerCase().includes(q)
+      )
+    );
+  }, [invoices, search]);
+
+  const totalOwed = shown
     .filter((i) => !i.isPaid)
     .reduce((s, i) => s + i.grossEstimate, 0);
-  const overdueCount = invoices.filter((i) => i.isOverdue).length;
+  const overdueCount = shown.filter((i) => i.isOverdue).length;
 
   // השורות נבנות מחדש רק כשהרשימה משתנה. בלי זה כל הקלדה בחלון התשלום
   // או הזיכוי מרנדרת מחדש את כל הטבלה
   const rows = useMemo(
     () =>
-      invoices.map((inv) => (
+      shown.map((inv) => (
         <TableRow key={`${inv.customer}-${inv.docNum}`}>
           <TableCell className="font-mono font-semibold">
             {inv.icountDocUrl ? (
@@ -361,7 +375,7 @@ const Invoices = () => {
           </TableCell>
         </TableRow>
       )),
-    [invoices, openPayment]
+    [shown, openPayment]
   );
 
   return (
@@ -405,6 +419,17 @@ const Invoices = () => {
               </Select>
             </Label>
 
+            <Label className="w-64">
+              <span>חיפוש לקוח או חשבונית</span>
+              <Input
+                className="mt-1"
+                type="search"
+                placeholder="שם לקוח, מס' לקוח או מס' חשבונית"
+                value={search}
+                onChange={(e) => setSearchParam(e.target.value || null)}
+              />
+            </Label>
+
             {customerFilter && (
               <Button
                 layout="link"
@@ -417,7 +442,7 @@ const Invoices = () => {
             <div className="flex gap-8">
               <div>
                 <p className="text-xs text-gray-500">חשבוניות</p>
-                <p className="text-2xl font-semibold">{invoices.length}</p>
+                <p className="text-2xl font-semibold">{shown.length}</p>
               </div>
               {status !== "paid" && (
                 <div>
@@ -448,8 +473,16 @@ const Invoices = () => {
 
       {loading ? (
         <TableLoading row={8} col={8} width={160} height={20} />
-      ) : invoices.length === 0 ? (
-        <NotFound title="אין חשבוניות להצגה" />
+      ) : shown.length === 0 ? (
+        <NotFound
+          title={
+            invoices.length && search.trim()
+              ? status
+                ? `אין חשבוניות שמתאימות ל"${search.trim()}" בתצוגה הזו — נסו "הצג: הכל"`
+                : `אין חשבוניות שמתאימות ל"${search.trim()}"`
+              : "אין חשבוניות להצגה"
+          }
+        />
       ) : (
         <TableContainer className="mb-8">
           <Table className="w-full whitespace-nowrap admin-table">

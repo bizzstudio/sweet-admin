@@ -839,7 +839,11 @@ const ManualDeliveryNoteForm = ({
         </div>
 
         <Label className="mt-4">
-          <span>הערות (מופיעות על התעודה)</span>
+          <span>
+            {asInvoice
+              ? "הערה לחשבונית (למשל עבור מי, באישור מי)"
+              : "הערות (מופיעות על התעודה ועל החשבונית)"}
+          </span>
           <Input
             className="mt-1"
             value={notes}

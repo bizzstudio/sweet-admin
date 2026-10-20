@@ -344,7 +344,7 @@ const NoteEditor = ({ note, state, onChange, onReset, readOnly = false }) => {
             </Button>
 
             <Label className="mt-4">
-              <span>הערות (מופיעות על התעודה)</span>
+              <span>הערות (מופיעות על התעודה ועל החשבונית)</span>
               <Input
                 className="mt-1"
                 value={state.notes}
