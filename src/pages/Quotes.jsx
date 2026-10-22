@@ -355,8 +355,10 @@ const Quotes = () => {
       load();
     } catch (err) {
       notifyError(err?.response?.data?.message || err.message);
-      // ההמרה יכולה להיכשל *אחרי* שהתעודה נוצרה (החשבונית נכשלה) —
-      // ריענון הרשימה כדי שהמסך יראה את המצב האמיתי
+      // ההמרה יכולה להיכשל *אחרי* שהתעודה נוצרה (החשבונית נכשלה) — התעודה
+      // קיימת, ולכן גם המחירים שלה נכנסים למחירון. ריענון הרשימה כדי
+      // שהמסך יראה את המצב האמיתי
+      if (err?.response?.data?.note) await savePricesOnConvert(quote);
       load();
     } finally {
       setWorking(null);

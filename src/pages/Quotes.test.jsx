@@ -490,6 +490,56 @@ describe("Quotes — הפקת תעודה כותבת למחירון", () => {
     });
   };
 
+  const manualQuote = () => ({
+    _id: "q2",
+    number: 5008,
+    customer: "c9",
+    customerSnapshot: { name: "מכולת השכונה" },
+    createdAt: "2026-10-01T08:00:00Z",
+    status: "open",
+    total: 6,
+    items: [{ sku: "B2", quantity: 1, unitPrice: 6, lineTotal: 6, priceSource: "manual" }],
+  });
+  const settle = async () => {
+    for (let i = 0; i < 3; i++) {
+      await act(async () => {
+        await Promise.resolve();
+      });
+    }
+  };
+
+  it("חשבונית שנכשלה אחרי שהתעודה נוצרה — המחירים עדיין נשמרים", async () => {
+    BillingServices.getQuotes.mockResolvedValue({ quotes: [manualQuote()], total: 1 });
+    BillingServices.convertQuote.mockRejectedValue({
+      response: { data: { message: "החשבונית נכשלה", note: { _id: "n1", number: 302 } } },
+    });
+    BillingServices.priceItems.mockResolvedValue({
+      items: [{ sku: "B2", unitPrice: 5, source: "catalog" }],
+    });
+    window.confirm = vi.fn(() => true);
+    await render("/quotes");
+
+    await click("חשבונית");
+    await settle();
+
+    expect(CustomerPriceListServices.upsertItems).toHaveBeenCalledWith("c9", {
+      items: [{ sku: "B2", price: 6 }],
+      applyToGroup: true,
+    });
+  });
+
+  it("הפקה שנכשלה בלי שנוצרה תעודה אינה נוגעת במחירון", async () => {
+    BillingServices.getQuotes.mockResolvedValue({ quotes: [manualQuote()], total: 1 });
+    BillingServices.convertQuote.mockRejectedValue({ response: { data: { message: "שגיאה" } } });
+    window.confirm = vi.fn(() => true);
+    await render("/quotes");
+
+    await click("תעודה");
+    await settle();
+
+    expect(CustomerPriceListServices.upsertItems).not.toHaveBeenCalled();
+  });
+
   it("מחיר ידני של מוצר שאינו במחירון נשמר; מוצר שכבר במחירון אינו נדרס", async () => {
     BillingServices.getQuotes.mockResolvedValue({
       quotes: [
