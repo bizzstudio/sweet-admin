@@ -35,12 +35,13 @@ import BarcodeInput from "@/components/billing/BarcodeInput";
 import useRowEntryKeys from "@/hooks/useRowEntryKeys";
 import useCustomerKnownSkus from "@/hooks/useCustomerKnownSkus";
 import CatalogScopeToggle from "@/components/billing/CatalogScopeToggle";
-import ExpectedPrice, { useExpectedPrices } from "@/components/billing/ExpectedPrice";
+import ExpectedPrice, { isPriceListSource, useExpectedPrices } from "@/components/billing/ExpectedPrice";
 import CustomerHistoryWindow from "@/components/customer/CustomerHistoryWindow";
 import TableLoading from "@/components/preloader/TableLoading";
 import ListPager from "@/components/table/ListPager";
 import NotFound from "@/components/table/NotFound";
 import BillingServices from "@/services/BillingServices";
+import CustomerPriceListServices from "@/services/CustomerPriceListServices";
 import { notifyError, notifySuccess } from "@/utils/toast";
 
 import TableHeaderCell from "@/components/table/TableHeaderCell";
@@ -259,8 +260,37 @@ const Quotes = () => {
     window.scrollTo?.({ top: 0, behavior: "smooth" });
   };
 
+  // מחיר ידני בהצעה נכתב גם למחירון, כמו בתעודת המשלוח (בקשת הלקוחה,
+  // 22/10/2026: "המחירים של הצעות מחיר לא מתעדכנים אצל הלקוח"). השרת
+  // מכריע לכל מוצר אם זה המחירון הקבוצתי או הפרטי (applyToGroup). כישלון
+  // כאן אינו מבטל את ההצעה שכבר נשמרה — רק אומר במפורש שהמחירון לא עודכן
+  const savePricesToPriceList = async (customer, items, done) => {
+    if (!items.length || !customer) return;
+    try {
+      const res = await CustomerPriceListServices.upsertItems(customer, { items, applyToGroup: true });
+      notifySuccess(res.message);
+    } catch (err) {
+      notifyError(`${done}, אבל המחיר לא נשמר במחירון: ${err?.response?.data?.message || err.message}`);
+    }
+  };
+
+  // השורות שמחירן הוקלד ביד ושונה ממה שכבר במחירון. בעריכה, שורה שהמחיר
+  // שלה לא נגעו בו לא הוקלדה עכשיו — ואם המחירון שונה מאז ההצעה, אסור
+  // שעריכת כמות תחזיר אותו לאחור
+  const typedPrices = () =>
+    validRows
+      .filter((r) => hasManualPrice(r) && Number(r.unitPrice) > 0)
+      .filter((r) => !(r.origSource && Number(r.unitPrice) === Number(r.origPrice)))
+      .filter((r) => {
+        const known = expectedFor(r.sku);
+        return !(isPriceListSource(known?.source) && known.unitPrice === Number(r.unitPrice));
+      })
+      .map((r) => ({ sku: r.sku.trim(), price: Number(r.unitPrice) }));
+
   const doCreate = async () => {
     setSaving(true);
+    const toSave = typedPrices();
+    const savedFor = editing ? String(editing.customer?._id || editing.customer || "") : customerId;
     try {
       const res = editing
         ? await BillingServices.updateQuote(editing._id, {
@@ -273,6 +303,7 @@ const Quotes = () => {
             notes,
           });
       notifySuccess(res.message);
+      await savePricesToPriceList(savedFor, toSave, "ההצעה נשמרה");
       resetBuilder();
       load();
     } catch (err) {
@@ -320,6 +351,7 @@ const Quotes = () => {
     try {
       const res = await BillingServices.convertQuote(quote._id, { target });
       notifySuccess(res.message);
+      await savePricesOnConvert(quote);
       load();
     } catch (err) {
       notifyError(err?.response?.data?.message || err.message);
@@ -328,6 +360,37 @@ const Quotes = () => {
       load();
     } finally {
       setWorking(null);
+    }
+  };
+
+  /**
+   * בהפקת תעודה מהצעה: מחיר ידני של מוצר שעדיין אינו במחירון נכתב אליו,
+   * כדי שהמוצר יופיע אצל הלקוח בתעודה הבאה. זה מכסה הצעות שנשמרו לפני
+   * שההצעה התחילה לכתוב למחירון.
+   *
+   * מוצר שכבר יש לו מחיר במחירון אינו נדרס: ייתכן שהמחיר שם שונה ביד אחרי
+   * ההצעה, והצעה ישנה לא אמורה להחזיר אותו לאחור בשקט.
+   */
+  const savePricesOnConvert = async (quote) => {
+    const customer = String(quote.customer?._id || quote.customer || "");
+    const manual = (quote.items || []).filter(
+      (i) => i.priceSource === "manual" && Number(i.unitPrice) > 0
+    );
+    if (!customer || !manual.length) return;
+    try {
+      const current = await BillingServices.priceItems({
+        customer,
+        items: manual.map((i) => ({ sku: String(i.sku), quantity: 1 })),
+      });
+      const inList = new Set(
+        (current?.items || []).filter((i) => isPriceListSource(i.source)).map((i) => String(i.sku))
+      );
+      const items = manual
+        .filter((i) => !inList.has(String(i.sku)))
+        .map((i) => ({ sku: String(i.sku), price: Number(i.unitPrice) }));
+      await savePricesToPriceList(customer, items, "התעודה הופקה");
+    } catch (err) {
+      notifyError(`התעודה הופקה, אבל המחיר לא נשמר במחירון: ${err?.response?.data?.message || err.message}`);
     }
   };
 
@@ -494,8 +557,8 @@ const Quotes = () => {
                     onChange={(e) => updateRow(i, "unitPrice", e.target.value)}
                     onKeyDown={(e) => keys.onRowEnter(e, i)}
                   />
-                  {/* מחיר ידני בהצעה נשאר בהצעה בלבד — לא נשמר במחירון */}
-                  <ExpectedPrice known={expectedFor(row.sku)} typed={row.unitPrice} savesTyped={false} />
+                  {/* מחיר ידני בהצעה נשמר גם במחירון, כמו בתעודה */}
+                  <ExpectedPrice known={expectedFor(row.sku)} typed={row.unitPrice} />
                 </div>
                 <button
                   type="button"

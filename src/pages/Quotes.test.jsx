@@ -19,7 +19,12 @@ vi.mock("@/services/BillingServices", () => ({
     priceItems: vi.fn(),
     createQuote: vi.fn(),
     updateQuote: vi.fn(),
+    convertQuote: vi.fn(),
   },
+}));
+
+vi.mock("@/services/CustomerPriceListServices", () => ({
+  default: { upsertItems: vi.fn() },
 }));
 
 // הבורר האמיתי טוען את כל הלקוחות מהשרת. כאן מספיק לראות איזה ערך קיבל
@@ -50,6 +55,7 @@ vi.mock("@/components/customer/CustomerHistoryWindow", () => ({
 }));
 
 import BillingServices from "@/services/BillingServices";
+import CustomerPriceListServices from "@/services/CustomerPriceListServices";
 import Quotes from "@/pages/Quotes";
 
 let container;
@@ -82,6 +88,7 @@ beforeEach(() => {
   // jsdom אינו מממש גלילה; העריכה גוללת אל הבונה שבראש הדף
   window.scrollTo = vi.fn();
   BillingServices.getQuotes.mockResolvedValue({ quotes: [], total: 0 });
+  CustomerPriceListServices.upsertItems.mockResolvedValue({ message: "המחירון עודכן" });
 });
 
 afterEach(async () => {
@@ -183,6 +190,11 @@ describe("Quotes — מחיר ידני", () => {
     const body = BillingServices.createQuote.mock.calls[0][0];
     expect(body.items).toEqual([{ sku: "A1", quantity: 1, unitPrice: 7.5 }]);
     expect(body).not.toHaveProperty("validDays");
+    // בקשת הלקוחה (22/10/2026): המחיר שהוקלד נשמר גם במחירון, כמו בתעודה
+    expect(CustomerPriceListServices.upsertItems).toHaveBeenCalledWith("c1", {
+      items: [{ sku: "A1", price: 7.5 }],
+      applyToGroup: true,
+    });
   });
 
   it("בלי מחיר ידני השורה נשלחת בלי unitPrice — המחירון קובע", async () => {
@@ -200,6 +212,7 @@ describe("Quotes — מחיר ידני", () => {
     expect(BillingServices.createQuote.mock.calls[0][0].items).toEqual([
       { sku: "A1", quantity: 1 },
     ]);
+    expect(CustomerPriceListServices.upsertItems).not.toHaveBeenCalled();
   });
 
   it("אותו מוצר בשתי שורות — מחיר ידני חל רק על השורה שבה הוקלד", async () => {
@@ -321,6 +334,8 @@ describe("Quotes — עריכה והקלדה רצופה", () => {
       ],
       notes: "הערה ישנה",
     });
+    // מחירים שלא נגעו בהם אינם נכתבים למחירון: הוא אולי שונה מאז ההצעה
+    expect(CustomerPriceListServices.upsertItems).not.toHaveBeenCalled();
     // הבונה נסגר ומתרוקן
     expect(skuInputs()).toEqual([]);
   });
@@ -418,7 +433,7 @@ describe("Quotes — מחיר הלקוח והיסטוריה, כמו בתעודה
     expect(container.textContent).toContain("7.50 ₪ · מחירון הלקוח");
   });
 
-  it("מחיר ידני בהצעה אינו מבטיח שמירה במחירון", async () => {
+  it("מחיר ידני בהצעה מסומן כמתעדכן במחירון", async () => {
     BillingServices.priceItems.mockResolvedValue({
       items: [{ sku: "A1", unitPrice: 7.5, source: "customerPriceList" }],
     });
@@ -427,9 +442,7 @@ describe("Quotes — מחיר הלקוח והיסטוריה, כמו בתעודה
 
     await type(container.querySelector("input[aria-label='מחיר ליחידה']"), "9");
 
-    expect(container.textContent).toContain("במחירון: 7.50 ₪");
-    expect(container.textContent).not.toContain("יתעדכן");
-    expect(container.textContent).not.toContain("יישמר במחירון");
+    expect(container.textContent).toContain("במחירון: 7.50 ₪ · יתעדכן");
   });
 
   it("כפתור היסטוריית הלקוח פותח את החלון של הלקוח הנבחר", async () => {
@@ -459,5 +472,70 @@ describe("Quotes — מחיר הלקוח והיסטוריה, כמו בתעודה
       b.textContent.includes("היסטוריית הלקוח")
     );
     expect(button.disabled).toBe(true);
+  });
+});
+
+// בקשת הלקוחה (22/10/2026): "גם כשמעבירים לתעודת משלוח הוא לא שומר". הצעה
+// שנשמרה לפני שההצעות כתבו למחירון מכניסה אליו בהפקה את המוצרים שחסרים בו
+describe("Quotes — הפקת תעודה כותבת למחירון", () => {
+  const click = async (text) => {
+    const button = [...container.querySelectorAll("button")].find((b) =>
+      b.textContent.includes(text)
+    );
+    await act(async () => {
+      button.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+  };
+
+  it("מחיר ידני של מוצר שאינו במחירון נשמר; מוצר שכבר במחירון אינו נדרס", async () => {
+    BillingServices.getQuotes.mockResolvedValue({
+      quotes: [
+        {
+          _id: "q1",
+          number: 5007,
+          customer: "c9",
+          customerSnapshot: { name: "מכולת השכונה" },
+          createdAt: "2026-10-01T08:00:00Z",
+          status: "open",
+          total: 50,
+          items: [
+            { sku: "A1", quantity: 2, unitPrice: 9, lineTotal: 18, priceSource: "manual" },
+            { sku: "B2", quantity: 3, unitPrice: 6, lineTotal: 18, priceSource: "manual" },
+            { sku: "C3", quantity: 1, unitPrice: 4, lineTotal: 4, priceSource: "catalog" },
+          ],
+        },
+      ],
+      total: 1,
+    });
+    BillingServices.convertQuote.mockResolvedValue({ message: "תעודה 301 הופקה" });
+    BillingServices.priceItems.mockResolvedValue({
+      items: [
+        { sku: "A1", unitPrice: 11, source: "customerPriceList" },
+        { sku: "B2", unitPrice: 5, source: "catalog" },
+      ],
+    });
+    window.confirm = vi.fn(() => true);
+    await render("/quotes");
+
+    await click("תעודה");
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(BillingServices.convertQuote).toHaveBeenCalledWith("q1", { target: "deliveryNote" });
+    expect(BillingServices.priceItems).toHaveBeenCalledWith({
+      customer: "c9",
+      items: [
+        { sku: "A1", quantity: 1 },
+        { sku: "B2", quantity: 1 },
+      ],
+    });
+    expect(CustomerPriceListServices.upsertItems).toHaveBeenCalledWith("c9", {
+      items: [{ sku: "B2", price: 6 }],
+      applyToGroup: true,
+    });
   });
 });
