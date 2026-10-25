@@ -150,6 +150,9 @@ export const inSkuSet = (skus, product) => {
  *   בשורה מוצג תמיד, גם אם אינו ביניהם.
  * @param {object} [selectRef] - ref לבורר עצמו, למי שצריך להעביר אליו את
  *   המיקוד מהמקלדת (focus) בלי עכבר.
+ * @param {Array<{sku: string, meta?: string}>|null} [preferred] - מוצרים שמוצגים
+ *   ראשונים בקבוצה נפרדת (preferredLabel), עם meta קצר לצד השם. החיפוש חל גם
+ *   עליהם, וכל השאר נשאר זמין מתחתם — זו העדפה, לא הגבלה.
  */
 export default function ProductPicker({
   value,
@@ -158,6 +161,10 @@ export default function ProductPicker({
   className = "",
   onlySkus = null,
   selectRef,
+  preferred = null,
+  preferredLabel = "מוצעים",
+  onMenuOpen,
+  disabled = false,
 }) {
   const { mode } = useContext(WindmillContext);
   const { products, loading, failed } = useSyncExternalStore(
@@ -185,23 +192,41 @@ export default function ProductPicker({
 
   // סינון ידני: react-select מרנדר את כל ההתאמות, ועם קטלוג בגודל הזה צריך
   // לחתוך אותן. filterOption={null} מכבה את הסינון הפנימי שלו.
-  const options = useMemo(() => {
+  const preferredMeta = useMemo(
+    () => new Map((preferred || []).map((p) => [String(p.sku), p.meta || ""])),
+    [preferred]
+  );
+
+  const { options, count } = useMemo(() => {
     const terms = inputValue.trim().toLowerCase().split(/\s+/).filter(Boolean);
-    if (!terms.length) return pool.slice(0, MAX_OPTIONS);
+    const fits = (p) =>
+      terms.every((t) => `${p.name} ${p.sku} ${p.barcode || ""}`.toLowerCase().includes(t));
 
     const matches = [];
     for (const p of pool) {
-      const haystack = `${p.name} ${p.sku} ${p.barcode || ""}`.toLowerCase();
-      if (terms.every((t) => haystack.includes(t))) {
+      if (preferredMeta.has(String(p.sku))) continue;
+      if (fits(p)) {
         matches.push(p);
         if (matches.length >= MAX_OPTIONS) break;
       }
     }
-    return matches;
-  }, [pool, inputValue]);
+    if (!preferredMeta.size) return { options: matches, count: matches.length };
+
+    // המועדפים נשלפים מכל המאגר ולא מתוך MAX_OPTIONS, ובסדר שבו הועברו
+    const bySku = new Map(pool.map((p) => [String(p.sku), p]));
+    const top = [...preferredMeta.keys()].map((sku) => bySku.get(sku)).filter((p) => p && fits(p));
+    if (!top.length) return { options: matches, count: matches.length };
+    return {
+      options: [
+        { label: preferredLabel, options: top },
+        ...(matches.length ? [{ label: "כל הקטלוג", options: matches }] : []),
+      ],
+      count: matches.length,
+    };
+  }, [pool, inputValue, preferredMeta, preferredLabel]);
 
   const truncNote =
-    options.length < MAX_OPTIONS
+    count < MAX_OPTIONS
       ? null
       : inputValue.trim()
       ? `מוצגות ${MAX_OPTIONS} התוצאות הראשונות — כדאי לדייק את החיפוש`
@@ -256,6 +281,12 @@ export default function ProductPicker({
         ...provided,
         color: mode === "dark" ? "#D1D5DB" : "#374151",
       }),
+      groupHeading: (provided) => ({
+        ...provided,
+        color: mode === "dark" ? "#9ca3af" : "#6b7280",
+        fontSize: "12px",
+        fontWeight: 600,
+      }),
       noOptionsMessage: (provided) => ({
         ...provided,
         backgroundColor: mode === "dark" ? "#1F2937" : "#fff",
@@ -276,9 +307,15 @@ export default function ProductPicker({
         </span>
       );
     }
+    const note = preferredMeta.get(String(p.sku));
     return (
       <div className="flex items-baseline justify-between gap-3">
-        <span className="truncate">{p.name}</span>
+        <span className="flex items-baseline gap-1.5 min-w-0">
+          <span className="truncate">{p.name}</span>
+          {note && (
+            <span className="text-xs shrink-0 text-emerald-700 dark:text-emerald-400">{note}</span>
+          )}
+        </span>
         {/* הברקוד ראשון ומודגש: הוא מה שמופיע על התעודה ועל החשבונית,
             והוא מה שמצליבים מולו. המק"ט נשאר לצידו לזיהוי בקטלוג */}
         <span className="text-xs shrink-0 font-mono text-gray-500">
@@ -292,14 +329,16 @@ export default function ProductPicker({
         </span>
       </div>
     );
-  }, []);
+  }, [preferredMeta]);
 
   return (
     <div className={className}>
       <Select
         ref={selectRef}
         value={selected}
-        onChange={(opt) => onChange(opt ? String(opt.sku) : "")}
+        // המוצר המלא כארגומנט שני, למי שצריך גם את השם ולא רק את המק"ט
+        onChange={(opt) => onChange(opt ? String(opt.sku) : "", opt || null)}
+        onMenuOpen={onMenuOpen}
         onInputChange={setInputValue}
         options={options}
         filterOption={null}
@@ -313,7 +352,7 @@ export default function ProductPicker({
         styles={styles}
         isLoading={loading}
         // כשל ברענון שאחריו נשארה רשימה קודמת עדיין מאפשר לעבוד
-        isDisabled={unusable}
+        isDisabled={unusable || disabled}
         isClearable
         placeholder={
           loading ? "טוען קטלוג..." : unusable ? "טעינת הקטלוג נכשלה" : placeholder

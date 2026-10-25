@@ -13,7 +13,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useHistory } from "react-router-dom";
 import { Button } from "@windmill/react-ui";
-import { FiAlertTriangle, FiCheck, FiMail, FiRefreshCw } from "react-icons/fi";
+import { FiCheck, FiMail, FiRefreshCw } from "react-icons/fi";
 import { FaWhatsapp } from "react-icons/fa";
 
 import { notifyError, notifySuccess } from "@/utils/toast";
@@ -25,8 +25,6 @@ import UnmatchedItemResolver from "@/components/order/UnmatchedItemResolver";
 const ERROR_HINTS = {
   llm_failed: "שירות הניתוח לא הגיב. אפשר פשוט להריץ שוב.",
   no_items: "לא זוהו פריטים בהודעה. יש להשלים אותם ידנית.",
-  items_unmatched:
-    "יש פריט שלא נכנס להזמנה. תקן בקטלוג ולחץ 'נסה שוב', או אשר את ההזמנה כמו שהיא.",
   low_confidence: "הקריאה לא הייתה ודאית. בדוק את הפריטים מול הטקסט המקורי.",
   customer_unresolved: "לא ניתן היה לזהות את הלקוח.",
   address_unresolved:
@@ -54,6 +52,8 @@ const IngestionErrorBanner = ({ order, onChanged }) => {
   const [busy, setBusy] = useState("");
   // התעודה שנוצרה מהאישור — מציעים להדפיס אותה בלי לפתוח אותה קודם
   const [printOffer, setPrintOffer] = useState(null);
+  // כמה מהשורות שלא זוהו כבר הוכרעו — קובע מה הכפתור הראשי
+  const [progress, setProgress] = useState({ done: 0, total: 0 });
   // ההזמנה שמוצגת כרגע. החיפוש אחרי התעודה נמשך כמה שניות, ובזמן הזה אפשר
   // לעבור להזמנה אחרת — שלא תקבל הצעה להדפיס תעודה שאינה שלה
   const shownOrderId = useRef(order?._id);
@@ -101,6 +101,7 @@ const IngestionErrorBanner = ({ order, onChanged }) => {
   useEffect(() => {
     setBusy("");
     setPrintOffer(null);
+    setProgress({ done: 0, total: 0 });
   }, [order?._id]);
 
   const handleRetry = async () => {
@@ -123,137 +124,130 @@ const IngestionErrorBanner = ({ order, onChanged }) => {
     }
   };
 
+  // הכותרת היא המשפט היחיד שצריך לקרוא: מה קרה ומה עושים
+  const allPicked = unmatched.length > 0 && progress.done >= unmatched.length;
+  const title = resolved
+    ? `הזמנה מ${source} — אושרה`
+    : unmatched.length
+    ? `הזמנה מ${source}: ${
+        unmatched.length === 1 ? "שורה אחת לא זוהתה" : `${unmatched.length} שורות לא זוהו`
+      }`
+    : `הזמנה מ${source} לא נקלטה במלואה`;
+  const subtitle = resolved
+    ? ""
+    : unmatched.length && !detail
+    ? cartIsEmpty
+      ? "ההזמנה ריקה. בחרו מוצר לכל שורה ובנו אותה מחדש — הבחירה נשמרת לפעם הבאה."
+      : "שאר ההזמנה נקלטה. בחרו מוצר לכל שורה — הבחירה נשמרת לפעם הבאה."
+    : [detail, ERROR_HINTS[err.code]].filter(Boolean).join(" ");
+
   return (
     <>
     <PrintNoteOffer note={printOffer} onClose={() => setPrintOffer(null)} />
     <div
-      className={`mb-4 rounded-xl overflow-hidden border-2 ${
+      className={`mb-4 rounded-xl border ${
         resolved
-          ? "border-green-300 bg-green-50 dark:bg-green-900/20"
-          : "border-red-400 bg-red-50 dark:bg-red-900/20"
+          ? "border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20"
+          : "border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-900/20"
       }`}
     >
-      <div className="p-4">
+      <div className="p-4 sm:p-5">
         <div className="flex items-start gap-3">
-          {resolved ? (
-            <FiCheck className="w-5 h-5 mt-0.5 text-green-600 flex-shrink-0" />
-          ) : (
-            <FiAlertTriangle className="w-5 h-5 mt-0.5 text-red-600 flex-shrink-0" />
-          )}
-
-          <div className="flex-grow min-w-0">
-            {/* כותרת — מה קרה, ומאיפה, בשורה אחת */}
-            <h3
-              className={`text-base font-bold flex flex-wrap items-center gap-x-1.5 gap-y-1 ${
-                resolved ? "text-green-800 dark:text-green-300" : "text-red-800 dark:text-red-300"
-              }`}
-            >
-              {order.source === "whatsapp" ? (
-                <FaWhatsapp className="w-4 h-4 text-green-600" />
-              ) : (
-                <FiMail className="w-4 h-4 text-blue-600" />
-              )}
-              {resolved
-                ? `הזמנה מ${source} — אושרה`
-                : `נקראה אוטומטית מ${source} ולא הובנה במלואה`}
-              {resolved && (
-                <span className="text-xs font-normal text-green-700 dark:text-green-400">
-                  {err.resolvedBy ? `ע"י ${err.resolvedBy}, ` : ""}
-                  {new Date(err.resolvedAt).toLocaleString("he-IL", {
-                    timeZone: "Asia/Jerusalem",
-                  })}
-                </span>
-              )}
-            </h3>
-
-            {/* שורת התקלה — סיבת הכשל, והפריטים שנפלו באותה שורה */}
-            {(detail || unmatched.length > 0) && (
-              <div className="mt-1.5 text-sm text-gray-800 dark:text-gray-200">
-                {detail}
-                {unmatched.length > 0 && (
-                  <span className="text-red-700 dark:text-red-400">
-                    {detail ? " · " : ""}
-                    <span className="font-semibold">
-                      {cartIsEmpty
-                        ? "לא זוהו — ההזמנה ריקה:"
-                        : "לא נכנסו להזמנה (הסכום חלקי):"}
-                    </span>{" "}
-                    {unmatched.map((item, i) => (
-                      <span key={i} title={item.failReason || undefined}>
-                        {i > 0 && ", "}
-                        {item.quantity ? (
-                          <span className="font-semibold">
-                            {item.quantity}
-                            {item.unit ? ` ${item.unit}` : "×"}{" "}
-                          </span>
-                        ) : null}
-                        «{item.rawName}»
-                      </span>
-                    ))}
-                  </span>
-                )}
-              </div>
+          <span
+            className={`flex-shrink-0 rounded-full p-2 ${
+              resolved
+                ? "bg-green-100 text-green-700 dark:bg-green-800/50 dark:text-green-300"
+                : "bg-amber-100 text-amber-700 dark:bg-amber-800/50 dark:text-amber-300"
+            }`}
+          >
+            {order.source === "whatsapp" ? (
+              <FaWhatsapp className="w-5 h-5" />
+            ) : resolved ? (
+              <FiCheck className="w-5 h-5" />
+            ) : (
+              <FiMail className="w-5 h-5" />
             )}
-
-            {ERROR_HINTS[err.code] && !resolved && (
-              <div className="mt-1 text-xs text-gray-600 dark:text-gray-400">
-                {ERROR_HINTS[err.code]}
+          </span>
+          <div className="min-w-0">
+            <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">{title}</h3>
+            {resolved ? (
+              <div className="text-sm text-green-700 dark:text-green-400">
+                {err.resolvedBy ? `ע"י ${err.resolvedBy}, ` : ""}
+                {new Date(err.resolvedAt).toLocaleString("he-IL", { timeZone: "Asia/Jerusalem" })}
               </div>
-            )}
-
-            {/* ── מכאן ההזמנה גם *מלמדת* את המערכת ──
-                לא רק "מה נכשל" אלא "מה המוצר הנכון", והתשובה נשמרת. בלי זה
-                אותה שורה של אותו לקוח נכשלת שוב מחר. ראה UnmatchedItemResolver. */}
-            {/* בלי onResolved בכוונה: שמירת אליאס אינה משנה את ההזמנה, וטעינה
-                מחדש של המסך אחרי כל בחירה הייתה מאפסת את סימוני "נשמר" ואת
-                השורות שכבר הוכרעו — כלומר העובד היה מאבד את מקומו באמצע. */}
-            {!resolved && unmatched.length > 0 && (
-              <UnmatchedItemResolver orderId={order._id} items={unmatched} />
-            )}
-
-            {/* ההודעה המקורית של הלקוח — תמיד פתוחה, זה מה שהעובד באמת קורא */}
-            {err.rawText && (
-              <div className="mt-3">
-                <div className="text-xs font-semibold text-gray-500 mb-1">
-                  ההודעה המקורית
-                </div>
-                <pre className="p-3 text-sm whitespace-pre-wrap bg-white dark:bg-gray-800 rounded-lg max-h-64 overflow-y-auto text-gray-800 dark:text-gray-200">
-                  {err.rawText}
-                </pre>
-              </div>
-            )}
-
-            {/* פעולות */}
-            {!resolved && (
-              <div className="mt-3 flex flex-wrap items-center gap-2">
-                <Button
-                  onClick={handleApprove}
-                  disabled={Boolean(busy)}
-                  className="flex items-center gap-2"
-                >
-                  <FiCheck className="w-4 h-4" />
-                  {busy === "approve" ? "מאשר..." : "אשר הזמנה והורד מלאי"}
-                </Button>
-
-                <Button
-                  layout="outline"
-                  onClick={handleRetry}
-                  disabled={Boolean(busy)}
-                  className="flex items-center gap-2"
-                >
-                  <FiRefreshCw
-                    className={`w-4 h-4 ${busy === "retry" ? "animate-spin" : ""}`}
-                  />
-                  {busy === "retry" ? "מריץ..." : "נסה לקרוא שוב"}
-                </Button>
-
-                <span className="text-xs text-gray-500 dark:text-gray-400">
-                  "נסה לקרוא שוב" מוחק ובונה את ההזמנה מחדש מההודעה.
-                </span>
-              </div>
+            ) : (
+              subtitle && <p className="text-sm text-gray-600 dark:text-gray-300">{subtitle}</p>
             )}
           </div>
         </div>
+
+        {/* השורות לבחירה, ולצידן מה שהלקוח כתב — כדי להשוות בלי לגלול */}
+        {!resolved && (unmatched.length > 0 || err.rawText) && (
+          <div
+            className={`mt-4 grid gap-4 ${
+              unmatched.length > 0 && err.rawText ? "lg:grid-cols-5" : ""
+            }`}
+          >
+            {/* בלי טעינה מחדש אחרי כל בחירה: שמירת אליאס אינה משנה את ההזמנה,
+                ורענון היה מאפס את השורות שכבר הוכרעו. ראה UnmatchedItemResolver. */}
+            {unmatched.length > 0 && (
+              <div className="lg:col-span-3 min-w-0">
+                <UnmatchedItemResolver
+                  orderId={order._id}
+                  items={unmatched}
+                  onProgress={(done, total) => setProgress({ done, total })}
+                />
+              </div>
+            )}
+            {err.rawText && (
+              <div className="lg:col-span-2 min-w-0">
+                <div className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">
+                  מה הלקוח כתב
+                </div>
+                <div className="p-3 text-sm leading-relaxed whitespace-pre-wrap break-words bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl max-h-80 overflow-y-auto text-gray-700 dark:text-gray-200">
+                  {err.rawText.trim()}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* פעולות. כשכל השורות נבחרו, הצעד הבא הוא לבנות מחדש עם הבחירות */}
+        {!resolved && (
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            {allPicked && (
+              <Button onClick={handleRetry} disabled={Boolean(busy)} className="flex items-center gap-2">
+                <FiRefreshCw className={`w-4 h-4 ${busy === "retry" ? "animate-spin" : ""}`} />
+                {busy === "retry" ? "בונה..." : "בנה את ההזמנה עם הבחירות"}
+              </Button>
+            )}
+            <Button
+              layout={allPicked ? "outline" : "primary"}
+              onClick={handleApprove}
+              disabled={Boolean(busy)}
+              className="flex items-center gap-2"
+            >
+              <FiCheck className="w-4 h-4" />
+              {busy === "approve"
+                ? "מאשר..."
+                : unmatched.length
+                ? "אשר הזמנה בלי השורות החסרות"
+                : "אשר הזמנה והורד מלאי"}
+            </Button>
+            {!allPicked && (
+              <Button
+                layout="link"
+                onClick={handleRetry}
+                disabled={Boolean(busy)}
+                className="flex items-center gap-2"
+                title="מוחק את ההזמנה הזו ובונה אותה מחדש מההודעה"
+              >
+                <FiRefreshCw className={`w-4 h-4 ${busy === "retry" ? "animate-spin" : ""}`} />
+                {busy === "retry" ? "מריץ..." : "קרא שוב מההודעה"}
+              </Button>
+            )}
+          </div>
+        )}
       </div>
     </div>
     </>

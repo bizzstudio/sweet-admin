@@ -104,6 +104,16 @@ describe("ProductPicker — onlySkus", () => {
 
     expect(text).toContain("אין למוצרי הלקוח התאמה בקטלוג");
   });
+  it("מועדפים מוצגים ראשונים עם ההערה שלהם, וכל השאר נשאר זמין מתחתם", async () => {
+    await render({ value: "", preferred: [{ sku: "300", meta: "קנה 4 פעמים" }], preferredLabel: "מתאימים" });
+    const text = await openMenu();
+    expect(text.indexOf("מתאימים")).toBeLessThan(text.indexOf("גזר"));
+    expect(text.indexOf("גזר")).toBeLessThan(text.indexOf("כל הקטלוג"));
+    expect(text).toContain("קנה 4 פעמים");
+    expect(text).toContain("עגבניות");
+    // מוצר מועדף אינו חוזר שוב ברשימת כל הקטלוג
+    expect(text.split("גזר").length - 1).toBe(1);
+  });
 });
 
 describe("ProductPicker — selectRef", () => {

@@ -61,13 +61,16 @@ const IncomingOrderServices = {
   // ── לימוד: "כשהלקוח כותב X הוא מתכוון למוצר Y" ──
 
   // המועמדים לשורה שלא זוהתה, כפי שמנוע ההתאמה רואה אותם עכשיו
-  getItemCandidates: async (orderId, name) => {
+  // ‏q — חיפוש חופשי מהמסך, במקום שם השורה
+  getItemCandidates: async (orderId, name, q = "") => {
     return requests.get(
-      `/incoming-orders/order/${orderId}/item-candidates?name=${encodeURIComponent(name)}`
+      `/incoming-orders/order/${orderId}/item-candidates?name=${encodeURIComponent(name)}` +
+        (q ? `&q=${encodeURIComponent(q)}` : "")
     );
   },
 
-  // "זה המוצר" — נשמר לפעם הבאה. scope: "customer" (ברירת מחדל) או "global"
+  // "זה המוצר" — נשמר לפעם הבאה. scope: "customer" (ברירת מחדל) או "global".
+  // ‏{ ignore: true } במקום productId: "זו אינה שורת מוצר"
   resolveItem: async (orderId, body) => {
     return requests.post(`/incoming-orders/order/${orderId}/resolve-item`, body);
   },
