@@ -13,7 +13,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useHistory } from "react-router-dom";
 import { Button } from "@windmill/react-ui";
-import { FiCheck, FiMail, FiRefreshCw } from "react-icons/fi";
+import { FiCheck, FiChevronDown, FiFileText, FiMail, FiRefreshCw } from "react-icons/fi";
 import { FaWhatsapp } from "react-icons/fa";
 
 import { notifyError, notifySuccess } from "@/utils/toast";
@@ -53,7 +53,9 @@ const IngestionErrorBanner = ({ order, onChanged }) => {
   // התעודה שנוצרה מהאישור — מציעים להדפיס אותה בלי לפתוח אותה קודם
   const [printOffer, setPrintOffer] = useState(null);
   // כמה מהשורות שלא זוהו כבר הוכרעו — קובע מה הכפתור הראשי
-  const [progress, setProgress] = useState({ done: 0, total: 0 });
+  const [doneCount, setDoneCount] = useState(0);
+  // ההודעה המקורית של הלקוח נפתחת רק בלחיצה
+  const [showMessage, setShowMessage] = useState(false);
   // ההזמנה שמוצגת כרגע. החיפוש אחרי התעודה נמשך כמה שניות, ובזמן הזה אפשר
   // לעבור להזמנה אחרת — שלא תקבל הצעה להדפיס תעודה שאינה שלה
   const shownOrderId = useRef(order?._id);
@@ -70,9 +72,6 @@ const IngestionErrorBanner = ({ order, onChanged }) => {
   // להציג אותה פעמיים. בכל קוד אחר (מינימום, כתובת, מלאי) ההודעה היא הסיבה
   // האמיתית לכשל והפריטים רק מתלווים אליה, ולכן שם היא נשארת.
   const detail = err.code === "items_unmatched" && unmatched.length ? "" : err.message;
-  // ריקנות ההזמנה נקראת מההזמנה עצמה ולא מנוסח ההודעה. cart שאינו מערך
-  // (הזמנה שלא נטענה במלואה) אינו ראיה לריקנות — אז מנסחים בזהירות.
-  const cartIsEmpty = Array.isArray(order.cart) && order.cart.length === 0;
 
   const handleApprove = async () => {
     setBusy("approve");
@@ -101,7 +100,8 @@ const IngestionErrorBanner = ({ order, onChanged }) => {
   useEffect(() => {
     setBusy("");
     setPrintOffer(null);
-    setProgress({ done: 0, total: 0 });
+    setDoneCount(0);
+    setShowMessage(false);
   }, [order?._id]);
 
   const handleRetry = async () => {
@@ -125,36 +125,39 @@ const IngestionErrorBanner = ({ order, onChanged }) => {
   };
 
   // הכותרת היא המשפט היחיד שצריך לקרוא: מה קרה ומה עושים
-  const allPicked = unmatched.length > 0 && progress.done >= unmatched.length;
+  const total = unmatched.length;
+  const done = Math.min(doneCount, total);
+  const left = total - done;
+  const allPicked = total > 0 && left === 0;
   const title = resolved
     ? `הזמנה מ${source} — אושרה`
-    : unmatched.length
-    ? `הזמנה מ${source}: ${
-        unmatched.length === 1 ? "שורה אחת לא זוהתה" : `${unmatched.length} שורות לא זוהו`
-      }`
+    : total
+    ? total === 1
+      ? "מוצר אחד בהזמנה צריך את האישור שלך"
+      : `${total} מוצרים בהזמנה צריכים את האישור שלך`
     : `הזמנה מ${source} לא נקלטה במלואה`;
   const subtitle = resolved
     ? ""
-    : unmatched.length && !detail
-    ? cartIsEmpty
-      ? "ההזמנה ריקה. בחרו מוצר לכל שורה ובנו אותה מחדש — הבחירה נשמרת לפעם הבאה."
-      : "שאר ההזמנה נקלטה. בחרו מוצר לכל שורה — הבחירה נשמרת לפעם הבאה."
+    : total && !detail
+    ? `ההזמנה הגיעה מ${source}, והמערכת לא הייתה בטוחה לאיזה מוצר הלקוח התכוון. ` +
+      "אשרו או בחרו מוצר לכל שורה — ובפעם הבאה המערכת תזהה לבד."
     : [detail, ERROR_HINTS[err.code]].filter(Boolean).join(" ");
 
   return (
     <>
     <PrintNoteOffer note={printOffer} onClose={() => setPrintOffer(null)} />
     <div
-      className={`mb-4 rounded-xl border ${
+      className={`mb-4 rounded-2xl border ${
         resolved
           ? "border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20"
-          : "border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-900/20"
+          : "border-amber-200 bg-amber-50/70 dark:border-amber-800 dark:bg-amber-900/20"
       }`}
     >
-      <div className="p-4 sm:p-5">
+      <div className="p-4 sm:p-6">
+        {/* כותרת */}
         <div className="flex items-start gap-3">
           <span
-            className={`flex-shrink-0 rounded-full p-2 ${
+            className={`flex-shrink-0 rounded-full p-2.5 ${
               resolved
                 ? "bg-green-100 text-green-700 dark:bg-green-800/50 dark:text-green-300"
                 : "bg-amber-100 text-amber-700 dark:bg-amber-800/50 dark:text-amber-300"
@@ -168,83 +171,114 @@ const IngestionErrorBanner = ({ order, onChanged }) => {
               <FiMail className="w-5 h-5" />
             )}
           </span>
-          <div className="min-w-0">
-            <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">{title}</h3>
+          <div className="min-w-0 flex-grow">
+            <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100">{title}</h3>
             {resolved ? (
               <div className="text-sm text-green-700 dark:text-green-400">
                 {err.resolvedBy ? `ע"י ${err.resolvedBy}, ` : ""}
                 {new Date(err.resolvedAt).toLocaleString("he-IL", { timeZone: "Asia/Jerusalem" })}
               </div>
             ) : (
-              subtitle && <p className="text-sm text-gray-600 dark:text-gray-300">{subtitle}</p>
+              subtitle && (
+                <p className="mt-1 text-base text-gray-600 dark:text-gray-300">{subtitle}</p>
+              )
+            )}
+
+            {/* התקדמות — כמה נשאר, במבט אחד */}
+            {!resolved && total > 0 && (
+              <div className="mt-3 flex items-center gap-3">
+                <div className="h-2 flex-grow max-w-xs rounded-full bg-amber-100 dark:bg-gray-700 overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-emerald-500 transition-all"
+                    style={{ width: `${(done / total) * 100}%` }}
+                  />
+                </div>
+                <span className="text-sm text-gray-600 dark:text-gray-300 whitespace-nowrap">
+                  {done} מתוך {total}
+                </span>
+              </div>
             )}
           </div>
         </div>
 
-        {/* השורות לבחירה, ולצידן מה שהלקוח כתב — כדי להשוות בלי לגלול */}
-        {!resolved && (unmatched.length > 0 || err.rawText) && (
-          <div
-            className={`mt-4 grid gap-4 ${
-              unmatched.length > 0 && err.rawText ? "lg:grid-cols-5" : ""
-            }`}
-          >
-            {/* בלי טעינה מחדש אחרי כל בחירה: שמירת אליאס אינה משנה את ההזמנה,
-                ורענון היה מאפס את השורות שכבר הוכרעו. ראה UnmatchedItemResolver. */}
-            {unmatched.length > 0 && (
-              <div className="lg:col-span-3 min-w-0">
-                <UnmatchedItemResolver
-                  orderId={order._id}
-                  items={unmatched}
-                  onProgress={(done, total) => setProgress({ done, total })}
-                />
-              </div>
-            )}
-            {err.rawText && (
-              <div className="lg:col-span-2 min-w-0">
-                <div className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">
-                  מה הלקוח כתב
-                </div>
-                <div className="p-3 text-sm leading-relaxed whitespace-pre-wrap break-words bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl max-h-80 overflow-y-auto text-gray-700 dark:text-gray-200">
-                  {err.rawText.trim()}
-                </div>
+        {/* בלי טעינה מחדש אחרי כל בחירה: שמירת אליאס אינה משנה את ההזמנה,
+            ורענון היה מאפס את השורות שכבר הוכרעו. ראה UnmatchedItemResolver. */}
+        {!resolved && total > 0 && (
+          <div className="mt-5">
+            <UnmatchedItemResolver
+              orderId={order._id}
+              items={unmatched}
+              onProgress={(count) => setDoneCount(count)}
+            />
+          </div>
+        )}
+
+        {/* ההודעה של הלקוח — סגורה עד שמבקשים, כדי שהמסך יישאר נקי */}
+        {!resolved && err.rawText && (
+          <div className="mt-4">
+            <button
+              type="button"
+              onClick={() => setShowMessage((open) => !open)}
+              aria-expanded={showMessage}
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-700 hover:text-gray-900 dark:text-gray-300"
+            >
+              <FiFileText className="w-4 h-4" />
+              {showMessage ? "הסתרת ההודעה של הלקוח" : "הצגת ההודעה המקורית של הלקוח"}
+              <FiChevronDown className={`w-4 h-4 transition-transform ${showMessage ? "rotate-180" : ""}`} />
+            </button>
+            {showMessage && (
+              <div className="mt-2 p-4 text-sm leading-relaxed whitespace-pre-wrap break-words bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl max-h-96 overflow-y-auto text-gray-700 dark:text-gray-200">
+                {err.rawText.trim()}
               </div>
             )}
           </div>
         )}
 
-        {/* פעולות. כשכל השורות נבחרו, הצעד הבא הוא לבנות מחדש עם הבחירות */}
+        {/* פעולות */}
         {!resolved && (
-          <div className="mt-4 flex flex-wrap items-center gap-2">
-            {allPicked && (
-              <Button onClick={handleRetry} disabled={Boolean(busy)} className="flex items-center gap-2">
-                <FiRefreshCw className={`w-4 h-4 ${busy === "retry" ? "animate-spin" : ""}`} />
-                {busy === "retry" ? "בונה..." : "בנה את ההזמנה עם הבחירות"}
-              </Button>
-            )}
-            <Button
-              layout={allPicked ? "outline" : "primary"}
-              onClick={handleApprove}
-              disabled={Boolean(busy)}
-              className="flex items-center gap-2"
-            >
-              <FiCheck className="w-4 h-4" />
-              {busy === "approve"
-                ? "מאשר..."
-                : unmatched.length
-                ? "אשר הזמנה בלי השורות החסרות"
-                : "אשר הזמנה והורד מלאי"}
-            </Button>
-            {!allPicked && (
-              <Button
-                layout="link"
-                onClick={handleRetry}
-                disabled={Boolean(busy)}
-                className="flex items-center gap-2"
-                title="מוחק את ההזמנה הזו ובונה אותה מחדש מההודעה"
-              >
-                <FiRefreshCw className={`w-4 h-4 ${busy === "retry" ? "animate-spin" : ""}`} />
-                {busy === "retry" ? "מריץ..." : "קרא שוב מההודעה"}
-              </Button>
+          <div className="mt-5 pt-4 border-t border-amber-200/70 dark:border-gray-700 flex flex-wrap items-center gap-3">
+            {total > 0 ? (
+              <>
+                <Button
+                  onClick={handleRetry}
+                  disabled={Boolean(busy) || !allPicked}
+                  className="flex items-center gap-2"
+                  title={allPicked ? undefined : "יש לאשר קודם את כל השורות"}
+                >
+                  <FiCheck className="w-4 h-4" />
+                  {busy === "retry" ? "מעדכן את ההזמנה..." : "סיום — עדכון ההזמנה"}
+                </Button>
+                {!allPicked && (
+                  <span className="text-sm text-gray-500 dark:text-gray-400">
+                    {left === 1 ? "נשארה שורה אחת לאשר" : `נשארו ${left} שורות לאשר`}
+                  </span>
+                )}
+                <button
+                  type="button"
+                  onClick={handleApprove}
+                  disabled={Boolean(busy)}
+                  className="mr-auto text-sm text-gray-500 underline hover:text-gray-800 disabled:opacity-50 dark:text-gray-400"
+                >
+                  {busy === "approve" ? "מאשר..." : "לאשר את ההזמנה בלי השורות האלה"}
+                </button>
+              </>
+            ) : (
+              <>
+                <Button onClick={handleApprove} disabled={Boolean(busy)} className="flex items-center gap-2">
+                  <FiCheck className="w-4 h-4" />
+                  {busy === "approve" ? "מאשר..." : "אשר הזמנה והורד מלאי"}
+                </Button>
+                <Button
+                  layout="link"
+                  onClick={handleRetry}
+                  disabled={Boolean(busy)}
+                  className="flex items-center gap-2"
+                  title="מוחק את ההזמנה הזו ובונה אותה מחדש מההודעה"
+                >
+                  <FiRefreshCw className={`w-4 h-4 ${busy === "retry" ? "animate-spin" : ""}`} />
+                  {busy === "retry" ? "מריץ..." : "קרא שוב מההודעה"}
+                </Button>
+              </>
             )}
           </div>
         )}

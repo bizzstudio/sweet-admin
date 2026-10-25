@@ -1,11 +1,12 @@
 // בדיקות למסך "שורות לבדיקה" שבבאנר של הזמנה שלא הובנה.
 //
 // מה שהן שומרות עליו:
-// 1. ההצעה של הקליטה היא כפתור אחד — לחיצה שומרת אותה ללקוח הזה.
-// 2. "לא מוצר" שומר הכרעה מסוג ignore, בלי מוצר.
+// 1. ההצעה של הקליטה נשאלת כשאלה, ו"כן, זה המוצר" שומר אותה ללקוח הזה.
+// 2. "זו לא שורת מוצר" שומר הכרעה מסוג ignore, בלי מוצר.
 // 3. ההתקדמות מדווחת לבאנר (onProgress), שמחליט מתי להציע בנייה מחדש.
 // 4. בהזמנה ישנה בלי suggestions, ההצעה נשלפת מטקסט הסיבה ונשמרת לפי מק"ט.
-// 5. בחירה מהבורר (כל הקטלוג) נשמרת לפי מק"ט.
+// 5. החיפוש בכל הקטלוג נפתח רק ב"לא, לבחור מוצר אחר" (או כשאין הצעה),
+//    ובחירה משם נשמרת לפי מק"ט.
 
 import React from "react";
 import { createRoot } from "react-dom/client";
@@ -68,34 +69,42 @@ afterEach(() => {
 });
 
 describe("UnmatchedItemResolver", () => {
-  it("ההצעה נשמרת בלחיצה אחת ללקוח הזה, והסיבה הארוכה אינה מוצגת", async () => {
+  const yes = () => button("כן, זה המוצר");
+  const notProduct = (i) =>
+    [...container.querySelectorAll("button")].filter((b) => b.textContent.includes("זו לא שורת מוצר"))[i];
+
+  it("ההצעה נשאלת כשאלה ונשמרת ב'כן', והסיבה הארוכה אינה מוצגת", async () => {
     await render();
     expect(container.textContent).not.toContain("הלקוח הזמין בעבר");
-    await click(button("פחיות קולה זירו"));
+    expect(container.textContent).toContain("האם הכוונה למוצר הזה?");
+    // החיפוש סגור כשיש הצעה, ופתוח בשורה שאין לה
+    expect([...container.querySelectorAll("button")].filter((b) => b.textContent === "בורר").length).toBe(1);
+    await click(yes());
     expect(IncomingOrderServices.resolveItem).toHaveBeenCalledWith("o1", {
       rawName: "פחיות זירו",
       scope: "customer",
       productId: "p228",
     });
-    expect(button("שינוי")).toBeDefined();
+    expect(container.textContent).toContain("נבחר: פחיות קולה זירו");
+    expect(button("לשנות")).toBeDefined();
   });
 
-  it('"לא מוצר" נשמר כ-ignore בלי מוצר', async () => {
+  it('"זו לא שורת מוצר" נשמר כ-ignore בלי מוצר', async () => {
     await render();
-    const notProduct = [...container.querySelectorAll("button")].filter((b) => b.textContent.includes("לא מוצר"))[1];
-    await click(notProduct);
+    await click(notProduct(1));
     expect(IncomingOrderServices.resolveItem).toHaveBeenCalledWith("o1", {
       rawName: "נייר טישו זה מזכיר נייר מגבת?",
       scope: "customer",
       ignore: true,
     });
+    expect(container.textContent).toContain("סומן שזו לא שורת מוצר");
   });
 
   it("ההתקדמות מדווחת לבאנר", async () => {
     await render();
     expect(onProgress).toHaveBeenLastCalledWith(0, 2);
-    await click(button("פחיות קולה זירו"));
-    await click([...container.querySelectorAll("button")].find((b) => b.textContent.includes("לא מוצר")));
+    await click(yes());
+    await click(notProduct(0));
     expect(onProgress).toHaveBeenLastCalledWith(2, 2);
   });
 
@@ -107,7 +116,8 @@ describe("UnmatchedItemResolver", () => {
         failReason: 'הלקוח ביקש "4 קילו" ואין מוצר כזה — צריך לאשר שזה "עוגיות מלוח 1 ק"ג" (886) · הלקוח הזמין בעבר',
       },
     ]);
-    await click(button('עוגיות מלוח 1 ק"ג'));
+    expect(container.textContent).toContain('עוגיות מלוח 1 ק"ג');
+    await click(yes());
     expect(IncomingOrderServices.resolveItem).toHaveBeenCalledWith("o1", {
       rawName: "4 קילו עוגיות",
       scope: "customer",
@@ -115,15 +125,17 @@ describe("UnmatchedItemResolver", () => {
     });
   });
 
-  it("בחירה מהבורר נשמרת לפי מק\"ט", async () => {
-    await render([ITEMS[1]]);
+  it('"לא, לבחור מוצר אחר" פותח חיפוש בכל הקטלוג, ובחירה משם נשמרת לפי מק"ט', async () => {
+    await render([ITEMS[0]]);
+    expect(button("בורר")).toBeUndefined();
+    await click(button("לא, לבחור מוצר אחר"));
     await click(button("בורר"));
     expect(IncomingOrderServices.resolveItem).toHaveBeenCalledWith("o1", {
-      rawName: ITEMS[1].rawName,
+      rawName: "פחיות זירו",
       scope: "customer",
       sku: "777",
     });
-    expect(container.textContent).toContain("קולה זירו 1.5");
+    expect(container.textContent).toContain("נבחר: קולה זירו 1.5");
   });
 
   it("כמה מוצרים שקולים בטקסט הסיבה — כולם מוצעים, וזנב ההיסטוריה לא", () => {
@@ -143,11 +155,11 @@ describe("UnmatchedItemResolver", () => {
     let finish;
     IncomingOrderServices.resolveItem.mockImplementation(() => new Promise((r) => (finish = r)));
     await render();
-    await click(button("פחיות קולה זירו"));
+    await click(yes());
     await act(async () => {
       root.render(<UnmatchedItemResolver orderId="o2" items={ITEMS} onProgress={onProgress} />);
     });
     await act(async () => finish({ message: "נשמר" }));
-    expect(button("שינוי")).toBeUndefined();
+    expect(button("לשנות")).toBeUndefined();
   });
 });

@@ -150,6 +150,7 @@ export const inSkuSet = (skus, product) => {
  *   בשורה מוצג תמיד, גם אם אינו ביניהם.
  * @param {object} [selectRef] - ref לבורר עצמו, למי שצריך להעביר אליו את
  *   המיקוד מהמקלדת (focus) בלי עכבר.
+ * @param {boolean} [inlineMenu] - הרשימה נפתחת בתוך הדף (לטלפון), ראה למטה.
  * @param {Array<{sku: string, meta?: string}>|null} [preferred] - מוצרים שמוצגים
  *   ראשונים בקבוצה נפרדת (preferredLabel), עם meta קצר לצד השם. החיפוש חל גם
  *   עליהם, וכל השאר נשאר זמין מתחתם — זו העדפה, לא הגבלה.
@@ -165,6 +166,8 @@ export default function ProductPicker({
   preferredLabel = "מוצעים",
   onMenuOpen,
   disabled = false,
+  autoFocus = false,
+  inlineMenu = false,
 }) {
   const { mode } = useContext(WindmillContext);
   const { products, loading, failed } = useSyncExternalStore(
@@ -309,9 +312,10 @@ export default function ProductPicker({
     }
     const note = preferredMeta.get(String(p.sku));
     return (
-      <div className="flex items-baseline justify-between gap-3">
-        <span className="flex items-baseline gap-1.5 min-w-0">
-          <span className="truncate">{p.name}</span>
+      // בטלפון אין רוחב לשם ולפרטים באותה שורה: השם מלא למעלה, הפרטים מתחתיו
+      <div className="flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-3">
+        <span className="flex flex-wrap items-baseline gap-x-1.5 min-w-0 sm:flex-nowrap">
+          <span className="break-words sm:truncate">{p.name}</span>
           {note && (
             <span className="text-xs shrink-0 text-emerald-700 dark:text-emerald-400">{note}</span>
           )}
@@ -339,6 +343,10 @@ export default function ProductPicker({
         // המוצר המלא כארגומנט שני, למי שצריך גם את השם ולא רק את המק"ט
         onChange={(opt) => onChange(opt ? String(opt.sku) : "", opt || null)}
         onMenuOpen={onMenuOpen}
+        aria-label={placeholder}
+        // בורר שנפתח מפעולה של המשתמש: המיקוד והרשימה פתוחים מיד
+        autoFocus={autoFocus}
+        openMenuOnFocus={autoFocus}
         onInputChange={setInputValue}
         options={options}
         filterOption={null}
@@ -357,9 +365,12 @@ export default function ProductPicker({
         placeholder={
           loading ? "טוען קטלוג..." : unusable ? "טעינת הקטלוג נכשלה" : placeholder
         }
-        menuPortalTarget={document.body}
-        menuPosition="fixed"
-        menuPlacement="auto"
+        // ‏inlineMenu: הרשימה בתוך הדף ולא צפה מעליו. בטלפון רשימה צפה נשארת
+        // מתחת למקלדת; בתוך הדף react-select גולל את הדף כדי להראות אותה.
+        menuPortalTarget={inlineMenu ? null : document.body}
+        menuPosition={inlineMenu ? "absolute" : "fixed"}
+        menuPlacement={inlineMenu ? "bottom" : "auto"}
+        menuShouldScrollIntoView={inlineMenu}
         // מוצר שהלקוח לא קנה נראה בדיוק כמו מוצר שלא קיים, ולכן נאמר במפורש
         // שהחיפוש היה במוצרי הלקוח בלבד
         noOptionsMessage={() =>
