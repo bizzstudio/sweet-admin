@@ -5,8 +5,9 @@
 // 2. "זו לא שורת מוצר" שומר הכרעה מסוג ignore, בלי מוצר.
 // 3. ההתקדמות מדווחת לבאנר (onProgress), שמחליט מתי להציע בנייה מחדש.
 // 4. בהזמנה ישנה בלי suggestions, ההצעה נשלפת מטקסט הסיבה ונשמרת לפי מק"ט.
-// 5. החיפוש בכל הקטלוג נפתח רק ב"לא, לבחור מוצר אחר" (או כשאין הצעה),
+// 5. החיפוש בכל הקטלוג נפתח רק ב"לבחור מוצר" (או כשאין הצעה),
 //    ובחירה משם נשמרת לפי מק"ט.
+// 6. "לשמור גם לכל הלקוחות" מרחיב בחירה שכבר נשמרה, לשורה הזו בלבד.
 
 import React from "react";
 import { createRoot } from "react-dom/client";
@@ -125,10 +126,10 @@ describe("UnmatchedItemResolver", () => {
     });
   });
 
-  it('"לא, לבחור מוצר אחר" פותח חיפוש בכל הקטלוג, ובחירה משם נשמרת לפי מק"ט', async () => {
+  it('"לבחור מוצר" פותח חיפוש בכל הקטלוג, ובחירה משם נשמרת לפי מק"ט', async () => {
     await render([ITEMS[0]]);
     expect(button("בורר")).toBeUndefined();
-    await click(button("לא, לבחור מוצר אחר"));
+    await click(button("לבחור מוצר"));
     await click(button("בורר"));
     expect(IncomingOrderServices.resolveItem).toHaveBeenCalledWith("o1", {
       rawName: "פחיות זירו",
@@ -161,5 +162,40 @@ describe("UnmatchedItemResolver", () => {
     });
     await act(async () => finish({ message: "נשמר" }));
     expect(button("לשנות")).toBeUndefined();
+  });
+
+  it('"לשמור גם לכל הלקוחות" שומר את אותה בחירה כהכרעה גורפת, ו"לשנות" ממשיך לכולם', async () => {
+    await render([ITEMS[0]]);
+    await click(yes());
+    expect(container.textContent).toContain("נשמר ללקוח הזה");
+
+    await click(button("לשמור גם לכל הלקוחות"));
+    expect(IncomingOrderServices.resolveItem).toHaveBeenLastCalledWith("o1", {
+      rawName: "פחיות זירו",
+      scope: "global",
+      productId: "p228",
+    });
+    expect(container.textContent).toContain("נשמר לכל הלקוחות");
+
+    // בחירה חדשה בשורה שהורחבה מחליפה גם את ההכרעה הגורפת וגם את זו של
+    // הלקוח, שגוברת עליה בשרת — ונאמר במסך לפני הבחירה
+    await click(button("לשנות"));
+    expect(container.textContent).toContain("בחירה חדשה תחליף אותה אצל כולם");
+    await click(button("לבחור מוצר"));
+    IncomingOrderServices.resolveItem.mockClear();
+    await click(button("בורר"));
+    expect(IncomingOrderServices.resolveItem.mock.calls).toEqual([
+      ["o1", { rawName: "פחיות זירו", scope: "customer", sku: "777" }],
+      ["o1", { rawName: "פחיות זירו", scope: "global", sku: "777" }],
+    ]);
+  });
+
+  it("שמירה לכל הלקוחות שנכשלה משאירה את השורה שמורה ללקוח הזה", async () => {
+    await render([ITEMS[0]]);
+    await click(yes());
+    IncomingOrderServices.resolveItem.mockRejectedValueOnce(new Error("x"));
+    await click(button("לשמור גם לכל הלקוחות"));
+    expect(container.textContent).toContain("נשמר ללקוח הזה");
+    expect(container.textContent).not.toContain("נשמר לכל הלקוחות");
   });
 });

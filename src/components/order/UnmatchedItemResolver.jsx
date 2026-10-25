@@ -6,21 +6,21 @@
 //
 // לקוח כותב "קולה זירו", ובקטלוג יש ארבעה מוצרים כאלה. מנוע ההתאמה לא יכול
 // להכריע ביניהם. כאן הבחירה **נשמרת**: פעם אחת אדם קובע, ומאותו רגע השורה
-// נקראת אוטומטית אצל הלקוח הזה.
+// נקראת אוטומטית אצל הלקוח הזה — ובלחיצה נוספת ("לשמור גם לכל הלקוחות") אצל כולם.
 //
 // ── כל שורה היא שאלה אחת ──
 //
 // מי שעובד על המסך אינו טכנולוגי, ולכן כל שורה מנוסחת כשאלה עם תשובה ברורה:
 // "הלקוח כתב X — האם הכוונה ל-Y?" ולצידה "כן, זה המוצר". ברוב השורות ההצעה
 // של הקליטה נכונה (נמדד 14/10/26), כך שרוב העבודה היא לחיצה אחת לשורה.
-// החיפוש בכל הקטלוג נפתח רק כשעונים "לא" (או כשאין הצעה בכלל), ו"זו לא
+// החיפוש בכל הקטלוג נפתח רק ב"לבחור מוצר" (או כשאין הצעה בכלל), ו"זו לא
 // שורת מוצר" לשורה שהיא שאלה, כותרת או שם של עובד — גם היא נשמרת.
 //
 // הסיבה הטכנית לכשל אינה מוצגת: היא ארוכה ואינה עוזרת לבחור. היא נשארת
 // ב-title של השם, למי שרוצה לדעת.
 
 import React, { useEffect, useRef, useState } from "react";
-import { FiCheck, FiSearch, FiSlash, FiX } from "react-icons/fi";
+import { FiCheck, FiSearch, FiSlash, FiUsers, FiX } from "react-icons/fi";
 
 import { notifyError } from "@/utils/toast";
 import IncomingOrderServices from "@/services/IncomingOrderServices";
@@ -103,8 +103,11 @@ const UnmatchedItemResolver = ({ orderId, items = [], onProgress }) => {
   const [resolved, setResolved] = useState({});
   // index → המוצרים שמוצגים ראשונים בבורר; נטען בפתיחה הראשונה של הבורר
   const [preferred, setPreferred] = useState({});
-  // השורה שבה פתוח החיפוש ("לא, מוצר אחר"). אחת בכל רגע.
+  // השורה שבה פתוח החיפוש ("לבחור מוצר"). אחת בכל רגע.
   const [searching, setSearching] = useState(null);
+  // שורות שהבחירה בהן הורחבה לכל הלקוחות. נשמר גם אחרי "לשנות": בחירה חדשה
+  // בשורה כזו חייבת להחליף גם את ההכרעה הגורפת, אחרת היא נשארת על הישנה.
+  const [globalRows, setGlobalRows] = useState({});
   // ההעדפות וההכרעות נשמרות לפי מספר שורה, ותשובה שמגיעה אחרי מעבר להזמנה
   // אחרת הייתה נוחתת על השורה באותו מספר בהזמנה החדשה
   const shownOrderId = useRef(orderId);
@@ -115,6 +118,7 @@ const UnmatchedItemResolver = ({ orderId, items = [], onProgress }) => {
     setResolved({});
     setPreferred({});
     setSearching(null);
+    setGlobalRows({});
   }, [orderId]);
 
   const doneCount = Object.keys(resolved).length;
@@ -138,14 +142,25 @@ const UnmatchedItemResolver = ({ orderId, items = [], onProgress }) => {
       .catch(() => {});
   };
 
-  const save = async (index, rawName, body, result) => {
+  // ── ללקוח הזה, ובלחיצה נוספת לכל הלקוחות ──
+  //
+  // ברירת המחדל היא הלקוח הזה, כי "קולה זירו" אצל לקוח אחד הוא מארז ואצל
+  // אחר בקבוק. ההרחבה לכל הלקוחות היא כפתור נפרד בשורה שכבר נבחרה — ולא
+  // סימון כללי מראש, שנדבק בלי לשים לב לשורות הבאות.
+  const save = async (index, rawName, body, result, global = Boolean(globalRows[index])) => {
     setSaving(index);
     const forOrder = orderId;
     try {
+      // הכרעה של הלקוח גוברת בשרת על הכרעה גורפת. לכן גם שמירה לכולם מעדכנת
+      // קודם את זו של הלקוח — אחרת אחרי "לשנות" הוא היה נשאר על הבחירה הישנה.
       await IncomingOrderServices.resolveItem(orderId, { rawName, scope: "customer", ...body });
+      if (global) {
+        await IncomingOrderServices.resolveItem(orderId, { rawName, scope: "global", ...body });
+      }
       if (shownOrderId.current === forOrder) {
-        setResolved((prev) => ({ ...prev, [index]: result }));
+        setResolved((prev) => ({ ...prev, [index]: { ...result, body } }));
         setSearching((current) => (current === index ? null : current));
+        if (global) setGlobalRows((prev) => ({ ...prev, [index]: true }));
       }
     } catch (e) {
       notifyError(e?.response?.data?.message || e.message);
@@ -163,6 +178,10 @@ const UnmatchedItemResolver = ({ orderId, items = [], onProgress }) => {
       { title: product.title || product.name }
     );
   const ignore = (index, rawName) => save(index, rawName, { ignore: true }, { ignored: true });
+  const saveForAll = (index, rawName) => {
+    const done = resolved[index];
+    if (done) save(index, rawName, done.body, done, true);
+  };
   const reopen = (index) =>
     setResolved((prev) => {
       const next = { ...prev };
@@ -214,24 +233,55 @@ const UnmatchedItemResolver = ({ orderId, items = [], onProgress }) => {
             </div>
 
             <div className="mt-3 sm:mr-10">
+              {/* שורה שכבר הורחבה לכולם ונפתחה מחדש: הבחירה הבאה תחול על כולם,
+                  ואומרים את זה לפני שבוחרים ולא אחרי */}
+              {!done && globalRows[index] && (
+                <div className="mb-3 flex items-center gap-1.5 text-sm text-amber-800 dark:text-amber-300">
+                  <FiUsers className="w-4 h-4 flex-shrink-0" />
+                  הבחירה בשורה הזו שמורה לכל הלקוחות — בחירה חדשה תחליף אותה אצל כולם
+                </div>
+              )}
               {done ? (
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl bg-emerald-50 dark:bg-emerald-900/30 px-4 py-3">
-                  <span className="text-emerald-800 dark:text-emerald-200">
-                    {done.ignored ? (
-                      "סומן שזו לא שורת מוצר"
+                <div className="rounded-xl bg-emerald-50 dark:bg-emerald-900/30 px-4 py-3">
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                    <span className="text-emerald-800 dark:text-emerald-200">
+                      {done.ignored ? (
+                        "סומן שזו לא שורת מוצר"
+                      ) : (
+                        <>
+                          נבחר: <span className="font-semibold">{done.title}</span>
+                        </>
+                      )}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => reopen(index)}
+                      disabled={busy}
+                      className="text-sm text-gray-600 underline hover:text-gray-900 disabled:opacity-50 dark:text-gray-300"
+                    >
+                      לשנות
+                    </button>
+                  </div>
+                  <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm">
+                    {globalRows[index] ? (
+                      <span className="text-emerald-700 dark:text-emerald-300">
+                        ✓ נשמר לכל הלקוחות
+                      </span>
                     ) : (
                       <>
-                        נבחר: <span className="font-semibold">{done.title}</span>
+                        <span className="text-gray-600 dark:text-gray-300">נשמר ללקוח הזה</span>
+                        <button
+                          type="button"
+                          onClick={() => saveForAll(index, rawName)}
+                          disabled={busy}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-white px-3 py-1 text-emerald-800 hover:bg-emerald-100 disabled:opacity-50 dark:border-emerald-700 dark:bg-gray-800 dark:text-emerald-200"
+                        >
+                          <FiUsers className="w-4 h-4" />
+                          {saving === index ? "שומר..." : "לשמור גם לכל הלקוחות"}
+                        </button>
                       </>
                     )}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => reopen(index)}
-                    className="text-sm text-gray-600 underline hover:text-gray-900 dark:text-gray-300"
-                  >
-                    לשנות
-                  </button>
+                  </div>
                 </div>
               ) : showSearch ? (
                 <div data-item-search className="scroll-mt-3">
@@ -250,7 +300,7 @@ const UnmatchedItemResolver = ({ orderId, items = [], onProgress }) => {
                     preferredLabel="מתאימים לשורה"
                     placeholder="הקלידו שם מוצר, ברקוד או מק״ט..."
                     disabled={busy}
-                    // נפתח מלחיצה על "לא, מוצר אחר" — ממשיכים ישר להקלדה
+                    // נפתח מלחיצה על "לבחור מוצר" — ממשיכים ישר להקלדה
                     autoFocus={searching === index}
                   />
                   <div className="mt-2 flex flex-wrap items-center gap-3">
@@ -301,7 +351,7 @@ const UnmatchedItemResolver = ({ orderId, items = [], onProgress }) => {
                       className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-1.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"
                     >
                       <FiSearch className="w-4 h-4" />
-                      לא, לבחור מוצר אחר
+                      לבחור מוצר
                     </button>
                     <IgnoreButton onClick={() => ignore(index, rawName)} disabled={busy} />
                   </div>
