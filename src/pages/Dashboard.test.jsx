@@ -39,8 +39,8 @@ const sidebarLeaves = sidebar.flatMap((route) =>
 );
 
 // אותם נתיבים שהמסך מסתיר (HIDDEN_FROM_HOME ב-Dashboard.jsx): המסך הזה
-// עצמו, ונתוני המכירות שהוסרו לבקשת הלקוחה
-const HIDDEN_FROM_HOME = new Set(["/dashboard", "/dashboard-stats"]);
+// עצמו, ונתוני המכירות וריכוז ההכנסות שהוסרו לבקשת הלקוחה
+const HIDDEN_FROM_HOME = new Set(["/dashboard", "/dashboard-stats", "/reports/summary"]);
 
 const internalPaths = sidebarLeaves
   .filter((route) => route.path && !HIDDEN_FROM_HOME.has(route.path))
@@ -77,6 +77,8 @@ describe("Dashboard", () => {
     await render();
 
     expect(container.querySelector('a[href="/dashboard-stats"]')).toBeNull();
+    // ריכוז ההכנסות הוא עמוד סכומים, ויושב בתוך קבוצת "דוחות"
+    expect(container.querySelector('a[href="/reports/summary"]')).toBeNull();
   });
 
   it("אינו מציג כפתור ללוח הבקרה עצמו", async () => {

@@ -207,6 +207,14 @@ const BillingServices = {
     return requests.get(`/billing/reports/customer-purchases${q ? `?${q}` : ""}`);
   },
 
+  // עמוד ריכוז: תעודות וחשבוניות בטווח, בכסף. params: {from, to, customer}
+  getSummaryReport: async (params = {}) => {
+    const q = new URLSearchParams(
+      Object.entries(params).filter(([, v]) => v !== undefined && v !== "" && v !== null)
+    ).toString();
+    return requests.get(`/billing/reports/summary${q ? `?${q}` : ""}`);
+  },
+
   // יתרת הלקוח: זכות או חוב שנשארו מתשלומים קודמים. {balance, entries}.
   // חיובי = לזכות הלקוח
   getCustomerBalance: async (customerId) => {

@@ -69,6 +69,7 @@ const IcountDemo = lazy(() => import("@/pages/IcountDemo"));
 const Receipts = lazy(() => import("@/pages/Receipts"));
 // דוח רכישות לקוחות — מה קנו ובאילו תעודות
 const PurchaseReports = lazy(() => import("@/pages/PurchaseReports"));
+const SummaryReport = lazy(() => import("@/pages/SummaryReport"));
 
 /*
 //  * ⚠ These are internal routes!
@@ -238,6 +239,10 @@ const routes = [
   {
     path: "/reports/purchases",
     component: PurchaseReports,
+  },
+  {
+    path: "/reports/summary",
+    component: SummaryReport,
   },
   // מסך הדגמה — פעיל רק כשהשרת מחובר לחשבון דמו (ICOUNT_MODE=demo)
   {

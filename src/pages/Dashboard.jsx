@@ -179,8 +179,10 @@ const EXTRA_TILES = [];
  *                      לא יציג סכומי מכירות ולא כמה נעשה בחודש שעבר. גם
  *                      כפתור בשם "נתוני מכירות" הוא הפניה לשם, ולכן הוא
  *                      יורד מכאן — המסך עצמו נשאר, בתפריט הצדדי.
+ *   /reports/summary — ריכוז הכנסות. אותו כלל: עמוד של סכומים, ולכן רק
+ *                      בתפריט הצדדי.
  */
-const HIDDEN_FROM_HOME = new Set(["/dashboard", "/dashboard-stats"]);
+const HIDDEN_FROM_HOME = new Set(["/dashboard", "/dashboard-stats", "/reports/summary"]);
 
 /*
  * מחלקות Tailwind מלאות ולא מחורזות (`bg-${accent}-500`) — הסורק של
@@ -256,8 +258,9 @@ const buildGroups = () => {
     if (HIDDEN_FROM_HOME.has(route.path)) return;
 
     if (route.routes) {
+      // ההסתרה חלה גם על פריט בתוך קבוצה — ריכוז ההכנסות יושב תחת "דוחות"
       const tiles = route.routes
-        .filter(isRenderable)
+        .filter((child) => isRenderable(child) && !HIDDEN_FROM_HOME.has(child.path))
         .map((child) => toTile(child, route.icon));
       if (tiles.length > 0) {
         groups.push({
