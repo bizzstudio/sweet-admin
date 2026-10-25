@@ -7,7 +7,7 @@ const ProductServices = {
     const searchPrice = price !== null ? price : "";
 
     return requests.get(
-      `/products?page=${page}&limit=${limit}&category=${searchCategory}&title=${searchTitle}&price=${searchPrice}`
+      `/products?page=${page}&limit=${limit}&category=${searchCategory}&title=${encodeURIComponent(searchTitle)}&price=${searchPrice}`
     );
   },
 

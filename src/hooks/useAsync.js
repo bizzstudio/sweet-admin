@@ -2,7 +2,8 @@ import axios from "axios";
 import { useContext, useEffect, useState } from "react";
 import { SidebarContext } from "@/context/SidebarContext";
 
-const useAsync = (asyncFunction) => {
+// delay: ההשהיה לפני הבקשה. ברירת המחדל (שנייה) נשמרת לכל העמודים הקיימים
+const useAsync = (asyncFunction, delay = 1000) => {
   const [data, setData] = useState([] || {});
   const [error, setError] = useState("");
   // const [errCode, setErrCode] = useState('');
@@ -55,7 +56,7 @@ const useAsync = (asyncFunction) => {
       }
     };
 
-    debounceTimeout = setTimeout(fetchData, 1000);
+    debounceTimeout = setTimeout(fetchData, delay);
 
     setIsUpdate(false);
 

@@ -1,5 +1,5 @@
 // src/pages/Products.jsx
-import React, { useContext, useState } from "react";
+import React, { useContext, useEffect, useRef, useState } from "react";
 import {
   Table,
   TableHeader,
@@ -54,26 +54,56 @@ const Products = () => {
     lang,
     setIsUpdate,
     currentPage,
+    setCurrentPage,
     handleChangePage,
     searchText,
+    setSearchText,
     category,
     setCategory,
-    searchRef,
-    handleSubmitForAll,
     sortedField,
     setSortedField,
     limitData,
   } = useContext(SidebarContext);
 
-  const { data, loading, error } = useAsync(() =>
-    ProductServices.getAllProducts({
-      page: currentPage,
-      limit: limitData,
-      category: category,
-      title: searchText,
-      price: sortedField,
-    })
+  const { data, loading, error } = useAsync(
+    () =>
+      ProductServices.getAllProducts({
+        page: currentPage,
+        limit: limitData,
+        category: category,
+        title: searchText,
+        price: sortedField,
+      }),
+    300
   );
+
+  // החיפוש, הקטגוריה והמיון יושבים ב-SidebarContext המשותף לכל העמודים.
+  // חיפוש שנשאר מעמוד אחר היה מסנן כאן את הרשימה בזמן שתיבת החיפוש ריקה,
+  // ולכן העמוד מתחיל נקי
+  useEffect(() => {
+    setSearchText(null);
+    setCategory(null);
+    setSortedField("");
+    setCurrentPage(1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // חיפוש חי תוך כדי הקלדה. כל שינוי בסינון חוזר לעמוד 1, אחרת חיפוש
+  // מעמוד 5 עם תוצאה של עמוד אחד מציג רשימה ריקה
+  const [searchInput, setSearchInput] = useState("");
+  const searchDebounce = useRef();
+  const applySearch = (value) => {
+    clearTimeout(searchDebounce.current);
+    setSearchText(value.trim() || null);
+    setCurrentPage(1);
+  };
+  const handleSearchChange = (e) => {
+    const value = e.target.value;
+    setSearchInput(value);
+    clearTimeout(searchDebounce.current);
+    searchDebounce.current = setTimeout(() => applySearch(value), 400);
+  };
+  useEffect(() => () => clearTimeout(searchDebounce.current), []);
 
   // console.log("product page", data);
 
@@ -90,9 +120,12 @@ const Products = () => {
   };
   // handle reset field
   const handleResetField = () => {
-    setCategory("");
+    clearTimeout(searchDebounce.current);
+    setSearchInput("");
+    setSearchText(null);
+    setCategory(null);
     setSortedField("");
-    searchRef.current.value = "";
+    setCurrentPage(1);
   };
 
   return (
@@ -120,7 +153,7 @@ const Products = () => {
       <Card className="min-w-0 shadow-xs overflow-hidden bg-white dark:bg-gray-800 mb-5">
         <CardBody className="">
           <form
-            onSubmit={handleSubmitForAll}
+            onSubmit={(e) => e.preventDefault()}
             className="py-3 md:pb-0 grid gap-4 lg:gap-6 xl:gap-6 xl:flex"
           >
             <div className="flex-grow-0 sm:flex-grow md:flex-grow lg:flex-grow xl:flex-grow">
@@ -184,14 +217,18 @@ const Products = () => {
       <Card className="min-w-0 shadow-xs overflow-hidden bg-white dark:bg-gray-800 rounded-t-lg rounded-0 mb-4">
         <CardBody>
           <form
-            onSubmit={handleSubmitForAll}
+            onSubmit={(e) => {
+              e.preventDefault();
+              applySearch(searchInput);
+            }}
             className="py-3 grid gap-4 lg:gap-6 xl:gap-6 md:flex xl:flex"
           >
             <div className="flex-grow-0 md:flex-grow lg:flex-grow xl:flex-grow">
               <Input
-                ref={searchRef}
                 type="search"
                 name="search"
+                value={searchInput}
+                onChange={handleSearchChange}
                 placeholder={t("SearchProduct")}
               />
               <button
@@ -201,12 +238,25 @@ const Products = () => {
             </div>
 
             <div className="flex-grow-0 md:flex-grow lg:flex-grow xl:flex-grow">
-              <SelectCategory setCategory={setCategory} lang={lang} />
+              <SelectCategory
+                value={category || ""}
+                setCategory={(value) => {
+                  setCategory(value);
+                  setCurrentPage(1);
+                }}
+                lang={lang}
+              />
             </div>
 
             <div className="flex-grow-0 md:flex-grow lg:flex-grow xl:flex-grow">
-              <Select onChange={(e) => setSortedField(e.target.value)}>
-                <option value="All" defaultValue hidden>
+              <Select
+                value={sortedField || ""}
+                onChange={(e) => {
+                  setSortedField(e.target.value);
+                  setCurrentPage(1);
+                }}
+              >
+                <option value="" hidden>
                   {t("Price")}
                 </option>
                 <option value="low">{t("LowtoHigh")}</option>
@@ -239,7 +289,7 @@ const Products = () => {
                 <Button
                   layout="outline"
                   onClick={handleResetField}
-                  type="reset"
+                  type="button"
                   className="px-4 md:py-1 py-2 h-12 text-sm dark:bg-gray-700"
                 >
                   <span className="text-black dark:text-gray-200">{t("Reset")}</span>
@@ -300,7 +350,10 @@ const Products = () => {
             />
           </Table>
           <TableFooter>
+            {/* ל-Pagination של Windmill אין prop לעמוד הנוכחי, הוא זוכר אותו
+                בעצמו. המפתח מרכיב אותו מחדש בכל שינוי סינון כדי שיחזור ל-1 */}
             <Pagination
+              key={`${searchText || ""}|${category || ""}|${sortedField || ""}`}
               className="pagination-ltr"
               totalResults={data?.totalDoc}
               resultsPerPage={limitData}

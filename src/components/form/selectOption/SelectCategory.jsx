@@ -8,7 +8,7 @@ import useAsync from "@/hooks/useAsync";
 import CategoryServices from "@/services/CategoryServices";
 import useUtilsFunction from "@/hooks/useUtilsFunction";
 
-const SelectCategory = ({ setCategory }) => {
+const SelectCategory = ({ setCategory, value }) => {
   // console.log('data category',data)
   const { t } = useTranslation();
   const { data } = useAsync(CategoryServices.getAllCategories);
@@ -16,8 +16,13 @@ const SelectCategory = ({ setCategory }) => {
 
   return (
     <>
-      <Select onChange={(e) => setCategory(e.target.value)}>
-        <option value="All" defaultValue hidden>
+      {/* value אופציונלי: כשהעמוד מעביר אותו הבורר נשלט, וכך "איפוס" מחזיר
+          אותו לכותרת. ערך ריק (ולא "All") כי השרת מחפש "All" כ-slug ומחזיר ריק */}
+      <Select
+        value={value ?? undefined}
+        onChange={(e) => setCategory(e.target.value)}
+      >
+        <option value="" hidden>
           {t("Category")}
         </option>
         {data?.map((cat) => (
