@@ -1954,3 +1954,15 @@ a.sidebar-link-active {
 .dark .admin-table tbody tr:nth-child(even) {
   background-color: rgba(255, 255, 255, 0.03);
 }
+
+/* תעודת משלוח שהמקור שלה כבר הודפס (originalPrintedAt) — כחול, כדי לראות
+   ברשימה מה כבר יצא למדפסת ומה עוד לא (בקשת הלקוחה, 26/10/2026).
+   הסלקטור כולל את .admin-table tbody כדי לגבור על צביעת השורות הזוגיות */
+.admin-table tbody tr.row-printed {
+  background-color: #dbeafe;
+  box-shadow: inset -4px 0 0 #3b82f6;
+}
+
+.dark .admin-table tbody tr.row-printed {
+  background-color: rgba(59, 130, 246, 0.18);
+}

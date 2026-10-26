@@ -21,7 +21,7 @@ import {
   TableRow,
 } from "@windmill/react-ui";
 import { Link, useLocation } from "react-router-dom";
-import { FiCopy, FiPlus, FiX } from "react-icons/fi";
+import { FiCopy, FiPlus, FiPrinter, FiX } from "react-icons/fi";
 import { MdOutlineReceiptLong } from "react-icons/md";
 import useQueryParam from "@/hooks/useQueryParam";
 
@@ -310,8 +310,12 @@ const DeliveryNotes = () => {
             <TableBody>
               {notes.map((note) => {
                 const label = STATUS_LABELS[note.billing?.status] || STATUS_LABELS.open;
+                // רק תעודה שממתינה לחיוב נצבעת: שם השאלה "הודפסה או לא" פתוחה.
+                // חויבה ובוטלה כבר מסומנות בסטטוס שלהן
+                const printed = Boolean(note.originalPrintedAt);
+                const highlight = printed && (note.billing?.status || "open") === "open";
                 return (
-                  <TableRow key={note._id}>
+                  <TableRow key={note._id} className={highlight ? "row-printed" : ""}>
                     <TableCell className="font-mono font-semibold">{note.number}</TableCell>
                     <TableCell>
                       {note.kind === "manual" ? (
@@ -348,6 +352,14 @@ const DeliveryNotes = () => {
                     <TableCell className="text-left">{shekel(note.total)} ₪</TableCell>
                     <TableCell>
                       <Badge type={label.type}>{label.text}</Badge>
+                      {printed && (
+                        <span
+                          className="mr-2 text-xs text-blue-700 dark:text-blue-300 inline-flex items-center gap-1"
+                          title={`המקור הודפס ב-${new Date(note.originalPrintedAt).toLocaleString("he-IL")}`}
+                        >
+                          <FiPrinter /> הודפסה
+                        </span>
+                      )}
                     </TableCell>
                     <TableCell className="font-mono">
                       {note.billing?.icountDocNum || "—"}

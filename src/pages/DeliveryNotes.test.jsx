@@ -321,3 +321,43 @@ describe("DeliveryNotes — חזרה מתעודה לאותה רשימה", () => 
     );
   });
 });
+
+describe("DeliveryNotes — תעודה שהודפסה נצבעת", () => {
+  const rowOf = (number) =>
+    [...container.querySelectorAll("tbody tr")].find((tr) =>
+      tr.textContent.includes(String(number))
+    );
+
+  it("ממתינה לחיוב והמקור הודפס — שורה כחולה עם \"הודפסה\"; שלא הודפסה — רגילה", async () => {
+    BillingServices.getDeliveryNotes.mockResolvedValue({
+      notes: [
+        { ...noteOf(1001, "א"), originalPrintedAt: "2026-10-26T08:00:00.000Z" },
+        noteOf(1002, "ב"),
+      ],
+      total: 2,
+    });
+    await render();
+
+    expect(rowOf(1001).className).toContain("row-printed");
+    expect(rowOf(1001).textContent).toContain("הודפסה");
+    expect(rowOf(1002).className).not.toContain("row-printed");
+    expect(rowOf(1002).textContent).not.toContain("הודפסה");
+  });
+
+  it("תעודה שחויבה אינה נצבעת, גם אם הודפסה", async () => {
+    BillingServices.getDeliveryNotes.mockResolvedValue({
+      notes: [
+        {
+          ...noteOf(1003, "ג"),
+          originalPrintedAt: "2026-10-26T08:00:00.000Z",
+          billing: { status: "billed", icountDocNum: "5001" },
+        },
+      ],
+      total: 1,
+    });
+    await render();
+
+    expect(rowOf(1003).className).not.toContain("row-printed");
+    expect(rowOf(1003).textContent).toContain("הודפסה");
+  });
+});
