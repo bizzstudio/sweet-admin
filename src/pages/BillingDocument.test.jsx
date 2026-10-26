@@ -31,6 +31,7 @@ vi.mock("@/services/BillingServices", () => ({
     getQuote: vi.fn(),
     getDeliveryNotePrintStatus: vi.fn(),
     reprintDeliveryNote: vi.fn(),
+    markDeliveryNoteOriginalPrinted: vi.fn(),
     duplicateDeliveryNote: vi.fn(),
     duplicateQuote: vi.fn(),
     cancelDeliveryNote: vi.fn(),
@@ -190,7 +191,7 @@ describe("המסמך המודפס — עמודות הזיהוי", () => {
   });
 });
 
-// תעודת משלוח יוצאת תמיד ב"מקור" + "העתק" — גם בהדפסה הידנית מהמסך, כמו
+// תעודת משלוח יוצאת בפעם הראשונה ב"מקור" + "העתק" — גם בהדפסה הידנית מהמסך, כמו
 // ב-PDF של ההדפסה האוטומטית. ההעתק מוסתר במסך ומופיע רק בהדפסה.
 describe("המסמך המודפס — מקור והעתק", () => {
   const headings = () => [...container.querySelectorAll("h2")].map((h) => h.textContent);
@@ -208,6 +209,22 @@ describe("המסמך המודפס — מקור והעתק", () => {
     expect(copyWrapper.querySelectorAll("table")[0].querySelectorAll("tbody tr").length).toBe(
       NOTE.items.length
     );
+  });
+
+  // מקור יש רק אחד (26/10/2026): אחרי שיצא, כל הדפסה היא דף "העתק" אחד
+  it("תעודה שהמקור שלה הודפס: דף אחד, \"העתק\"", async () => {
+    BillingServices.getDeliveryNote.mockResolvedValue({
+      ...NOTE,
+      originalPrintedAt: "2026-10-26T08:00:00.000Z",
+    });
+    await render();
+    expect(headings()).toEqual(["תעודת משלוח — העתק"]);
+  });
+
+  it("תעודה שהמדפסת האוטומטית כבר הדפיסה: דף אחד, \"העתק\"", async () => {
+    BillingServices.getDeliveryNotePrintStatus.mockResolvedValue({ status: "printed" });
+    await render();
+    expect(headings()).toEqual(["תעודת משלוח — העתק"]);
   });
 
   it("הצעת מחיר: עותק אחד, בלי כותרת מקור/העתק", async () => {

@@ -108,6 +108,11 @@ const BillingServices = {
     return requests.post(`/billing/delivery-notes/${id}/reprint`, {});
   },
 
+  // חלון ההדפסה נסגר — מכאן התעודה מודפסת כ"העתק" בלבד
+  markDeliveryNoteOriginalPrinted: async (id) => {
+    return requests.post(`/billing/delivery-notes/${id}/original-printed`, {});
+  },
+
   getDeliveryNotePrintStatus: async (id) => {
     return requests.get(`/billing/delivery-notes/${id}/print-status`);
   },

@@ -246,6 +246,22 @@ const BillingDocument = () => {
     }
   };
 
+  // מקור יש רק אחד: אחרי שיצא — מהמדפסת האוטומטית או מהחלון כאן — כל
+  // הדפסה היא דף אחד "העתק". הדפדפן לא מגלה אם החלון בוטל, והלקוחה בחרה
+  // (26/10/2026) שגם סגירת החלון נחשבת הדפסה.
+  // "הודפסה" במדפסת האוטומטית אומר שהמקור יצא גם אם המסך נטען לפני כן
+  const originalPrinted =
+    isNote && (Boolean(doc?.originalPrintedAt) || printStatus?.status === "printed");
+  const handleAfterPrint = async () => {
+    if (!isNote || originalPrinted) return;
+    try {
+      const { originalPrintedAt } = await BillingServices.markDeliveryNoteOriginalPrinted(id);
+      setDoc((d) => (d ? { ...d, originalPrintedAt } : d));
+    } catch (err) {
+      notifyError("לא נרשם שהמקור הודפס — בהדפסה הבאה ייצא שוב מקור");
+    }
+  };
+
   /** מצב החיוב של התעודה — קובע אילו פעולות מותרות. */
   const billingStatus = doc?.billing?.status || "open";
   const isOpen = isNote && billingStatus === "open";
@@ -424,9 +440,9 @@ const BillingDocument = () => {
     total: Number(doc.total || doc.subTotal || 0),
   };
 
-  // גיליון אחד של המסמך. תעודת משלוח מודפסת תמיד בשני עותקים — "מקור"
-  // ללקוח ו"העתק" שחוזר חתום — וכך גם ההדפסה האוטומטית בשרת
-  // (DELIVERY_NOTE_COPIES ב-lib/printing/deliveryNotePdf.js).
+  // גיליון אחד של המסמך. תעודת משלוח מודפסת בהדפסה הראשונה בשני עותקים —
+  // "מקור" ללקוח ו"העתק" שחוזר חתום — ומשם והלאה בדף "העתק" אחד, וכך גם
+  // ההדפסה האוטומטית בשרת (lib/printing/deliveryNotePdf.js).
   const renderSheet = (copyLabel) => (
     <div dir="rtl" className="bg-white text-gray-900 p-8">
       <div className="flex justify-between items-start border-b-2 border-gray-800 pb-4">
@@ -755,6 +771,7 @@ const BillingDocument = () => {
             content={() => printRef.current}
             documentTitle={`${title}-${doc.number}`}
             pageStyle={PRINT_PAGE_STYLE}
+            onAfterPrint={handleAfterPrint}
           />
         </div>
       </div>
@@ -925,10 +942,10 @@ const BillingDocument = () => {
           {/* בכוונה עם צבעים קבועים ולא tokens של מצב כהה: זה מה שיוצא
               למדפסת, וטקסט בהיר על רקע לבן נעלם */}
           <div ref={printRef}>
-            {renderSheet(isQuote ? null : "מקור")}
+            {renderSheet(isQuote ? null : originalPrinted ? "העתק" : "מקור")}
             {/* ההעתק קיים רק בהדפסה — במסך מספיק עותק אחד. break-before
                 מתחיל אותו בעמוד חדש */}
-            {!isQuote && (
+            {!isQuote && !originalPrinted && (
               <div className="hidden print:block" style={{ breakBefore: "page" }}>
                 {renderSheet("העתק")}
               </div>
