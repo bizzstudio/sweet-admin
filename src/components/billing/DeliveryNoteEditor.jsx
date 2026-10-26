@@ -31,6 +31,7 @@ import {
 import { FiAlertTriangle, FiPlus, FiTrash2 } from "react-icons/fi";
 
 import ProductPicker from "@/components/billing/ProductPicker";
+import CustomerPicker from "@/components/billing/CustomerPicker";
 import CatalogScopeToggle from "@/components/billing/CatalogScopeToggle";
 import BarcodeInput from "@/components/billing/BarcodeInput";
 import BillingServices from "@/services/BillingServices";
@@ -87,8 +88,14 @@ const DeliveryNoteEditor = ({ note, onSaved, onCancel }) => {
   const [saving, setSaving] = useState(false);
 
   // כמו בטופס התעודה הידנית: הבורר מציג רק מוצרים שהלקוח קנה או שבמחירון שלו,
-  // ו"כל הקטלוג" פותח את השאר. שדה הלקוח מגיע כמזהה או כאובייקט מאוכלס
-  const customerId = String(note.customer?._id || note.customer || "");
+  // ו"כל הקטלוג" פותח את השאר. שדה הלקוח מגיע כמזהה או כאובייקט מאוכלס.
+  //
+  // הלקוח ניתן להחלפה (26/10/2026) — תעודה שיצאה על סניף אחד של רשת וצריכה
+  // להיות על סניף אחר. מכאן והלאה הכול (מוצרים מוכרים, מחירון, שמירת מחיר)
+  // הולך לפי הלקוח שנבחר, כי הוא זה שיחויב.
+  const originalCustomerId = String(note.customer?._id || note.customer || "");
+  const [customerId, setCustomerId] = useState(originalCustomerId);
+  const customerChanged = customerId !== originalCustomerId;
   const knownSkus = useCustomerKnownSkus(customerId);
   const [wholeCatalog, setWholeCatalog] = useState(false);
   const pickerSkus = wholeCatalog ? null : knownSkus;
@@ -233,6 +240,14 @@ const DeliveryNoteEditor = ({ note, onSaved, onCancel }) => {
   );
   const preview = itemsTotal + (Number(shippingCost) || 0) - (Number(discount) || 0);
 
+  const changeCustomer = (id) => {
+    // ניקוי הבורר אינו "בלי לקוח" — לתעודה תמיד יש לקוח, וחוזרים למקורי
+    setCustomerId(id || originalCustomerId);
+    // מה שבמחירון של הלקוח הקודם אינו אומר דבר על החדש
+    setExpected({});
+    setWholeCatalog(false);
+  };
+
   const save = async () => {
     if (!validRows.length) return notifyError("תעודה חייבת לכלול לפחות שורה אחת עם כמות");
     if (brokenRows.length) {
@@ -257,6 +272,7 @@ const DeliveryNoteEditor = ({ note, onSaved, onCancel }) => {
         notes,
         shippingCost: Number(shippingCost) || 0,
         discount: Number(discount) || 0,
+        ...(customerChanged ? { customerId } : {}),
       });
       notifySuccess(res.message);
       // אחרי השמירה ולא לפניה: מחיר שנכנס למחירון כשהתעודה לא עודכנה היה
@@ -279,6 +295,23 @@ const DeliveryNoteEditor = ({ note, onSaved, onCancel }) => {
             אחרי השמירה התעודה תישלח שוב למדפסת, והסנכרון מההזמנה יפסיק לעדכן
             אותה — התיקון שנעשה כאן הוא האמת.
           </p>
+        </div>
+
+        <div className="mb-4 max-w-md">
+          <Label>
+            <span>לקוח</span>
+            <CustomerPicker className="mt-1" value={customerId} onChange={changeCustomer} />
+          </Label>
+          {customerChanged && (
+            <p className="text-xs text-yellow-700 dark:text-yellow-500 mt-2 flex items-start gap-2">
+              <FiAlertTriangle className="mt-0.5 shrink-0" />
+              <span>
+                התעודה תעבור ללקוח שנבחר ותחויב אצלו, באותו מספר ובאותם מחירים.
+                היא תודפס מחדש (מקור + העתק) על השם החדש
+                {note.order ? ", וההזמנה עצמה נשארת על הלקוח הקודם" : ""}.
+              </span>
+            </p>
+          )}
         </div>
 
         <div className="flex flex-wrap gap-4 mb-4">
@@ -327,7 +360,13 @@ const DeliveryNoteEditor = ({ note, onSaved, onCancel }) => {
           </Label>
         </div>
 
-        {Number(note.discountPercent) > 0 && (
+        {/* האחוז שעל התעודה הוא של הלקוח המקורי; אחרי החלפה השרת מחשב לפי
+            החדש, ומה שכתוב כאן כבר לא היה נכון */}
+        {customerChanged ? (
+          <p className="text-xs text-green-700 dark:text-green-500 mb-3">
+            אם ללקוח שנבחר יש הנחה קבועה — היא תחושב בשרת בשמירה ותתווסף להנחה שכאן.
+          </p>
+        ) : Number(note.discountPercent) > 0 && (
           <p className="text-xs text-green-700 dark:text-green-500 mb-3">
             ללקוח יש הנחה קבועה של {note.discountPercent}% — היא מחושבת בשרת
             ומתווספת להנחה שכאן.

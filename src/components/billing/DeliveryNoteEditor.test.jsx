@@ -33,6 +33,15 @@ vi.mock("@/components/billing/ProductPicker", () => ({
       onClick: () => onChange("999"),
     }),
 }));
+// בורר הלקוח האמיתי טוען את כל הלקוחות מהשרת; כאן כפתור שבוחר את c2
+vi.mock("@/components/billing/CustomerPicker", () => ({
+  default: ({ value, onChange }) =>
+    React.createElement(
+      "button",
+      { type: "button", "data-customer": value, onClick: () => onChange("c2") },
+      "החלפת לקוח"
+    ),
+}));
 vi.mock("@/components/billing/BarcodeInput", () => ({
   default: () => React.createElement("div"),
 }));
@@ -201,5 +210,40 @@ describe("DeliveryNoteEditor — מחיר ששונה נשמר במחירון ה�
 
     await click(saveButton());
     expect(CustomerPriceListServices.upsertItems).not.toHaveBeenCalled();
+  });
+});
+
+describe("DeliveryNoteEditor — החלפת לקוח", () => {
+  const customerButton = () => container.querySelector("[data-customer]");
+
+  it("בלי החלפה — customerId אינו נשלח כלל", async () => {
+    await render();
+    await click(saveButton());
+    expect(BillingServices.updateDeliveryNote.mock.calls[0][1]).not.toHaveProperty("customerId");
+  });
+
+  it("לקוח שהוחלף נשלח, המחירים נשארים, והמחירון שמתעדכן הוא של החדש", async () => {
+    await render();
+    await click(customerButton());
+    expect(container.textContent).toContain("התעודה תעבור ללקוח שנבחר");
+
+    await type(priceInputs()[1], "9");
+    await click(saveButton());
+
+    const [, payload] = BillingServices.updateDeliveryNote.mock.calls[0];
+    expect(payload.customerId).toBe("c2");
+    expect(payload.items.map((i) => i.unitPrice)).toEqual([10, 9]);
+    expect(CustomerPriceListServices.upsertItems).toHaveBeenCalledWith("c2", {
+      items: [{ sku: "222", price: 9 }],
+      applyToGroup: true,
+    });
+  });
+
+  it("מחירי המחירון נטענים מחדש עבור הלקוח החדש", async () => {
+    await render();
+    await click(customerButton());
+    expect(BillingServices.priceItems).toHaveBeenLastCalledWith(
+      expect.objectContaining({ customer: "c2" })
+    );
   });
 });
