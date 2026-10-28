@@ -65,6 +65,16 @@ const CustomerBillingPanel = ({
 
   // הכתובת שאליה החשבונית תישלח בפועל, לפי אותו סדר עדיפות שבשרת
   const effectiveEmail = (invoiceEmail || fallbackEmail || "").trim();
+
+  // השרת מקבל כתובת שהחלק שאחרי ה-@ שלה כולל פסיק, נקודה-פסיק או אות
+  // עברית, אבל מייל לכתובת כזו לא יגיע. ההודעה מראה מה לתקן במקום בועת
+  // הדפדפן, והשמירה ב-blur מדלגת עליה. חוסם רק את השדה הזה ולא את שמירת
+  // הכרטיס. דומיין ריק לא מסומן — זה מצב ביניים בזמן הקלדה
+  const invoiceEmailDomain = invoiceEmail.trim().split("@")[1];
+  const invoiceEmailProblem =
+    invoiceEmailDomain && !/^[A-Za-z0-9.-]+$/.test(invoiceEmailDomain)
+      ? "בחלק שאחרי ה-@ מותרים רק אותיות באנגלית, ספרות, נקודה ומקף. כתובת אחת בלבד, בלי פסיק או רווח"
+      : null;
   const noDeliverableEmail = !effectiveEmail || isPlaceholderEmail(effectiveEmail);
 
   const sync = async () => {
@@ -140,7 +150,7 @@ const CustomerBillingPanel = ({
     // אותו נרמול כמו בשרת. בלעדיו ההשוואה שאחרי השמירה ("מה שחזר שווה למה
     // ששלחתי") הייתה נכשלת על אות גדולה, והמסך היה מכריז על שמירה שנכשלה
     const next = invoiceEmail.trim().toLowerCase();
-    if (next === previous) return;
+    if (next === previous || invoiceEmailProblem) return;
 
     const ok = await saveField("invoiceEmail", next, {
       onRollback: () => setInvoiceEmail(previous),
@@ -459,8 +469,14 @@ const CustomerBillingPanel = ({
       {editing ? (
         <div>
           <p className="text-sm font-medium mb-1">מייל לשליחת חשבוניות</p>
+          {/* טקסט ולא type="email": השדה יושב בתוך הטופס של כרטיס הלקוח,
+              ובדיקת הדפדפן חסמה בגללו כל שמירה של הכרטיס — גם תיקון טלפון —
+              בבועה באנגלית מתורגמת שלא אומרת איזה שדה (28/10/26). השרת
+              בודק את הכתובת בשמירה ב-blur */}
           <input
-            type="email"
+            type="text"
+            inputMode="email"
+            autoComplete="off"
             dir="ltr"
             value={invoiceEmail}
             disabled={saving}
@@ -469,6 +485,11 @@ const CustomerBillingPanel = ({
             onBlur={saveInvoiceEmail}
             className="w-full text-sm px-3 py-2 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700"
           />
+          {invoiceEmailProblem && (
+            <span className="block text-xs text-red-600 dark:text-red-400 mt-1">
+              {invoiceEmailProblem}
+            </span>
+          )}
           <span className="block text-xs text-gray-500 mt-1">
             אפשר להשאיר ריק — אז החשבונית נשלחת לכתובת הרגילה של הלקוח
             {fallbackEmail ? ` (${fallbackEmail})` : ""}. אותה כתובת יכולה
