@@ -204,15 +204,17 @@ const MonthlyBilling = () => {
       0
     );
 
-    // לקוח עם פיצול לפי קטגוריה מקבל חשבונית לכל קטגוריה *דומיננטית*.
+    // לקוח עם פיצול לפי קטגוריה מקבל חשבונית לכל קטגוריה *דומיננטית*
+    // (או, עם separateDisposables, חשבונית לחד פעמי וחשבונית לכל השאר).
     // invoiceCategory מגיע מהשרת ומחושב שם (dominantCategory): הקיבוץ הוא
     // ברמת התעודה ולא ברמת השורה, וספירת איחוד ה-categories הייתה מבטיחה
     // יותר חשבוניות ממה שיופקו.
-    const invoices = customerResult?.splitByCategory
-      ? new Set(selectedNotes.map((n) => n.invoiceCategory || "כללי")).size
-      : selectedNotes.length
-        ? 1
-        : 0;
+    const invoices =
+      customerResult?.splitByCategory || customerResult?.separateDisposables
+        ? new Set(selectedNotes.map((n) => n.invoiceCategory || "כללי")).size
+        : selectedNotes.length
+          ? 1
+          : 0;
 
     return { customers: selectedNotes.length ? 1 : 0, invoices, netTotal };
   }, [preview, singleCustomer, selectedNotes, customerResult]);

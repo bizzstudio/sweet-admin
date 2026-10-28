@@ -579,6 +579,7 @@ const CustomerBillingPanel = ({
             type="text"
             autoComplete="off"
             dir="ltr"
+            maxLength={100}
             value={purchaseOrder}
             disabled={saving}
             onChange={(e) => setPurchaseOrder(e.target.value)}
