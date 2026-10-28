@@ -250,7 +250,9 @@ const MonthlyBilling = () => {
         notes: singleCustomer && !oversized ? selectedNotes.map((n) => n.id) : undefined,
         emailDocument,
       });
-      setResult(res);
+      // נשמר עם התוצאה: בלעדיו חשבונית שבחרו לא לשלוח הייתה מסומנת
+      // "אין מייל תקין", כאילו נכשלה השליחה
+      setResult({ ...res, emailDocument });
       setPreview(null);
       setSelected([]);
       setConfirmed(false);
@@ -411,7 +413,7 @@ const MonthlyBilling = () => {
                     <TableHeaderCell>הזמנה</TableHeaderCell>
                     <TableHeaderCell>תאריך</TableHeaderCell>
                     <TableHeaderCell>חודש חיוב</TableHeaderCell>
-                    <TableHeaderCell className="text-center">שורות</TableHeaderCell>
+                    <TableHeaderCell>הערה</TableHeaderCell>
                     <TableHeaderCell className="text-left">סכום לפני מע"מ</TableHeaderCell>
                   </tr>
                 </TableHeader>
@@ -432,7 +434,10 @@ const MonthlyBilling = () => {
                       <TableCell>{n.orderNumber || "—"}</TableCell>
                       <TableCell>{shortDate(n.issuedAt)}</TableCell>
                       <TableCell>{n.billingMonth || "—"}</TableCell>
-                      <TableCell className="text-center">{n.itemCount}</TableCell>
+                      {/* במקום מספר השורות: לפי ההערה מזהים את התעודה בסגירה */}
+                      <TableCell className="whitespace-normal" title={`${n.itemCount} שורות`}>
+                        {n.note || "—"}
+                      </TableCell>
                       <TableCell className="text-left">
                         {shekel(n.netTotal + (n.shippingCost || 0) - (n.discount || 0))} ₪
                         {/* הפירוט מוצג רק כשיש מה לפרט. בלעדיו הסכום כאן
@@ -648,6 +653,10 @@ const MonthlyBilling = () => {
                           {inv.emailedTo ? (
                             <span className="text-green-700 dark:text-green-400">
                               {inv.emailedTo}
+                            </span>
+                          ) : result.emailDocument === false ? (
+                            <span className="text-gray-600 dark:text-gray-400">
+                              לא נשלח — לפי בחירתך
                             </span>
                           ) : (
                             <span className="text-red-600 dark:text-red-400">
