@@ -39,6 +39,7 @@ const CustomerBillingPanel = ({
   const [mode, setMode] = useState(billing?.mode || "monthly");
   const [clientId, setClientId] = useState(billing?.icountClientId || null);
   const [invoiceEmail, setInvoiceEmail] = useState(billing?.invoiceEmail || "");
+  const [purchaseOrder, setPurchaseOrder] = useState(billing?.purchaseOrderNumber || "");
   const [syncing, setSyncing] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -54,6 +55,7 @@ const CustomerBillingPanel = ({
     setMode(billing?.mode || "monthly");
     setClientId(billing?.icountClientId || null);
     setInvoiceEmail(billing?.invoiceEmail || "");
+    setPurchaseOrder(billing?.purchaseOrderNumber || "");
   }, [billing]);
 
   // אותו סדר עדיפות כמו בשרת (lib/billing/pricing): מה שנקבע אצלנו, ובלעדיו
@@ -160,6 +162,21 @@ const CustomerBillingPanel = ({
     });
     // נרמול לצורה שנשמרה בפועל, כדי שהשדה לא יציג רווחים שכבר לא קיימים
     if (ok) setInvoiceEmail(next);
+  };
+
+  /** מספר הזמנת הרכש — אותה שמירה ב-blur כמו המייל לחשבוניות */
+  const savePurchaseOrder = async () => {
+    const previous = billing?.purchaseOrderNumber || "";
+    const next = purchaseOrder.trim();
+    if (next === previous) return;
+
+    const ok = await saveField("purchaseOrderNumber", next || null, {
+      onRollback: () => setPurchaseOrder(previous),
+      successText: next
+        ? `מספר הזמנת רכש ${next} יודפס על החשבוניות`
+        : "מספר הזמנת רכש הוסר מהחשבוניות",
+    });
+    if (ok) setPurchaseOrder(next);
   };
 
   const toggleSummarize = async (checked) => {
@@ -508,6 +525,36 @@ const CustomerBillingPanel = ({
             </p>
           )}
         </div>
+      )}
+
+      {/* ── מספר הזמנת רכש ── מודפס בהערות של כל חשבונית ללקוח */}
+      {editing ? (
+        <div>
+          <p className="text-sm font-medium mb-1">מספר הזמנת רכש</p>
+          <input
+            type="text"
+            autoComplete="off"
+            dir="ltr"
+            value={purchaseOrder}
+            disabled={saving}
+            onChange={(e) => setPurchaseOrder(e.target.value)}
+            onBlur={savePurchaseOrder}
+            className="w-full text-sm px-3 py-2 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700"
+          />
+          <span className="block text-xs text-gray-500 mt-1">
+            יודפס על כל חשבונית ללקוח. כשהלקוח שולח מספר חדש — לעדכן כאן לפני
+            ההפקה. ריק = לא מודפס.
+          </span>
+        </div>
+      ) : (
+        purchaseOrder && (
+          <div>
+            <p className="text-sm font-medium">מספר הזמנת רכש</p>
+            <p className="text-sm text-gray-600 dark:text-gray-300" dir="ltr">
+              {purchaseOrder}
+            </p>
+          </div>
+        )
       )}
     </div>
   );
