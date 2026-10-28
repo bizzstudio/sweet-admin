@@ -167,7 +167,7 @@ const CustomerBillingPanel = ({
     await saveField("summarizeInvoiceLines", checked, {
       onRollback: () => setSummarize(!checked),
       successText: checked
-        ? "החשבונית תרכז לשורת כיבוד ושורת פירות, עם טבלת התעודות"
+        ? "החשבונית תרכז לשורת מזון ושורת פירות, עם טבלת התעודות"
         : "החשבונית תפרט כל מוצר מכל תעודה",
     });
   };
@@ -381,7 +381,7 @@ const CustomerBillingPanel = ({
             <span className="text-sm font-medium">חשבונית מרוכזת</span>
             <span className="block text-xs text-gray-500">
               במקום לפרט כל מוצר, החשבונית מציגה שתי שורות: "ריכוז תעודות משלוח
-              כיבוד" לכל מה שחייב במע"מ ו"ריכוז תעודות משלוח פירות" לפטור. בנספח
+              מזון" לכל מה שחייב במע"מ ו"ריכוז תעודות משלוח פירות" לפטור. בנספח
               — טבלה עם כל תעודות המשלוח שנסגרו, ההערות, התאריכים והסכומים.
               <br />
               חל על החשבונית המרכזת בלבד. חשבונית שמופקת עם משלוח בודד תמיד
@@ -420,7 +420,7 @@ const CustomerBillingPanel = ({
           <p className="text-sm font-medium">צורת החשבונית החודשית</p>
           <p className="text-sm text-gray-600 dark:text-gray-300">
             {summarize
-              ? "שורת כיבוד ושורת פירות + טבלת תעודות"
+              ? "שורת מזון ושורת פירות + טבלת תעודות"
               : mergeProducts
                 ? "פירוט מוצרים — שורה אחת לכל מוצר, עם סך הכמות"
                 : "פירוט מלא של כל המוצרים, שורה לכל תעודה"}
