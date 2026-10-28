@@ -8,6 +8,8 @@
 // 5. החיפוש בכל הקטלוג נפתח רק ב"לבחור מוצר" (או כשאין הצעה),
 //    ובחירה משם נשמרת לפי מק"ט.
 // 6. "לשמור גם לכל הלקוחות" מרחיב בחירה שכבר נשמרה, לשורה הזו בלבד.
+// 7. "כמה מוצרים לשורה הזו" שומר רשימה; כמות שזהה לשורה נשמרת כ"כמו בשורה",
+//    ושורה שכבר נשמרה כרשימה נפתחת על המוצרים השמורים.
 
 import React from "react";
 import { createRoot } from "react-dom/client";
@@ -188,6 +190,76 @@ describe("UnmatchedItemResolver", () => {
       ["o1", { rawName: "פחיות זירו", scope: "customer", sku: "777" }],
       ["o1", { rawName: "פחיות זירו", scope: "global", sku: "777" }],
     ]);
+  });
+
+  const typeInto = async (input, value) => {
+    const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
+    await act(async () => {
+      setter.call(input, value);
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+  };
+  const quantityInputs = () => [...container.querySelectorAll('input[type="number"]')];
+
+  it('"כמה מוצרים": כמות שזהה לשורה נשמרת ככמו-בשורה, ושונה — כקבועה', async () => {
+    IncomingOrderServices.getItemCandidates.mockResolvedValue({ candidates: [], history: [] });
+    await render([ITEMS[0]]);
+    await click(button("כמה מוצרים לשורה הזו"));
+    expect(container.textContent).toContain("המוצרים לשורה הזו");
+    await click(button("בורר"));
+    // הכמות מתחילה בכמות של השורה
+    expect(quantityInputs().map((i) => i.value)).toEqual(["6"]);
+    // אותו מוצר פעמיים נשאר שורה אחת
+    await click(button("בורר"));
+    expect(quantityInputs().length).toBe(1);
+
+    await click(button("שמירה"));
+    expect(IncomingOrderServices.resolveItem).toHaveBeenLastCalledWith("o1", {
+      rawName: "פחיות זירו",
+      scope: "customer",
+      products: [{ sku: "777", quantity: null }],
+    });
+
+    await click(button("לשנות"));
+    await click(button("כמה מוצרים לשורה הזו"));
+    // נפתח על מה שנשמר הרגע
+    await typeInto(quantityInputs()[0], "2");
+    await click(button("שמירה"));
+    expect(IncomingOrderServices.resolveItem).toHaveBeenLastCalledWith("o1", {
+      rawName: "פחיות זירו",
+      scope: "customer",
+      products: [{ sku: "777", quantity: 2 }],
+    });
+  });
+
+  it("שורה שכבר נשמרה ככמה מוצרים נפתחת על הרשימה השמורה", async () => {
+    IncomingOrderServices.getItemCandidates.mockResolvedValue({
+      candidates: [],
+      history: [],
+      currentAlias: {
+        products: [
+          { productId: "p1", sku: "1", title: "מזלגות", quantity: null },
+          { productId: "p2", sku: "2", title: "צלחות גדולות", quantity: 3 },
+        ],
+      },
+    });
+    await render([ITEMS[0]]);
+    await click(button("כמה מוצרים לשורה הזו"));
+    expect(container.textContent).toContain("מזלגות");
+    expect(quantityInputs().map((i) => i.value)).toEqual(["6", "3"]);
+
+    await click(button("בורר"));
+    await click(button("שמירת 3 המוצרים"));
+    expect(IncomingOrderServices.resolveItem).toHaveBeenLastCalledWith("o1", {
+      rawName: "פחיות זירו",
+      scope: "customer",
+      products: [
+        { productId: "p1", quantity: null },
+        { productId: "p2", quantity: 3 },
+        { sku: "777", quantity: null },
+      ],
+    });
+    expect(container.textContent).toContain("נבחרו 3 מוצרים");
   });
 
   it("שמירה לכל הלקוחות שנכשלה משאירה את השורה שמורה ללקוח הזה", async () => {

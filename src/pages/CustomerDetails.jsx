@@ -36,6 +36,7 @@ import CustomerErpPanel, {
   CustomerErpStats,
 } from "@/components/customer/CustomerErpPanel";
 import CustomerHistoryPanel from "@/components/customer/CustomerHistoryPanel";
+import CustomerAliasesPanel from "@/components/customer/CustomerAliasesPanel";
 import CustomerPriceListPanel from "@/components/customer/CustomerPriceListPanel";
 import CustomerBillingPanel from "@/components/billing/CustomerBillingPanel";
 import CustomerBalancePanel from "@/components/billing/CustomerBalancePanel";
@@ -407,6 +408,11 @@ const CustomerDetails = () => {
               customerId={customer._id}
               customerName={fullName}
             />
+
+            {/* ההכרעות "כשהלקוח כותב X הוא מתכוון ל-Y" שנשמרו ממסך ההזמנה.
+                ליד ההיסטוריה, כי שתיהן קובעות איזה מוצר נכנס כשהשם עמום —
+                ההיסטוריה מתוך מה שהוא קונה, וההכרעה מתוך מה שאדם קבע */}
+            <CustomerAliasesPanel customerId={customer._id} />
 
             {/* כסף שנשאר ללקוח מתשלום עודף, או חוב מתשלום חסר. מעל הגדרות
                 החיוב כי זו השאלה שנשאלת כשהלקוח מתקשר: "כמה נשאר לי אצלכם" */}

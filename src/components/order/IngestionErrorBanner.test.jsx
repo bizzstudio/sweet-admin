@@ -4,6 +4,8 @@
 // 1. ההודעה המקורית של הלקוח סגורה, ונפתחת בלחיצה.
 // 2. "סיום — עדכון ההזמנה" נעול עד שכל השורות אושרו, ואז בונה את ההזמנה מחדש.
 // 3. "לאשר בלי השורות האלה" נשאר זמין כל הזמן.
+// 4. ברירת המחדל מפיקה תעודה; ביטול הסימון שולח issueDeliveryNote: false
+//    גם בעדכון וגם באישור, כדי שתיקון הזמנה לא ידפיס תעודה בלי שביקשו.
 
 import React from "react";
 import { createRoot } from "react-dom/client";
@@ -89,12 +91,45 @@ describe("IngestionErrorBanner — שורות שלא זוהו", () => {
     expect(container.textContent).toContain("2 מתוך 2");
 
     await click(button("סיום"));
-    expect(IncomingOrderServices.retryFromOrder).toHaveBeenCalledWith("o1");
+    expect(IncomingOrderServices.retryFromOrder).toHaveBeenCalledWith("o1", {
+      issueDeliveryNote: true,
+    });
   });
 
   it('"לאשר בלי השורות האלה" זמין גם לפני שהשורות אושרו', async () => {
     IncomingOrderServices.approveErrorOrder.mockResolvedValue({ message: "אושרה" });
     await click(button("לאשר את ההזמנה בלי השורות האלה"));
-    expect(IncomingOrderServices.approveErrorOrder).toHaveBeenCalledWith("o1");
+    expect(IncomingOrderServices.approveErrorOrder).toHaveBeenCalledWith("o1", {
+      issueDeliveryNote: true,
+    });
+  });
+
+  const noteCheckbox = () =>
+    [...container.querySelectorAll("label")]
+      .find((l) => l.textContent.includes("להפיק תעודת משלוח"))
+      ?.querySelector("input");
+
+  it("ביטול הסימון — העדכון נשלח בלי תעודת משלוח", async () => {
+    expect(noteCheckbox().checked).toBe(true);
+    await click(noteCheckbox());
+    expect(noteCheckbox().checked).toBe(false);
+    expect(container.textContent).toContain("ההזמנה תתעדכן בלי תעודה");
+
+    await click(button("אשר הכל"));
+    await click(button("סיום"));
+    expect(IncomingOrderServices.retryFromOrder).toHaveBeenCalledWith("o1", {
+      issueDeliveryNote: false,
+    });
+  });
+
+  it("ביטול הסימון — האישור נשלח בלי תעודה ולא מחפש תעודה להדפסה", async () => {
+    const BillingServices = (await import("@/services/BillingServices")).default;
+    IncomingOrderServices.approveErrorOrder.mockResolvedValue({ message: "אושרה" });
+    await click(noteCheckbox());
+    await click(button("לאשר את ההזמנה בלי השורות האלה"));
+    expect(IncomingOrderServices.approveErrorOrder).toHaveBeenCalledWith("o1", {
+      issueDeliveryNote: false,
+    });
+    expect(BillingServices.getDeliveryNoteByOrder).not.toHaveBeenCalled();
   });
 });

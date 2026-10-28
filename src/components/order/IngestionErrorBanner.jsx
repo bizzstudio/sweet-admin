@@ -9,6 +9,13 @@
 //
 // חשוב: אישור חייב לעבור מכאן ולא משינוי סטטוס ידני, כי שינוי סטטוס במערכת
 // אינו מוריד מלאי (המלאי יורד רק ב-WebHook של Cardcom).
+//
+// "להפיק תעודת משלוח עכשיו" — שתי הפעולות מכניסות את ההזמנה ל"טופלה", וזה
+// מפיק תעודה ושולח אותה מיד למדפסת. מי שרק מתקנת הזמנה לא תמיד רוצה נייר
+// באותו רגע, ולכן אפשר לבטל את הסימון. מסומן כברירת מחדל ואינו נזכר בין
+// הזמנות בכוונה: הזמנה בלי תעודה לא תחויב בסוף החודש, וויתור על התעודה צריך
+// להיות החלטה על ההזמנה הזו ולא הגדרה ששוכחים שהיא דלוקה. התעודה מופקת אחר
+// כך בכפתור "הפק תעודת משלוח" שבכרטיס התעודה במסך ההזמנה.
 
 import React, { useEffect, useRef, useState } from "react";
 import { useHistory } from "react-router-dom";
@@ -56,6 +63,8 @@ const IngestionErrorBanner = ({ order, onChanged }) => {
   const [doneCount, setDoneCount] = useState(0);
   // ההודעה המקורית של הלקוח נפתחת רק בלחיצה
   const [showMessage, setShowMessage] = useState(false);
+  // האם האישור / העדכון יפיקו תעודת משלוח (ראה בראש הקובץ)
+  const [issueNote, setIssueNote] = useState(true);
   // ההזמנה שמוצגת כרגע. החיפוש אחרי התעודה נמשך כמה שניות, ובזמן הזה אפשר
   // לעבור להזמנה אחרת — שלא תקבל הצעה להדפיס תעודה שאינה שלה
   const shownOrderId = useRef(order?._id);
@@ -76,9 +85,13 @@ const IngestionErrorBanner = ({ order, onChanged }) => {
   const handleApprove = async () => {
     setBusy("approve");
     try {
-      const res = await IncomingOrderServices.approveErrorOrder(order._id);
+      const res = await IncomingOrderServices.approveErrorOrder(order._id, {
+        issueDeliveryNote: issueNote,
+      });
       notifySuccess(res.message);
       if (onChanged) onChanged();
+      // לא הופקה תעודה — אין מה להציע להדפיס
+      if (!issueNote) return;
       // בלי await: האישור כבר הצליח, והכפתור לא צריך להמתין לתעודה
       const approvedId = order._id;
       findOrderNote(approvedId).then((note) => {
@@ -102,12 +115,15 @@ const IngestionErrorBanner = ({ order, onChanged }) => {
     setPrintOffer(null);
     setDoneCount(0);
     setShowMessage(false);
+    setIssueNote(true);
   }, [order?._id]);
 
   const handleRetry = async () => {
     setBusy("retry");
     try {
-      const res = await IncomingOrderServices.retryFromOrder(order._id);
+      const res = await IncomingOrderServices.retryFromOrder(order._id, {
+        issueDeliveryNote: issueNote,
+      });
       notifySuccess(res.message);
       // ההזמנה הנוכחית נמחקה בהרצה החוזרת — אין למה לחזור אליה
       if (res.newOrderId) {
@@ -279,6 +295,22 @@ const IngestionErrorBanner = ({ order, onChanged }) => {
                   {busy === "retry" ? "מריץ..." : "קרא שוב מההודעה"}
                 </Button>
               </>
+            )}
+            <label className="basis-full flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={issueNote}
+                onChange={(e) => setIssueNote(e.target.checked)}
+                disabled={Boolean(busy)}
+                className="w-4 h-4 rounded"
+              />
+              להפיק תעודת משלוח ולשלוח להדפסה עכשיו
+            </label>
+            {!issueNote && (
+              <p className="basis-full -mt-2 text-xs text-gray-500 dark:text-gray-400">
+                ההזמנה תתעדכן בלי תעודה. אפשר להפיק אותה אחר כך בכפתור "הפק תעודת
+                משלוח" במסך ההזמנה — עד אז ההזמנה לא תחויב.
+              </p>
             )}
           </div>
         )}

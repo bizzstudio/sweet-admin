@@ -49,13 +49,15 @@ const IncomingOrderServices = {
 
   // אישור ההזמנה: מעביר ל"בטיפול" ומוריד מלאי.
   // חייב לעבור מכאן ולא משינוי סטטוס ידני — שינוי סטטוס לא מוריד מלאי.
-  approveErrorOrder: async (orderId) => {
-    return requests.post(`/incoming-orders/order/${orderId}/approve`);
+  // ‏{ issueDeliveryNote: false } — לאשר בלי שתופק (ותודפס) תעודת משלוח
+  approveErrorOrder: async (orderId, body = {}) => {
+    return requests.post(`/incoming-orders/order/${orderId}/approve`, body);
   },
 
-  // הרצה חוזרת של ההודעה המקורית (מוחקת את הזמנת השגיאה ויוצרת חדשה)
-  retryFromOrder: async (orderId) => {
-    return requests.post(`/incoming-orders/order/${orderId}/retry`);
+  // הרצה חוזרת של ההודעה המקורית (מוחקת את הזמנת השגיאה ויוצרת חדשה).
+  // אותו body כמו באישור: חל על ההזמנה התקינה, אם ההרצה יוצרת כזו
+  retryFromOrder: async (orderId, body = {}) => {
+    return requests.post(`/incoming-orders/order/${orderId}/retry`, body);
   },
 
   // ── לימוד: "כשהלקוח כותב X הוא מתכוון למוצר Y" ──

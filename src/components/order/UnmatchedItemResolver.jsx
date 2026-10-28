@@ -18,13 +18,25 @@
 //
 // הסיבה הטכנית לכשל אינה מוצגת: היא ארוכה ואינה עוזרת לבחור. היא נשארת
 // ב-title של השם, למי שרוצה לדעת.
+//
+// ── שורה אחת, כמה מוצרים ──
+//
+// "חד פעמי סכו"ם וצלחות" אינו מוצר אחד אלא מזלגות, סכינים, כפות וצלחות בשני
+// גדלים. "כמה מוצרים לשורה הזו" פותח רשימה (AliasProductsEditor), וכל המוצרים
+// נשמרים כהכרעה אחת: מהפעם הבאה השורה נפרשת אליהם לבד. לשורה שכבר נשמרה כך
+// הרשימה נפתחת על המוצרים השמורים, ולא מדף ריק.
 
 import React, { useEffect, useRef, useState } from "react";
-import { FiCheck, FiSearch, FiSlash, FiUsers, FiX } from "react-icons/fi";
+import { FiCheck, FiLayers, FiSearch, FiSlash, FiUsers, FiX } from "react-icons/fi";
 
 import { notifyError } from "@/utils/toast";
 import IncomingOrderServices from "@/services/IncomingOrderServices";
 import ProductPicker from "@/components/billing/ProductPicker";
+import AliasProductsEditor, {
+  describeRows,
+  toAliasProducts,
+  toEditorRows,
+} from "@/components/order/AliasProductsEditor";
 
 // הזמנות שנקלטו לפני שהקליטה שמרה suggestions מחזיקות את ההצעות רק בתוך
 // טקסט הסיבה: ‎...את "סוכר לבן בצנצנת 1 ק"ג" (1613) — צריך לאשר..., ובכמה
@@ -108,6 +120,11 @@ const UnmatchedItemResolver = ({ orderId, items = [], onProgress }) => {
   // שורות שהבחירה בהן הורחבה לכל הלקוחות. נשמר גם אחרי "לשנות": בחירה חדשה
   // בשורה כזו חייבת להחליף גם את ההכרעה הגורפת, אחרת היא נשארת על הישנה.
   const [globalRows, setGlobalRows] = useState({});
+  // index → רשימת המוצרים במצב "כמה מוצרים". קיום המפתח = המצב פתוח בשורה.
+  const [multiRows, setMultiRows] = useState({});
+  // index → המוצרים של הכרעה שכבר נשמרה לשורה (כשיש יותר מאחד) — נטען יחד
+  // עם ההעדפות, כדי לפתוח את "כמה מוצרים" על מה שכבר נשמר
+  const [savedMulti, setSavedMulti] = useState({});
   // ההעדפות וההכרעות נשמרות לפי מספר שורה, ותשובה שמגיעה אחרי מעבר להזמנה
   // אחרת הייתה נוחתת על השורה באותו מספר בהזמנה החדשה
   const shownOrderId = useRef(orderId);
@@ -119,6 +136,8 @@ const UnmatchedItemResolver = ({ orderId, items = [], onProgress }) => {
     setPreferred({});
     setSearching(null);
     setGlobalRows({});
+    setMultiRows({});
+    setSavedMulti({});
   }, [orderId]);
 
   const doneCount = Object.keys(resolved).length;
@@ -136,6 +155,18 @@ const UnmatchedItemResolver = ({ orderId, items = [], onProgress }) => {
       .then((res) => {
         if (shownOrderId.current === forOrder) {
           setPreferred((prev) => ({ ...prev, [index]: toPreferred(res) }));
+          const saved = res?.currentAlias?.products || [];
+          if (saved.length > 1) {
+            setSavedMulti((prev) => ({ ...prev, [index]: saved }));
+            // הרשימה כבר פתוחה וריקה — ממלאים אותה במה שנשמר. רשימה שהעובד
+            // כבר התחיל למלא אינה נדרסת.
+            const quantity = items[index]?.quantity ?? 1;
+            setMultiRows((prev) =>
+              prev[index] && !prev[index].length
+                ? { ...prev, [index]: toEditorRows(saved, quantity) }
+                : prev
+            );
+          }
         }
       })
       // ההעדפה היא תוספת — בלעדיה הבורר עדיין מחפש בכל הקטלוג
@@ -160,10 +191,13 @@ const UnmatchedItemResolver = ({ orderId, items = [], onProgress }) => {
       if (shownOrderId.current === forOrder) {
         setResolved((prev) => ({ ...prev, [index]: { ...result, body } }));
         setSearching((current) => (current === index ? null : current));
+        closeMulti(index);
         if (global) setGlobalRows((prev) => ({ ...prev, [index]: true }));
       }
+      return true;
     } catch (e) {
       notifyError(e?.response?.data?.message || e.message);
+      return false;
     } finally {
       setSaving(null);
     }
@@ -182,6 +216,36 @@ const UnmatchedItemResolver = ({ orderId, items = [], onProgress }) => {
     const done = resolved[index];
     if (done) save(index, rawName, done.body, done, true);
   };
+  // ── "כמה מוצרים לשורה הזו" ──
+  const openMulti = (index, rawName) => {
+    const quantity = items[index]?.quantity ?? 1;
+    setMultiRows((prev) => ({
+      ...prev,
+      [index]: savedMulti[index] ? toEditorRows(savedMulti[index], quantity) : [],
+    }));
+    setSearching((current) => (current === index ? null : current));
+    loadPreferred(index, rawName);
+  };
+  const closeMulti = (index) =>
+    setMultiRows((prev) => {
+      const next = { ...prev };
+      delete next[index];
+      return next;
+    });
+  const saveMulti = async (index, rawName) => {
+    const rows = multiRows[index] || [];
+    if (!rows.length) return;
+    const quantity = items[index]?.quantity ?? 1;
+    const ok = await save(
+      index,
+      rawName,
+      { products: toAliasProducts(rows, quantity) },
+      { title: describeRows(rows), count: rows.length }
+    );
+    // "לשנות" ואחריו "כמה מוצרים" נפתח על מה שנשמר עכשיו, לא על דף ריק
+    if (ok) setSavedMulti((prev) => ({ ...prev, [index]: rows }));
+  };
+
   const reopen = (index) =>
     setResolved((prev) => {
       const next = { ...prev };
@@ -198,6 +262,7 @@ const UnmatchedItemResolver = ({ orderId, items = [], onProgress }) => {
         const suggestions = suggestionsOf(item);
         // בלי הצעה אין על מה לשאול "האם" — החיפוש פתוח מההתחלה
         const showSearch = searching === index || !suggestions.length;
+        const multi = multiRows[index];
 
         return (
           <li
@@ -247,6 +312,11 @@ const UnmatchedItemResolver = ({ orderId, items = [], onProgress }) => {
                     <span className="text-emerald-800 dark:text-emerald-200">
                       {done.ignored ? (
                         "סומן שזו לא שורת מוצר"
+                      ) : done.count > 1 ? (
+                        <>
+                          {`נבחרו ${done.count} מוצרים: `}
+                          <span className="font-semibold">{done.title}</span>
+                        </>
                       ) : (
                         <>
                           נבחר: <span className="font-semibold">{done.title}</span>
@@ -283,6 +353,50 @@ const UnmatchedItemResolver = ({ orderId, items = [], onProgress }) => {
                     )}
                   </div>
                 </div>
+              ) : multi ? (
+                <div data-item-search className="scroll-mt-3">
+                  <div className="mb-1 text-sm font-medium text-gray-700 dark:text-gray-200">
+                    המוצרים לשורה הזו:
+                  </div>
+                  <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">
+                    כל מוצר ייכנס להזמנה כשורה נפרדת, ומהפעם הבאה השורה תיפרש אליהם לבד.
+                    כמות שנשארת כמו בשורה תתעדכן לפי מה שהלקוח יכתוב.
+                  </p>
+                  <AliasProductsEditor
+                    rows={multi}
+                    onChange={(rows) => setMultiRows((prev) => ({ ...prev, [index]: rows }))}
+                    lineQuantity={item.quantity ?? 1}
+                    disabled={busy}
+                    preferred={preferred[index]}
+                    preferredLabel="מתאימים לשורה"
+                    onMenuOpen={scrollSearchUp}
+                    inlineMenu={isPhone()}
+                  />
+                  <div className="mt-2 flex flex-wrap items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => saveMulti(index, rawName)}
+                      disabled={busy || !multi.length}
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-400 disabled:opacity-50"
+                    >
+                      <FiCheck className="w-4 h-4" />
+                      {saving === index
+                        ? "שומר..."
+                        : multi.length > 1
+                          ? `שמירת ${multi.length} המוצרים`
+                          : "שמירה"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => closeMulti(index)}
+                      disabled={busy}
+                      className="inline-flex items-center gap-1 text-sm text-gray-600 hover:text-gray-900 dark:text-gray-300"
+                    >
+                      <FiX className="w-4 h-4" />
+                      ביטול
+                    </button>
+                  </div>
+                </div>
               ) : showSearch ? (
                 <div data-item-search className="scroll-mt-3">
                   <div className="mb-1.5 text-sm font-medium text-gray-700 dark:text-gray-200">
@@ -314,6 +428,7 @@ const UnmatchedItemResolver = ({ orderId, items = [], onProgress }) => {
                         חזרה להצעה
                       </button>
                     )}
+                    <MultiButton onClick={() => openMulti(index, rawName)} disabled={busy} />
                     <IgnoreButton onClick={() => ignore(index, rawName)} disabled={busy} />
                   </div>
                 </div>
@@ -353,6 +468,7 @@ const UnmatchedItemResolver = ({ orderId, items = [], onProgress }) => {
                       <FiSearch className="w-4 h-4" />
                       לבחור מוצר
                     </button>
+                    <MultiButton onClick={() => openMulti(index, rawName)} disabled={busy} />
                     <IgnoreButton onClick={() => ignore(index, rawName)} disabled={busy} />
                   </div>
                 </div>
@@ -364,6 +480,19 @@ const UnmatchedItemResolver = ({ orderId, items = [], onProgress }) => {
     </ol>
   );
 };
+
+const MultiButton = ({ onClick, disabled }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    disabled={disabled}
+    title={'למשל "סכו״ם וצלחות" — כמה מוצרים, כל אחד בשורה משלו'}
+    className="inline-flex items-center gap-1 text-sm text-gray-600 hover:text-gray-900 disabled:opacity-50 dark:text-gray-300 dark:hover:text-gray-100"
+  >
+    <FiLayers className="w-4 h-4" />
+    כמה מוצרים לשורה הזו
+  </button>
+);
 
 const IgnoreButton = ({ onClick, disabled }) => (
   <button
