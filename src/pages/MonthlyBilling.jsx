@@ -23,7 +23,8 @@ import {
   TableHeader,
   TableRow,
 } from "@windmill/react-ui";
-import { FiAlertTriangle, FiCheckCircle, FiExternalLink, FiEye } from "react-icons/fi";
+import { Link } from "react-router-dom";
+import { FiAlertTriangle, FiCheckCircle, FiExternalLink, FiEye, FiList } from "react-icons/fi";
 import { notifyError, notifySuccess } from "@/utils/toast";
 
 import PageTitle from "@/components/Typography/PageTitle";
@@ -655,16 +656,32 @@ const MonthlyBilling = () => {
                           )}
                         </TableCell>
                         <TableCell>
-                          {inv.url && (
-                            <a
-                              href={inv.url}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="text-blue-600 hover:underline flex items-center gap-1"
-                            >
-                              צפייה <FiExternalLink />
-                            </a>
-                          )}
+                          <div className="flex items-center gap-3">
+                            {inv.url && (
+                              <a
+                                href={inv.url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-blue-600 hover:underline flex items-center gap-1"
+                              >
+                                צפייה <FiExternalLink />
+                              </a>
+                            )}
+                            {/* הנספח של החשבונית — טבלת התעודות שהיא סגרה, עם
+                                ההערה של כל תעודה. ישר מסגירת החודש, בלי לחפש
+                                את החשבונית ברשימה (בקשת המנהלת, 28/10/2026) */}
+                            {inv.docNum && (
+                              <Link
+                                to={(loc) => ({
+                                  pathname: `/invoice-summary/${encodeURIComponent(inv.docNum)}`,
+                                  state: { from: loc.pathname + loc.search },
+                                })}
+                                className="text-blue-600 hover:underline flex items-center gap-1"
+                              >
+                                <FiList /> ריכוז תעודות
+                              </Link>
+                            )}
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))

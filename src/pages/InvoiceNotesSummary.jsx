@@ -7,7 +7,11 @@
 //
 //   כותרת עם שם החברה ומספר העוסק
 //   שורת זיהוי: מספר חשבונית - תאריך - שם הלקוח - מספר לקוח - סך ללא מע"מ
-//   טבלה: מספר תעודה | מספר הזמנה | תאריך | סכום ללא מעמ
+//   טבלה: מספר תעודה | הערה | תאריך | סכום ללא מעמ
+//
+// עמודת "הערה" באה *במקום* עמודת "מספר הזמנה" שבמסמך של מנוע, לבקשת
+// המנהלת (28/10/2026): ההערה שכתבה על התעודה ("כיבוד קומה 23", "חד פעמי
+// קומה 23") היא מה שהלקוח מפריד לפיו, ומספר ההזמנה לא אמר לו דבר.
 //   סיכום: סך ללא מעמ
 //
 // למה דף נפרד ולא הכל על החשבונית: החשבונית היא מסמך מס ב-iCount וגוף
@@ -52,19 +56,6 @@ const dayAndTime = (d) => {
     "he-IL",
     { timeZone: "Asia/Jerusalem", hour12: false }
   )}`;
-};
-
-/**
- * מה מופיע בעמודת "מספר הזמנה".
- *
- * במסמך של מנוע העמודה הזו נושאת גם תווית סוג ("זיכוי") ולא רק מספר.
- * אצלנו אין הזמנה לתעודה ידנית, ובמקומה מוצג מספר הפנקס — זה מה שהלקוח
- * מחזיק ביד, וזו ההצלבה היחידה שיש לתעודה כזו.
- */
-const orderCell = (note) => {
-  if (note.orderNumber) return String(note.orderNumber);
-  if (note.manualReference) return `פנקס ${note.manualReference}`;
-  return note.kind === "manual" ? "ידנית" : "—";
 };
 
 const InvoiceNotesSummary = () => {
@@ -157,34 +148,44 @@ const InvoiceNotesSummary = () => {
               <p className="text-sm underline mt-1">{headline}</p>
             </div>
 
-            <table className="mt-6 text-sm border border-gray-400">
+            {/* רוחב מלא: עמודת ההערה מקבלת את כל המקום שנשאר, וכך הערה
+                ארוכה נשברת לכמה שורות בתוך התא במקום למתוח את הטבלה מעבר
+                לדף */}
+            <table className="mt-6 w-full text-sm border border-gray-400">
               <thead>
                 <tr className="border-b border-gray-400">
                   <th className="text-right py-1 px-3 border-l border-gray-400 font-normal">
                     מספר תעודה
                   </th>
                   <th className="text-right py-1 px-3 border-l border-gray-400 font-normal">
-                    מספר הזמנה
+                    הערה
                   </th>
                   <th className="text-right py-1 px-3 border-l border-gray-400 font-normal">
                     תאריך
                   </th>
-                  <th className="text-right py-1 px-3 font-normal">סכום ללא מעמ</th>
+                  <th className="text-right py-1 px-3 font-normal whitespace-nowrap">
+                    סכום ללא מעמ
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {data.notes.map((n) => (
                   <tr key={n._id} className="border-b border-gray-300">
-                    <td className="py-1 px-3 border-l border-gray-400 font-mono">
+                    <td className="py-1 px-3 border-l border-gray-400 font-mono align-top whitespace-nowrap">
                       {n.number}
                     </td>
-                    <td className="py-1 px-3 border-l border-gray-400">
-                      {orderCell(n)}
+                    <td className="py-1 px-3 border-l border-gray-400 align-top whitespace-pre-wrap break-words">
+                      {String(n.notes || "").trim()}
                     </td>
-                    <td className="py-1 px-3 border-l border-gray-400" dir="ltr">
+                    <td
+                      className="py-1 px-3 border-l border-gray-400 align-top whitespace-nowrap text-right"
+                      dir="ltr"
+                    >
                       {dayAndTime(n.issuedAt)}
                     </td>
-                    <td className="py-1 px-3">{shekel(n.total ?? n.netTotal)}</td>
+                    <td className="py-1 px-3 align-top whitespace-nowrap">
+                      {shekel(n.total ?? n.netTotal)}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -192,10 +193,12 @@ const InvoiceNotesSummary = () => {
 
             {/* משלוח והנחה אינם קיימים במסמך של מנוע כי שם הם לא נשלחו
                 לחשבונית. אצלנו הם כן, ולכן שורת הסיכום חייבת להסביר את
-                ההפרש בין סכום התעודות לסכום שעל החשבונית */}
+                ההפרש בין סכום התעודות לסכום שעל החשבונית.
+                בלי המילה "שורות" (בקשת המנהלת, 28/10/2026): היא לא מתעניינת
+                בשורות, ו"מוצרים" הוא מה ששורות הריכוז בחשבונית מסכמות */}
             {(data.totals.shipping > 0 || data.totals.discount > 0) && (
               <p className="mt-4 text-xs text-gray-600">
-                מתוכם: שורות {shekel(data.totals.itemsTotal)} ₪
+                הסכום כולל: מוצרים {shekel(data.totals.itemsTotal)} ₪
                 {data.totals.shipping > 0 && ` · משלוח ${shekel(data.totals.shipping)} ₪`}
                 {data.totals.discount > 0 && ` · הנחה ${shekel(data.totals.discount)} ₪`}
               </p>
