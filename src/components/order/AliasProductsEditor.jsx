@@ -7,67 +7,43 @@
 // לראשונה, ובכרטיס הלקוח (CustomerAliasesPanel), כשחוזרים להכרעה כדי להוסיף
 // או להסיר מוצר. הרכיב רק מציג ועורך את הרשימה; השמירה אצל מי שמשתמש בו.
 //
-// ── הכמות ──
+// ── אין כמות ברשימה ──
 //
-// ריק = "כמו בשורה": הכמות שהלקוח יכתוב בכל הזמנה. זו ברירת המחדל, כי מי
-// שכותב "סכו"ם 3" מתכוון בדרך כלל ל-3 מכל אחד. מספר = כמות קבועה למוצר הזה.
-//
-// במסך ההזמנה השדה מתחיל בכמות של השורה, כדי שיהיה ברור מה ייכנס להזמנה
-// הנוכחית. כמות שנשארה זהה לשורה נשמרת כ"כמו בשורה" (ראה toAliasProducts),
-// אחרת "סכו"ם 3" של היום היה נשמר כ-3 קבוע גם להזמנה של 10 בשבוע הבא.
+// כל מוצר נכנס בכמות שהלקוח כתב בשורה. המנהלת (28/10/26): "פעם שלושה
+// שרוולים, פעם עשרה — בשום דבר זה לא קבוע". כמות שהייתה נשמרת כאן הייתה
+// נכפית על כל הזמנה עתידית; כמות אחרת להזמנה מסוימת מתקנים ב"עריכת פריטים".
 
 import React from "react";
 import { FiTrash2 } from "react-icons/fi";
 
 import ProductPicker from "@/components/billing/ProductPicker";
 
-// שורה ברשימה: { sku, productId?, title, quantity: string }. מפתח השורה הוא
+// שורה ברשימה: { sku, productId?, title }. מפתח השורה הוא
 // המק"ט כשיש, אחרת מזהה המוצר (מוצר שנמחק מהקטלוג מגיע בלי מק"ט)
 const rowKey = (row) => String(row.sku || row.productId);
 
-/**
- * מוצרים מהשרת (‎{ productId, sku, title, quantity }‎) → שורות לעריכה.
- * ‏lineQuantity — כשיש שורה מולה (מסך ההזמנה), "כמו בשורה" מוצג כמספר שלה.
- */
-export const toEditorRows = (products = [], lineQuantity = null) =>
+/** מוצרים מהשרת (‎{ productId, sku, title }‎) → שורות לעריכה. */
+export const toEditorRows = (products = []) =>
   products.map((p) => ({
     productId: p.productId || null,
     sku: p.sku || null,
     title: p.title || "",
     missing: Boolean(p.missing),
-    quantity:
-      p.quantity !== null && p.quantity !== undefined
-        ? String(p.quantity)
-        : lineQuantity
-          ? String(lineQuantity)
-          : "",
   }));
 
 /**
  * שורות → מה שנשלח לשרת. מוצר עם מק"ט נשלח לפי מק"ט (כך הבורר מזהה מוצרים),
  * ומוצר שנטען מהשרת בלי מק"ט — לפי המזהה שלו.
  */
-export const toAliasProducts = (rows, lineQuantity = null) =>
-  rows.map((row) => {
-    const n = Number(row.quantity);
-    const fixed =
-      row.quantity !== "" && Number.isFinite(n) && n > 0 && !(lineQuantity && n === Number(lineQuantity))
-        ? n
-        : null;
-    return {
-      ...(row.productId ? { productId: row.productId } : { sku: row.sku }),
-      quantity: fixed,
-    };
-  });
+export const toAliasProducts = (rows) =>
+  rows.map((row) => (row.productId ? { productId: row.productId } : { sku: row.sku }));
 
-// תיאור קצר לתצוגה אחרי שמירה ובכרטיס הלקוח: "מזלגות ×6, צלחות ×כמו בשורה"
-export const describeRows = (rows) =>
-  rows.map((row) => `${row.title}${row.quantity ? ` ×${row.quantity}` : ""}`).join(", ");
+// תיאור קצר לתצוגה אחרי שמירה: "מזלגות, סכינים, כפיות"
+export const describeRows = (rows) => rows.map((row) => row.title).join(", ");
 
 const AliasProductsEditor = ({
   rows,
   onChange,
-  lineQuantity = null,
   disabled = false,
   preferred,
   preferredLabel,
@@ -82,16 +58,13 @@ const AliasProductsEditor = ({
         productId: null,
         sku: String(sku),
         title: product?.name || product?.title || String(sku),
-        quantity: lineQuantity ? String(lineQuantity) : "",
       },
     ]);
   };
   const remove = (key) => onChange(rows.filter((row) => rowKey(row) !== key));
-  const setQuantity = (key, quantity) =>
-    onChange(rows.map((row) => (rowKey(row) === key ? { ...row, quantity } : row)));
 
   return (
-    // ‏Enter בשדה כמות היה שולח את הטופס שהרכיב יושב בתוכו (כרטיס הלקוח הוא
+    // ‏Enter בשדה החיפוש היה שולח את הטופס שהרכיב יושב בתוכו (כרטיס הלקוח הוא
     // טופס אחד גדול) — כלומר שומר את הלקוח באמצע עריכה של משהו אחר
     <div
       onKeyDown={(e) => {
@@ -113,21 +86,6 @@ const AliasProductsEditor = ({
                     <span className="mr-1 text-xs font-normal text-red-600">(נמחק מהקטלוג — להסיר)</span>
                   )}
                 </span>
-                <label className="flex items-center gap-1.5 text-sm text-gray-600 dark:text-gray-300">
-                  כמות
-                  <input
-                    type="number"
-                    min="1"
-                    step="any"
-                    inputMode="decimal"
-                    value={row.quantity}
-                    onChange={(e) => setQuantity(key, e.target.value)}
-                    placeholder="כמו בשורה"
-                    aria-label={`כמות של ${row.title}`}
-                    disabled={disabled}
-                    className="w-24 rounded-md border border-gray-300 bg-white px-2 py-1 text-sm focus:border-gray-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200"
-                  />
-                </label>
                 <button
                   type="button"
                   onClick={() => remove(key)}

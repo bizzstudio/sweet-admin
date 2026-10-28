@@ -160,10 +160,9 @@ const UnmatchedItemResolver = ({ orderId, items = [], onProgress }) => {
             setSavedMulti((prev) => ({ ...prev, [index]: saved }));
             // הרשימה כבר פתוחה וריקה — ממלאים אותה במה שנשמר. רשימה שהעובד
             // כבר התחיל למלא אינה נדרסת.
-            const quantity = items[index]?.quantity ?? 1;
             setMultiRows((prev) =>
               prev[index] && !prev[index].length
-                ? { ...prev, [index]: toEditorRows(saved, quantity) }
+                ? { ...prev, [index]: toEditorRows(saved) }
                 : prev
             );
           }
@@ -218,10 +217,9 @@ const UnmatchedItemResolver = ({ orderId, items = [], onProgress }) => {
   };
   // ── "כמה מוצרים לשורה הזו" ──
   const openMulti = (index, rawName) => {
-    const quantity = items[index]?.quantity ?? 1;
     setMultiRows((prev) => ({
       ...prev,
-      [index]: savedMulti[index] ? toEditorRows(savedMulti[index], quantity) : [],
+      [index]: savedMulti[index] ? toEditorRows(savedMulti[index]) : [],
     }));
     setSearching((current) => (current === index ? null : current));
     loadPreferred(index, rawName);
@@ -235,11 +233,10 @@ const UnmatchedItemResolver = ({ orderId, items = [], onProgress }) => {
   const saveMulti = async (index, rawName) => {
     const rows = multiRows[index] || [];
     if (!rows.length) return;
-    const quantity = items[index]?.quantity ?? 1;
     const ok = await save(
       index,
       rawName,
-      { products: toAliasProducts(rows, quantity) },
+      { products: toAliasProducts(rows) },
       { title: describeRows(rows), count: rows.length }
     );
     // "לשנות" ואחריו "כמה מוצרים" נפתח על מה שנשמר עכשיו, לא על דף ריק
@@ -359,13 +356,12 @@ const UnmatchedItemResolver = ({ orderId, items = [], onProgress }) => {
                     המוצרים לשורה הזו:
                   </div>
                   <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">
-                    כל מוצר ייכנס להזמנה כשורה נפרדת, ומהפעם הבאה השורה תיפרש אליהם לבד.
-                    כמות שנשארת כמו בשורה תתעדכן לפי מה שהלקוח יכתוב.
+                    כל מוצר ייכנס להזמנה כשורה נפרדת, בכמות שהלקוח כתב בשורה. מהפעם הבאה
+                    השורה תיפרש אליהם לבד.
                   </p>
                   <AliasProductsEditor
                     rows={multi}
                     onChange={(rows) => setMultiRows((prev) => ({ ...prev, [index]: rows }))}
-                    lineQuantity={item.quantity ?? 1}
                     disabled={busy}
                     preferred={preferred[index]}
                     preferredLabel="מתאימים לשורה"

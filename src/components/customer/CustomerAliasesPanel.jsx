@@ -218,9 +218,6 @@ const CustomerAliasesPanel = ({ customerId }) => {
                           }`}
                         >
                           {p.missing ? "מוצר שנמחק מהקטלוג" : p.title}
-                          <span className="opacity-75">
-                            {p.quantity ? `× ${p.quantity}` : "· כמו בשורה"}
-                          </span>
                           {p.hidden && <span className="text-orange-600">(מוסתר)</span>}
                         </span>
                       ))}

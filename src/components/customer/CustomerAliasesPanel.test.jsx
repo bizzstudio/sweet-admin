@@ -2,7 +2,7 @@
 // לחזור להכרעה שנשמרה ממסך ההזמנה ולהוסיף לה מוצר.
 //
 // מה שנשמר כאן:
-// 1. ההכרעות מוצגות עם המוצרים והכמות ("כמו בשורה" כשאין כמות קבועה).
+// 1. ההכרעות מוצגות עם המוצרים (בלי כמות — כל מוצר נכנס בכמות שבשורה).
 // 2. עריכה מוסיפה מוצר ושולחת את כל הרשימה; מוצר קיים נשלח לפי המזהה שלו.
 // 3. מחיקה עוברת דרך אישור, ונשלחת רק אחריו.
 
@@ -77,13 +77,12 @@ afterEach(() => {
 });
 
 describe("CustomerAliasesPanel", () => {
-  it("מציג את ההכרעה עם המוצרים והכמויות", async () => {
+  it("מציג את ההכרעה עם המוצרים", async () => {
     await render();
     expect(ProductAliasServices.getCustomerAliases).toHaveBeenCalledWith("c1");
     expect(container.textContent).toContain('חד פעמי סכו"ם וצלחות');
     expect(container.textContent).toContain("מזלגות חד פעמי");
-    expect(container.textContent).toContain("כמו בשורה");
-    expect(container.textContent).toContain("× 2");
+    expect(container.textContent).not.toContain("× 2");
     expect(container.textContent).toContain("שימשה 4 פעמים");
   });
 
@@ -100,9 +99,9 @@ describe("CustomerAliasesPanel", () => {
     await click(button("בורר"));
     await click(button("שמירה"));
     expect(ProductAliasServices.updateAlias).toHaveBeenCalledWith("a1", [
-      { productId: "p1", quantity: null },
-      { productId: "p2", quantity: 2 },
-      { sku: "33", quantity: null },
+      { productId: "p1" },
+      { productId: "p2" },
+      { sku: "33" },
     ]);
     expect(container.textContent).toContain("כפות חד פעמי");
     expect(button("שמירה")).toBeUndefined();
