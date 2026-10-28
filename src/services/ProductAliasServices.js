@@ -8,7 +8,7 @@ const ProductAliasServices = {
     return requests.get(`/product-aliases/customer/${customerId}`);
   },
 
-  // החלפת רשימת המוצרים: products = [{ productId | sku, quantity }], ‏quantity null = כמו בשורה
+  // החלפת רשימת המוצרים: products = [{ productId | sku }] — כל מוצר נכנס בכמות שבשורה
   updateAlias: async (aliasId, products) => {
     return requests.put(`/product-aliases/${aliasId}`, { products });
   },
