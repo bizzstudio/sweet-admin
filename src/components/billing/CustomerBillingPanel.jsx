@@ -29,6 +29,9 @@ const CustomerBillingPanel = ({
   erpDiscountPercent,
 }) => {
   const [split, setSplit] = useState(Boolean(billing?.splitInvoiceByCategory));
+  const [separateDisposables, setSeparateDisposables] = useState(
+    Boolean(billing?.separateDisposablesInvoice)
+  );
   const [summarize, setSummarize] = useState(billing?.summarizeInvoiceLines !== false);
   const [mergeProducts, setMergeProducts] = useState(billing?.mergeInvoiceProducts === true);
   const [discountPercent, setDiscountPercent] = useState(
@@ -45,6 +48,7 @@ const CustomerBillingPanel = ({
 
   useEffect(() => {
     setSplit(Boolean(billing?.splitInvoiceByCategory));
+    setSeparateDisposables(Boolean(billing?.separateDisposablesInvoice));
     setSummarize(billing?.summarizeInvoiceLines !== false);
     setMergeProducts(billing?.mergeInvoiceProducts === true);
     setDiscountPercent(
@@ -246,6 +250,16 @@ const CustomerBillingPanel = ({
       successText: checked
         ? "מעכשיו הלקוח יקבל חשבונית נפרדת לכל קטגוריה"
         : "מעכשיו הלקוח יקבל חשבונית אחת לחודש",
+    });
+  };
+
+  const toggleSeparateDisposables = async (checked) => {
+    setSeparateDisposables(checked);
+    await saveField("separateDisposablesInvoice", checked, {
+      onRollback: () => setSeparateDisposables(!checked),
+      successText: checked
+        ? "מעכשיו החד פעמי יוצא בחשבונית נפרדת"
+        : "מעכשיו החד פעמי נכנס לחשבונית של המזון",
     });
   };
 
@@ -478,6 +492,36 @@ const CustomerBillingPanel = ({
           </p>
         </div>
       )}
+
+      {/* ── חד פעמי בחשבונית נפרדת ── פיצול לפי תעודה שלמה, כמו הפיצול
+          לפי קטגוריה. מיותר כשהפיצול המלא דלוק, ולכן מוסתר אז */}
+      {!split &&
+        (editing ? (
+          <label className="flex items-start gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={separateDisposables}
+              disabled={saving}
+              onChange={(e) => toggleSeparateDisposables(e.target.checked)}
+              className="w-4 h-4 mt-1"
+            />
+            <span>
+              <span className="text-sm font-medium">חד פעמי בחשבונית נפרדת</span>
+              <span className="block text-xs text-gray-500">
+                שתי חשבוניות: אחת למזון ופירות, ואחת לחד פעמי (ח.ניקוי+ח"פ).
+                תעודה שמערבת מזון וחד פעמי נכנסת בשלמותה לחשבונית של מה
+                שרוב הכסף בה — תעודה אחת אינה מתחלקת בין שתי חשבוניות.
+              </span>
+            </span>
+          </label>
+        ) : (
+          separateDisposables && (
+            <div>
+              <p className="text-sm font-medium">חד פעמי</p>
+              <p className="text-sm text-gray-600 dark:text-gray-300">בחשבונית נפרדת</p>
+            </div>
+          )
+        ))}
 
       {/* ── המייל שאליו נשלחות החשבוניות ──
           שדה נפרד מכתובת הכניסה לחנות, שהיא ייחודית במסד: הנהלת חשבונות
