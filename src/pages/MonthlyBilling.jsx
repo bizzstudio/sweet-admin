@@ -114,7 +114,9 @@ const MonthlyBilling = () => {
 
   // סגירה גורפת של חודש שעדיין רץ חסומה בשרת. עדיף להסביר זאת לפני
   // הלחיצה מאשר להחזיר שגיאה אחרי שהתצוגה המקדימה כבר נטענה.
-  const blockedBulkClose = isCurrentMonth && !singleCustomer;
+  // השרת מתיר אותה כשתעודות חדשות כבר מתוארכות לחודש הבא, ומודיע על כך
+  // בתצוגה המקדימה (bulkCloseAllowed).
+  const blockedBulkClose = isCurrentMonth && !singleCustomer && !preview?.bulkCloseAllowed;
 
   useEffect(() => {
     // גם מסלול הכשלון נושא את שני הערכים — מסך שלא הצליח להתחבר עדיין
