@@ -102,6 +102,65 @@ const MenuList = (props) => (
 const SELECT_COMPONENTS = { MenuList };
 
 /**
+ * עיצוב react-select שתואם לשדות Windmill, במצב בהיר וכהה. משותף לבוררי
+ * הלקוח בפאנל.
+ */
+export const pickerStyles = (mode) => ({
+  control: (provided, state) => ({
+    ...provided,
+    minHeight: "42px",
+    backgroundColor: mode === "dark" ? "#374151" : "#f3f4f6",
+    border: mode === "dark" ? "1px solid #4b5563" : "1px solid #e5e7eb",
+    borderColor: state.isFocused ? "var(--main-color)" : provided.borderColor,
+    boxShadow: state.isFocused ? "0 0 0 1px var(--main-color)" : "none",
+  }),
+  menuPortal: (base) => ({ ...base, zIndex: 100 }),
+  menu: (provided) => ({
+    ...provided,
+    backgroundColor: mode === "dark" ? "#1F2937" : "#fff",
+    border: mode === "dark" ? "1px solid #4b5563" : "1px solid #e5e7eb",
+    zIndex: 100,
+  }),
+  menuList: (provided) => ({
+    ...provided,
+    backgroundColor: mode === "dark" ? "#1F2937" : "#fff",
+    paddingTop: 0,
+    paddingBottom: 0,
+  }),
+  option: (provided, state) => ({
+    ...provided,
+    padding: "6px 10px",
+    backgroundColor:
+      mode === "dark"
+        ? state.isFocused
+          ? "#334155"
+          : "#1F2937"
+        : state.isFocused
+        ? "var(--main-color-super-light)"
+        : provided.backgroundColor,
+    color: mode === "dark" ? "#D1D5DB" : state.isFocused ? "#000" : provided.color,
+  }),
+  placeholder: (provided) => ({
+    ...provided,
+    fontSize: "14px",
+    color: mode === "dark" ? "#9ca3af" : "#6b7280",
+  }),
+  input: (provided) => ({
+    ...provided,
+    color: mode === "dark" ? "#D1D5DB" : "#374151",
+  }),
+  singleValue: (provided) => ({
+    ...provided,
+    color: mode === "dark" ? "#D1D5DB" : "#374151",
+  }),
+  noOptionsMessage: (provided) => ({
+    ...provided,
+    backgroundColor: mode === "dark" ? "#1F2937" : "#fff",
+    color: mode === "dark" ? "#D1D5DB" : "#374151",
+  }),
+});
+
+/**
  * @param {string}   value    - מזהה הלקוח הנבחר
  * @param {function} onChange - נקרא עם המזהה החדש ("" כשמנקים)
  */
@@ -156,63 +215,7 @@ export default function CustomerPicker({
       ? `מוצגות ${MAX_OPTIONS} התוצאות הראשונות — כדאי לדייק את החיפוש`
       : `מוצגים ${MAX_OPTIONS} לקוחות מתוך ${customers.length} — יש להקליד שם או מספר לקוח`;
 
-  const styles = useMemo(
-    () => ({
-      control: (provided, state) => ({
-        ...provided,
-        minHeight: "42px",
-        backgroundColor: mode === "dark" ? "#374151" : "#f3f4f6",
-        border: mode === "dark" ? "1px solid #4b5563" : "1px solid #e5e7eb",
-        borderColor: state.isFocused ? "var(--main-color)" : provided.borderColor,
-        boxShadow: state.isFocused ? "0 0 0 1px var(--main-color)" : "none",
-      }),
-      menuPortal: (base) => ({ ...base, zIndex: 100 }),
-      menu: (provided) => ({
-        ...provided,
-        backgroundColor: mode === "dark" ? "#1F2937" : "#fff",
-        border: mode === "dark" ? "1px solid #4b5563" : "1px solid #e5e7eb",
-        zIndex: 100,
-      }),
-      menuList: (provided) => ({
-        ...provided,
-        backgroundColor: mode === "dark" ? "#1F2937" : "#fff",
-        paddingTop: 0,
-        paddingBottom: 0,
-      }),
-      option: (provided, state) => ({
-        ...provided,
-        padding: "6px 10px",
-        backgroundColor:
-          mode === "dark"
-            ? state.isFocused
-              ? "#334155"
-              : "#1F2937"
-            : state.isFocused
-            ? "var(--main-color-super-light)"
-            : provided.backgroundColor,
-        color: mode === "dark" ? "#D1D5DB" : state.isFocused ? "#000" : provided.color,
-      }),
-      placeholder: (provided) => ({
-        ...provided,
-        fontSize: "14px",
-        color: mode === "dark" ? "#9ca3af" : "#6b7280",
-      }),
-      input: (provided) => ({
-        ...provided,
-        color: mode === "dark" ? "#D1D5DB" : "#374151",
-      }),
-      singleValue: (provided) => ({
-        ...provided,
-        color: mode === "dark" ? "#D1D5DB" : "#374151",
-      }),
-      noOptionsMessage: (provided) => ({
-        ...provided,
-        backgroundColor: mode === "dark" ? "#1F2937" : "#fff",
-        color: mode === "dark" ? "#D1D5DB" : "#374151",
-      }),
-    }),
-    [mode]
-  );
+  const styles = useMemo(() => pickerStyles(mode), [mode]);
 
   const formatOptionLabel = useCallback((c, meta) => {
     const number = customerNumberOf(c);

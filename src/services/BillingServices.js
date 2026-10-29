@@ -141,12 +141,14 @@ const BillingServices = {
   //
   // emailDocument אינו נשלח כברירת מחדל: השרת שולח כל חשבונית ללקוח במייל,
   // ושליחת false מכאן הייתה מבטלת את זה בשקט. הוא עובר רק כשמישהו בחר במפורש.
-  closeMonth: async ({ month, customer, notes, emailDocument }) => {
+  closeMonth: async ({ month, customer, notes, emailDocument, remarks }) => {
     return requests.post("/billing/month/close", {
       confirm: true,
       month,
       customer,
       notes: notes?.length ? notes : undefined,
+      // הערה שמודפסת על החשבונית; נשלחת רק כשהוקלדה
+      remarks: remarks?.trim() || undefined,
       ...(typeof emailDocument === "boolean" ? { emailDocument } : {}),
     });
   },

@@ -9,7 +9,8 @@
 //   לקוח בודד  — הפקה נקודתית, גם באמצע החודש, ועם בחירה אילו תעודות
 //                ייכנסו לחשבונית. מה שלא נבחר נשאר פתוח ויחויב בסגירת החודש.
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useContext, useEffect, useMemo, useState } from "react";
+import ReactSelect from "react-select";
 import {
   Button,
   Card,
@@ -22,6 +23,7 @@ import {
   TableContainer,
   TableHeader,
   TableRow,
+  WindmillContext,
 } from "@windmill/react-ui";
 import { Link } from "react-router-dom";
 import { FiAlertTriangle, FiCheckCircle, FiExternalLink, FiEye, FiList } from "react-icons/fi";
@@ -30,6 +32,7 @@ import { notifyError, notifySuccess } from "@/utils/toast";
 import PageTitle from "@/components/Typography/PageTitle";
 import DemoModeBanner from "@/components/common/DemoModeBanner";
 import BillingServices from "@/services/BillingServices";
+import { pickerStyles } from "@/components/billing/CustomerPicker";
 
 import TableHeaderCell from "@/components/table/TableHeaderCell";
 const monthKey = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
@@ -73,6 +76,8 @@ const MonthlyBilling = () => {
   // שמתחילה כבויה בזמן שהמדיניות שולחת הייתה מפסיקה את השליחה בשקט, ותיבה
   // שמתחילה דלוקה בזמן שהמדיניות כבויה הייתה מדליקה שליחה שכיבו בכוונה.
   const [emailDocument, setEmailDocument] = useState(true);
+  // הערה שתודפס על החשבונית ("כיבוד אוכל חד פעמי") — ללקוח בודד בלבד
+  const [remarks, setRemarks] = useState("");
   const [result, setResult] = useState(null);
   const [confirmed, setConfirmed] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -80,6 +85,29 @@ const MonthlyBilling = () => {
   // כשהשרת מחובר לחשבון דמו הסגירה חסומה בצד השרת. בלי הבדיקה הזאת
   // הכפתור נראה זמין והלחיצה מחזירה שגיאה שנראית כמו תקלה
   const [demoMode, setDemoMode] = useState(false);
+
+  const { mode } = useContext(WindmillContext);
+  const selectStyles = useMemo(() => pickerStyles(mode), [mode]);
+  // האפשרות הראשונה היא "כל הלקוחות" (id ריק). search מחזיק רק את מספר
+  // הלקוח ואת שמו: התווית כוללת גם מספר תעודות וסכום, וחיפוש "4" היה
+  // מוצא כל לקוח עם ארבע תעודות.
+  const customerOptions = useMemo(
+    () => [
+      { id: "", label: `כל הלקוחות (${openCustomers.length})`, search: "" },
+      ...openCustomers.map((c) => {
+        const number = String(c.customerNumber ?? "").trim();
+        const name = c.name || "ללא שם";
+        return {
+          id: c.id,
+          label: `${number ? `${number} — ` : ""}${name} (${c.noteCount} תעודות · ${shekel(
+            c.netTotal
+          )} ₪)`,
+          search: `${number} ${name}`.toLowerCase(),
+        };
+      }),
+    ],
+    [openCustomers]
+  );
 
   const isCurrentMonth = month === currentMonth;
   const singleCustomer = Boolean(customer);
@@ -108,6 +136,8 @@ const MonthlyBilling = () => {
     setSelected([]);
     setResult(null);
     setConfirmed(false);
+    // הערה שהוקלדה ללקוח אחד לא עוברת ללקוח אחר
+    setRemarks("");
   };
 
   // הלקוחות שיש להם תעודות פתוחות בחודש הנבחר. נטענים עם המסך ובכל
@@ -251,6 +281,7 @@ const MonthlyBilling = () => {
         // המקדימה שהוצגה על המסך נשלחים לחיוב
         notes: singleCustomer && !oversized ? selectedNotes.map((n) => n.id) : undefined,
         emailDocument,
+        remarks: singleCustomer ? remarks : undefined,
       });
       // נשמר עם התוצאה: בלעדיו חשבונית שבחרו לא לשלוח הייתה מסומנת
       // "אין מייל תקין", כאילו נכשלה השליחה
@@ -258,6 +289,7 @@ const MonthlyBilling = () => {
       setPreview(null);
       setSelected([]);
       setConfirmed(false);
+      setRemarks("");
       notifySuccess(res.message);
       // תעודות שחויבו ירדו מהרשימה — הבורר חייב לשקף זאת
       loadOpenCustomers(month).then(setOpenCustomers);
@@ -303,25 +335,40 @@ const MonthlyBilling = () => {
             </div>
 
             <div className="flex-1 min-w-64">
-              <Label>
+              {/* react-select מחוץ ל-<label>: לחיצה בתוך label מועברת לשדה
+                  ומפריעה לפתיחה ולסגירה של התפריט */}
+              <Label htmlFor="billing-customer">
                 <span>לקוח</span>
-                <Select
-                  className="mt-1"
-                  value={customer}
-                  onChange={(e) => {
-                    setCustomer(e.target.value);
-                    resetPreview();
-                  }}
-                >
-                  <option value="">כל הלקוחות ({openCustomers.length})</option>
-                  {openCustomers.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.customerNumber ? `${c.customerNumber} — ` : ""}
-                      {c.name} ({c.noteCount} תעודות · {shekel(c.netTotal)} ₪)
-                    </option>
-                  ))}
-                </Select>
               </Label>
+              {/* בורר עם הקלדה: מאות לקוחות ברשימה אחת, ומי שמכיר את
+                  הלקוח בשם או במספר מגיע אליו בלי לגלול */}
+              <ReactSelect
+                className="mt-1"
+                inputId="billing-customer"
+                value={customerOptions.find((o) => o.id === customer) || customerOptions[0]}
+                onChange={(opt) => {
+                  setCustomer(opt?.id || "");
+                  resetPreview();
+                }}
+                options={customerOptions}
+                getOptionValue={(o) => o.id}
+                getOptionLabel={(o) => o.label}
+                // כל מילה שהוקלדה צריכה להופיע, בכל סדר: "טבולה 553" מוצא
+                // את "553 — טבולה קום"
+                filterOption={(opt, input) =>
+                  input
+                    .trim()
+                    .toLowerCase()
+                    .split(/\s+/)
+                    .every((t) => opt.data.search.includes(t))
+                }
+                styles={selectStyles}
+                placeholder="הקלידי שם או מספר לקוח..."
+                noOptionsMessage={() => "לא נמצא לקוח עם תעודות פתוחות בחודש הזה"}
+                menuPortalTarget={document.body}
+                menuPosition="fixed"
+                menuPlacement="auto"
+              />
             </div>
 
             <Button layout="outline" onClick={loadPreview} disabled={loading}>
@@ -554,6 +601,23 @@ const MonthlyBilling = () => {
                     הפקה חלקית: {notes.length - selectedNotes.length} תעודות לא נבחרו
                     ויישארו פתוחות. הן ייכנסו לחשבונית בסגירת החודש.
                   </p>
+                )}
+
+                {singleCustomer && (
+                  <label className="mt-4 block">
+                    <span className="text-sm font-medium">הערה לחשבונית (לא חובה)</span>
+                    <textarea
+                      value={remarks}
+                      onChange={(e) => setRemarks(e.target.value)}
+                      maxLength={500}
+                      rows={2}
+                      placeholder="למשל: כיבוד אוכל חד פעמי"
+                      className="mt-1 block w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 p-2 text-sm"
+                    />
+                    <span className="block text-xs text-gray-500">
+                      מודפסת בחשבונית מתחת לסיכום. כשהחשבונית מפוצלת — על כל אחת מהן.
+                    </span>
+                  </label>
                 )}
 
                 <label className="mt-4 flex items-center gap-2 cursor-pointer">
