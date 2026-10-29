@@ -24,8 +24,9 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useParams, useLocation, Link } from "react-router-dom";
 import ReactToPrint from "react-to-print";
+import * as XLSX from "xlsx";
 import { Button, Card, CardBody } from "@windmill/react-ui";
-import { FiPrinter } from "react-icons/fi";
+import { FiDownload, FiPrinter } from "react-icons/fi";
 
 import PageTitle from "@/components/Typography/PageTitle";
 import Loading from "@/components/preloader/Loading";
@@ -56,6 +57,68 @@ const dayAndTime = (d) => {
     "he-IL",
     { timeZone: "Asia/Jerusalem", hour12: false }
   )}`;
+};
+
+// אותה הורדה כמו בדוח הרכישות — ראה שם למה Blob ולא writeFile
+const downloadWorkbook = (book, fileName) => {
+  const buffer = XLSX.write(book, { bookType: "xlsx", type: "array" });
+  const url = URL.createObjectURL(
+    new Blob([buffer], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    })
+  );
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+};
+
+/**
+ * אותו דף בדיוק, כגיליון: כותרת, שורת זיהוי, הטבלה והסיכום — כדי שמי
+ * שמקבל את האקסל יראה את מה שמודפס, רק עם סכומים שאפשר לחשב עליהם.
+ * הסכומים נשמרים כמספרים (לא כטקסט מעוצב) בשביל אותו חישוב.
+ */
+const exportNotesExcel = ({ data, companyName, vatNumber, headline }) => {
+  const rows = [
+    [companyName],
+    ...(vatNumber ? [[`עוסק מורשה: ${vatNumber}`]] : []),
+    [headline],
+    [],
+    ["מספר תעודה", "הערה", "תאריך", "סכום ללא מעמ"],
+  ];
+  const firstNoteRow = rows.length;
+  data.notes.forEach((n) => {
+    rows.push([
+      n.number,
+      String(n.notes || "").trim(),
+      dayAndTime(n.issuedAt),
+      Number(n.total ?? n.netTotal ?? 0),
+    ]);
+  });
+  rows.push([]);
+  if (data.totals.shipping > 0 || data.totals.discount > 0) {
+    rows.push(["מוצרים", "", "", Number(data.totals.itemsTotal || 0)]);
+    if (data.totals.shipping > 0) rows.push(["משלוח", "", "", Number(data.totals.shipping)]);
+    if (data.totals.discount > 0) rows.push(["הנחה", "", "", Number(data.totals.discount)]);
+  }
+  rows.push(["סך ללא מעמ", "", "", Number(data.totals.net || 0)]);
+
+  const sheet = XLSX.utils.aoa_to_sheet(rows);
+  sheet["!cols"] = [{ wch: 14 }, { wch: 40 }, { wch: 20 }, { wch: 14 }];
+  // שתי ספרות אחרי הנקודה, כמו בדף המודפס
+  for (let r = firstNoteRow; r < rows.length; r += 1) {
+    const cell = sheet[XLSX.utils.encode_cell({ r, c: 3 })];
+    if (cell && cell.t === "n") cell.z = "#,##0.00";
+  }
+
+  const book = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(book, sheet, "פירוט תעודות");
+  // גיליון מימין לשמאל, כמו הדף
+  book.Workbook = { Views: [{ RTL: true }] };
+  downloadWorkbook(book, `פירוט-תעודות-${data.docNum}.xlsx`);
 };
 
 const InvoiceNotesSummary = () => {
@@ -121,6 +184,15 @@ const InvoiceNotesSummary = () => {
               צפייה בחשבונית ב-iCount
             </a>
           )}
+          <Button
+            layout="outline"
+            onClick={() =>
+              exportNotesExcel({ data, companyName, vatNumber, headline })
+            }
+          >
+            <FiDownload className="ml-2" />
+            <span className="text-black dark:text-gray-200">שמירה כאקסל</span>
+          </Button>
           <ReactToPrint
             trigger={() => (
               <Button>
