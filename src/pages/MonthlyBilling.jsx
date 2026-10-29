@@ -615,7 +615,7 @@ const MonthlyBilling = () => {
                       maxLength={500}
                       rows={2}
                       placeholder="למשל: כיבוד אוכל חד פעמי"
-                      className="mt-1 block w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 p-2 text-sm"
+                      className="mt-1 block w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 dark:text-gray-300 p-2 text-sm"
                     />
                     <span className="block text-xs text-gray-500">
                       מודפסת בחשבונית מתחת לסיכום. כשהחשבונית מפוצלת — על כל אחת מהן.
