@@ -32,6 +32,7 @@ const CustomerBillingPanel = ({
   const [separateDisposables, setSeparateDisposables] = useState(
     Boolean(billing?.separateDisposablesInvoice)
   );
+  const [separateFruit, setSeparateFruit] = useState(Boolean(billing?.separateFruitInvoice));
   const [summarize, setSummarize] = useState(billing?.summarizeInvoiceLines !== false);
   const [mergeProducts, setMergeProducts] = useState(billing?.mergeInvoiceProducts === true);
   const [discountPercent, setDiscountPercent] = useState(
@@ -49,6 +50,7 @@ const CustomerBillingPanel = ({
   useEffect(() => {
     setSplit(Boolean(billing?.splitInvoiceByCategory));
     setSeparateDisposables(Boolean(billing?.separateDisposablesInvoice));
+    setSeparateFruit(Boolean(billing?.separateFruitInvoice));
     setSummarize(billing?.summarizeInvoiceLines !== false);
     setMergeProducts(billing?.mergeInvoiceProducts === true);
     setDiscountPercent(
@@ -260,6 +262,16 @@ const CustomerBillingPanel = ({
       successText: checked
         ? "מעכשיו החד פעמי יוצא בחשבונית נפרדת"
         : "מעכשיו החד פעמי נכנס לחשבונית של המזון",
+    });
+  };
+
+  const toggleSeparateFruit = async (checked) => {
+    setSeparateFruit(checked);
+    await saveField("separateFruitInvoice", checked, {
+      onRollback: () => setSeparateFruit(!checked),
+      successText: checked
+        ? "מעכשיו הפירות יוצאים בחשבונית נפרדת"
+        : "מעכשיו הפירות נכנסים לחשבונית של המזון",
     });
   };
 
@@ -518,6 +530,35 @@ const CustomerBillingPanel = ({
           separateDisposables && (
             <div>
               <p className="text-sm font-medium">חד פעמי</p>
+              <p className="text-sm text-gray-600 dark:text-gray-300">בחשבונית נפרדת</p>
+            </div>
+          )
+        ))}
+
+      {/* ── פירות בחשבונית נפרדת ── אותו פיצול, לפירות. יחד עם החד פעמי
+          הנפרד — שלוש חשבוניות */}
+      {!split &&
+        (editing ? (
+          <label className="flex items-start gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={separateFruit}
+              disabled={saving}
+              onChange={(e) => toggleSeparateFruit(e.target.checked)}
+              className="w-4 h-4 mt-1"
+            />
+            <span>
+              <span className="text-sm font-medium">פירות בחשבונית נפרדת</span>
+              <span className="block text-xs text-gray-500">
+                שתי חשבוניות: אחת לפירות וירקות, ואחת לכל השאר (מזון וחד פעמי
+                יחד). תעודה מעורבת נכנסת בשלמותה לחשבונית של מה שרוב הכסף בה.
+              </span>
+            </span>
+          </label>
+        ) : (
+          separateFruit && (
+            <div>
+              <p className="text-sm font-medium">פירות</p>
               <p className="text-sm text-gray-600 dark:text-gray-300">בחשבונית נפרדת</p>
             </div>
           )
