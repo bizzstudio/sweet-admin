@@ -331,7 +331,9 @@ const Invoices = () => {
             )}
           </TableCell>
           <TableCell>
-            <div className="flex items-center gap-3">
+            {/* שתי עמודות ולא שורה אחת: ארבעה כפתורים בשורה הרחיבו את
+                הטבלה מעבר למסך במחשב נייד, ו"זיכוי" נדחק מחוץ לתצוגה */}
+            <div className="grid grid-cols-2 gap-x-4 gap-y-1 justify-items-start">
               {!inv.isPaid && (
                 <button
                   onClick={() => openPayment(inv)}
