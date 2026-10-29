@@ -3,7 +3,8 @@
 // מה שהן שומרות עליו:
 // 1. בקשה אחת לכל לקוח, עם התעודות שהוצגו לו בלבד.
 // 2. לקוח שנכשל לא עוצר את האחרים, ומי שהופק יוצא מהריצה הבאה.
-// 3. בלי אישור מפורש לא מופק דבר, ולקוח שהוסר מהבחירה לא נשלח.
+// 3. לקוח מפוצל שחלק מהחשבוניות שלו נכשלו נשאר לריצה חוזרת, רק על מה שנכשל.
+// 4. בלי אישור מפורש לא מופק דבר, ולקוח שהוסר מהבחירה לא נשלח.
 
 import React from "react";
 import { createRoot } from "react-dom/client";
@@ -19,11 +20,26 @@ import BillingServices from "@/services/BillingServices";
 import ConsolidatedCreditPanel from "./ConsolidatedCreditPanel";
 
 const PREVIEW = {
-  notesCount: 3,
-  total: 300,
+  notesCount: 4,
+  total: 400,
   customers: [
-    { customerId: "c1", name: "אלף", notes: [{ _id: "n1", number: 9001 }, { _id: "n2", number: 9002 }], total: 200 },
-    { customerId: "c2", name: "בית", notes: [{ _id: "n3", number: 9003 }], total: 100 },
+    {
+      customerId: "c1",
+      name: "אלף",
+      notes: [{ _id: "n1", number: 9001 }, { _id: "n2", number: 9002 }],
+      invoices: [{ label: null, notes: [9001, 9002], lines: 3, total: 200 }],
+      total: 200,
+    },
+    {
+      customerId: "c2",
+      name: "בית",
+      notes: [{ _id: "n3", number: 9003 }, { _id: "n4", number: 9004 }],
+      invoices: [
+        { label: "מזון", notes: [9003], lines: 1, total: 120 },
+        { label: "חד פעמי", notes: [9004], lines: 2, total: 80 },
+      ],
+      total: 200,
+    },
   ],
 };
 
@@ -57,22 +73,56 @@ afterEach(async () => {
 });
 
 describe("ConsolidatedCreditPanel", () => {
+  it("shows a split customer's invoices separately", async () => {
+    await render();
+    expect(container.textContent).toContain("חד פעמי: 1 תעודות · 2 שורות");
+    expect(button("הפק 3 חשבוניות זיכוי")).toBeTruthy();
+  });
+
   it("issues one request per customer and keeps going after a failure", async () => {
     BillingServices.issueConsolidatedCredit
       .mockRejectedValueOnce({ response: { data: { message: "חשבונית 2100 קטנה מדי" } } })
-      .mockResolvedValueOnce({ creditDocNum: "7001", emailedTo: "b@x.co" });
+      .mockResolvedValueOnce({
+        docs: [
+          { label: "מזון", creditDocNum: "7001", emailedTo: "b@x.co" },
+          { label: "חד פעמי", creditDocNum: "7002", emailedTo: "b@x.co" },
+        ],
+        errors: [],
+      });
     const onIssued = vi.fn();
     await render({ onIssued });
 
-    await click(button("הפק 2 חשבוניות זיכוי"));
+    await click(button("הפק 3 חשבוניות זיכוי"));
 
     expect(BillingServices.issueConsolidatedCredit).toHaveBeenNthCalledWith(1, "c1", ["n1", "n2"]);
-    expect(BillingServices.issueConsolidatedCredit).toHaveBeenNthCalledWith(2, "c2", ["n3"]);
+    expect(BillingServices.issueConsolidatedCredit).toHaveBeenNthCalledWith(2, "c2", ["n3", "n4"]);
     expect(onIssued).toHaveBeenCalled();
     expect(container.textContent).toContain("חשבונית 2100 קטנה מדי");
-    expect(container.textContent).toContain("חשבונית זיכוי 7001");
+    expect(container.textContent).toContain("חשבונית זיכוי 7002 (חד פעמי)");
     // ריצה חוזרת תנסה רק את מי שנכשל
     expect(button("הפק 1 חשבוניות זיכוי")).toBeTruthy();
+  });
+
+  it("keeps a partly-issued customer for a retry of the failed part only", async () => {
+    BillingServices.issueConsolidatedCredit.mockResolvedValueOnce({ docs: [], errors: [] });
+    BillingServices.issueConsolidatedCredit.mockResolvedValueOnce({
+      docs: [{ label: "מזון", creditDocNum: "7001" }],
+      errors: [{ label: "חד פעמי", message: "iCount down" }],
+    });
+    await render();
+    await click(button("הפק 3 חשבוניות זיכוי"));
+
+    expect(container.textContent).toContain("חד פעמי: iCount down");
+    expect(button("הפק 1 חשבוניות זיכוי")).toBeTruthy();
+
+    BillingServices.issueConsolidatedCredit.mockResolvedValueOnce({
+      docs: [{ label: "חד פעמי", creditDocNum: "7003" }],
+      errors: [],
+    });
+    await click(button("הפק 1 חשבוניות זיכוי"));
+    expect(BillingServices.issueConsolidatedCredit).toHaveBeenLastCalledWith("c2", ["n3", "n4"]);
+    expect(container.textContent).toContain("חשבונית זיכוי 7001");
+    expect(container.textContent).toContain("חשבונית זיכוי 7003");
   });
 
   it("issues nothing without confirmation, and skips an unchecked customer", async () => {
@@ -83,7 +133,7 @@ describe("ConsolidatedCreditPanel", () => {
     await click(button("הפק 1 חשבוניות זיכוי"));
     expect(BillingServices.issueConsolidatedCredit).not.toHaveBeenCalled();
 
-    BillingServices.issueConsolidatedCredit.mockResolvedValue({ creditDocNum: "7002" });
+    BillingServices.issueConsolidatedCredit.mockResolvedValue({ docs: [{ creditDocNum: "7002" }], errors: [] });
     await click(button("הפק 1 חשבוניות זיכוי"));
     expect(BillingServices.issueConsolidatedCredit).toHaveBeenCalledTimes(1);
     expect(BillingServices.issueConsolidatedCredit).toHaveBeenCalledWith("c1", ["n1", "n2"]);

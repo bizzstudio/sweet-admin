@@ -1,9 +1,10 @@
 // src/components/billing/ConsolidatedCreditPanel.jsx
 //
-// חשבונית זיכוי מרוכזת: אחת לכל לקוח, על כל תעודות הזיכוי הפתוחות שלו.
+// חשבונית זיכוי מרוכזת: ללקוח, על כל תעודות הזיכוי הפתוחות שלו.
 //
 // נבנה ב-29/10/2026, כשהחשבוניות החודשיות כבר יצאו ו-87 תעודות זיכוי
-// נשארו פתוחות. במקום חשבונית זיכוי ומייל לכל תעודה — מסמך אחד ללקוח.
+// נשארו פתוחות. במקום חשבונית זיכוי ומייל לכל תעודה — מסמך אחד ללקוח,
+// או אחד לכל חלק אצל לקוח שהחשבוניות שלו מפוצלות (חד פעמי לבד וכו').
 //
 // ההפקה רצה לקוח אחרי לקוח, בקשה לכל לקוח, כדי שהמסך יראה מה הופק ומה
 // נכשל. לקוח שנכשל לא עוצר את האחרים, ואפשר להריץ שוב: מה שכבר הופק
@@ -31,10 +32,12 @@ import { notifyError, notifySuccess } from "@/utils/toast";
 const shekel = (n) =>
   Number(n || 0).toLocaleString("he-IL", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+const errorText = (err) => err?.response?.data?.message || err.message;
+
 const ConsolidatedCreditPanel = ({ onClose, onIssued }) => {
   const [data, setData] = useState(null);
   const [selected, setSelected] = useState({});
-  // לפי לקוח: { state: "working" | "done" | "error", text }
+  // לפי לקוח: { state: "working" | "done" | "partial" | "error", docs, errors }
   const [results, setResults] = useState({});
   const [running, setRunning] = useState(false);
 
@@ -45,7 +48,7 @@ const ConsolidatedCreditPanel = ({ onClose, onIssued }) => {
       setSelected(Object.fromEntries(res.customers.map((c) => [c.customerId, true])));
       setResults({});
     } catch (err) {
-      notifyError(err?.response?.data?.message || err.message);
+      notifyError(errorText(err));
     }
   }, []);
 
@@ -57,12 +60,19 @@ const ConsolidatedCreditPanel = ({ onClose, onIssued }) => {
     (c) => selected[c.customerId] && results[c.customerId]?.state !== "done"
   );
   const chosenTotal = chosen.reduce((s, c) => s + c.total, 0);
+  // לקוח שחלק מהחשבוניות שלו כבר הופקו — רק מה שנכשל נשאר להפיק
+  const remainingOf = (c) => {
+    const r = results[c.customerId];
+    return r?.docs?.length ? r.errors.length : c.invoices.length;
+  };
+  const chosenInvoices = chosen.reduce((s, c) => s + remainingOf(c), 0);
 
   const run = async () => {
     if (
       !window.confirm(
-        `להפיק ${chosen.length} חשבוניות זיכוי מרוכזות, בסך ${shekel(chosenTotal)} ₪ כולל מע"מ?\n\n` +
-          `כל לקוח יקבל חשבונית זיכוי אחת במייל. חשבונית זיכוי היא מסמך מס: ` +
+        `להפיק ${chosenInvoices} חשבוניות זיכוי ל-${chosen.length} לקוחות, ` +
+          `בסך ${shekel(chosenTotal)} ₪ כולל מע"מ?\n\n` +
+          `החשבוניות נשלחות ללקוחות במייל. חשבונית זיכוי היא מסמך מס: ` +
           `היא נרשמת בספרים ואי אפשר למחוק אותה.`
       )
     ) {
@@ -71,33 +81,45 @@ const ConsolidatedCreditPanel = ({ onClose, onIssued }) => {
 
     setRunning(true);
     let issued = 0;
+    let failed = 0;
     for (const c of chosen) {
-      setResults((prev) => ({ ...prev, [c.customerId]: { state: "working", text: "מפיק..." } }));
+      setResults((prev) => ({
+        ...prev,
+        [c.customerId]: { state: "working", docs: prev[c.customerId]?.docs || [], errors: [] },
+      }));
       try {
+        // כל התעודות שהוצגו, גם בריצה חוזרת: מה שכבר הופק אינו פתוח ונשאר בחוץ
         const res = await BillingServices.issueConsolidatedCredit(
           c.customerId,
           c.notes.map((n) => n._id)
         );
-        issued++;
+        const errors = res.errors || [];
+        issued += res.docs.length;
+        failed += errors.length;
         setResults((prev) => ({
           ...prev,
           [c.customerId]: {
-            state: "done",
-            text: `חשבונית זיכוי ${res.creditDocNum}`,
-            url: res.url,
-            emailedTo: res.emailedTo,
+            state: errors.length ? "partial" : "done",
+            // מה שהופק בריצה קודמת נשאר מוצג לצד מה שהופק עכשיו
+            docs: [...(prev[c.customerId]?.docs || []), ...res.docs],
+            errors,
           },
         }));
       } catch (err) {
+        failed++;
         setResults((prev) => ({
           ...prev,
-          [c.customerId]: { state: "error", text: err?.response?.data?.message || err.message },
+          [c.customerId]: {
+            state: "error",
+            docs: prev[c.customerId]?.docs || [],
+            errors: [{ message: errorText(err) }],
+          },
         }));
       }
     }
     setRunning(false);
-    if (issued) notifySuccess(`הופקו ${issued} חשבוניות זיכוי מרוכזות`);
-    if (issued < chosen.length) notifyError(`${chosen.length - issued} לקוחות נכשלו — הפירוט בטבלה`);
+    if (issued) notifySuccess(`הופקו ${issued} חשבוניות זיכוי`);
+    if (failed) notifyError(`${failed} חשבוניות זיכוי לא הופקו — הפירוט בטבלה`);
     onIssued?.();
   };
 
@@ -112,8 +134,9 @@ const ConsolidatedCreditPanel = ({ onClose, onIssued }) => {
               חשבונית זיכוי מרוכזת
             </h2>
             <p className="text-sm text-gray-500 mt-1">
-              חשבונית זיכוי אחת לכל לקוח, על כל תעודות הזיכוי שעוד לא הופקה להן חשבונית.
-              כל תעודה מופיעה בחשבונית בשורה משלה.
+              חשבונית זיכוי לכל לקוח, על כל תעודות הזיכוי שעוד לא הופקה להן חשבונית, עם
+              כל המוצרים שזוכו. לקוח שהחשבוניות שלו מפוצלות (למשל חד פעמי לבד) מקבל זיכוי
+              מפוצל באותו אופן.
             </p>
           </div>
           <Button layout="outline" size="small" onClick={onClose} disabled={running}>
@@ -147,7 +170,7 @@ const ConsolidatedCreditPanel = ({ onClose, onIssued }) => {
                       />
                     </TableHeaderCell>
                     <TableHeaderCell>לקוח</TableHeaderCell>
-                    <TableHeaderCell>תעודות זיכוי</TableHeaderCell>
+                    <TableHeaderCell>חשבוניות זיכוי שיופקו</TableHeaderCell>
                     <TableHeaderCell className="text-left">סכום כולל מע"מ</TableHeaderCell>
                     <TableHeaderCell>תוצאה</TableHeaderCell>
                   </tr>
@@ -177,29 +200,40 @@ const ConsolidatedCreditPanel = ({ onClose, onIssued }) => {
                           )}
                         </TableCell>
                         <TableCell className="whitespace-normal max-w-sm">
-                          <span className="font-semibold">{c.notes.length}</span>
-                          <span className="block text-xs text-gray-500 font-mono">
-                            {c.notes.map((n) => n.number).join(", ")}
-                          </span>
+                          {c.invoices.map((inv, i) => (
+                            <span key={i} className="block text-sm">
+                              {inv.label && <span className="font-semibold">{inv.label}: </span>}
+                              {inv.notes.length} תעודות · {inv.lines} שורות · {shekel(inv.total)} ₪
+                              <span className="block text-xs text-gray-500 font-mono">
+                                {inv.notes.join(", ")}
+                              </span>
+                            </span>
+                          ))}
                         </TableCell>
                         <TableCell className="text-left">{shekel(c.total)} ₪</TableCell>
                         <TableCell className="whitespace-normal max-w-xs text-sm">
-                          {r?.state === "done" && (
-                            <span className="text-green-700 dark:text-green-400">
-                              {r.url ? (
-                                <a href={r.url} target="_blank" rel="noreferrer" className="hover:underline">
-                                  {r.text}
+                          {r?.state === "working" && <span className="text-gray-500">מפיק...</span>}
+                          {(r?.docs || []).map((d) => (
+                            <span key={d.creditDocNum} className="block text-green-700 dark:text-green-400">
+                              {d.url ? (
+                                <a href={d.url} target="_blank" rel="noreferrer" className="hover:underline">
+                                  חשבונית זיכוי {d.creditDocNum}
                                 </a>
                               ) : (
-                                r.text
+                                `חשבונית זיכוי ${d.creditDocNum}`
                               )}
+                              {d.label && ` (${d.label})`}
                               <span className="block text-xs text-gray-500">
-                                {r.emailedTo ? `נשלחה ל-${r.emailedTo}` : "לא נשלחה במייל"}
+                                {d.emailedTo ? `נשלחה ל-${d.emailedTo}` : "לא נשלחה במייל"}
                               </span>
                             </span>
-                          )}
-                          {r?.state === "working" && <span className="text-gray-500">{r.text}</span>}
-                          {r?.state === "error" && <span className="text-red-600">{r.text}</span>}
+                          ))}
+                          {(r?.errors || []).map((e, i) => (
+                            <span key={i} className="block text-red-600">
+                              {e.label && `${e.label}: `}
+                              {e.message}
+                            </span>
+                          ))}
                         </TableCell>
                       </TableRow>
                     );
@@ -216,7 +250,7 @@ const ConsolidatedCreditPanel = ({ onClose, onIssued }) => {
               </p>
               <Button onClick={run} disabled={running || !chosen.length}>
                 <MdOutlineReceiptLong className="ml-2" />
-                {running ? "מפיק..." : `הפק ${chosen.length} חשבוניות זיכוי`}
+                {running ? "מפיק..." : `הפק ${chosenInvoices} חשבוניות זיכוי`}
               </Button>
             </div>
           </>
