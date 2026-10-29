@@ -212,6 +212,18 @@ describe("Quotes — מחיר ידני", () => {
     expect(BillingServices.createQuote.mock.calls[0][0].items).toEqual([
       { sku: "A1", quantity: 1 },
     ]);
+    // בקשת הלקוחה (29/10/2026): גם מחיר קטלוג שהתקבל כמו שהוא נשמר במחירון
+    expect(CustomerPriceListServices.upsertItems).toHaveBeenCalledWith("c1", {
+      items: [{ sku: "A1", price: 10 }],
+      applyToGroup: true,
+    });
+  });
+
+  it("מחיר שכבר במחירון ולא שונה אינו נכתב שוב", async () => {
+    await open([pricedRow({ source: "customerPriceList" })]);
+    await type(skuInputs()[0], "A1");
+    await click("חשב מחירים");
+    await click("הפק הצעת מחיר");
     expect(CustomerPriceListServices.upsertItems).not.toHaveBeenCalled();
   });
 
@@ -334,8 +346,12 @@ describe("Quotes — עריכה והקלדה רצופה", () => {
       ],
       notes: "הערה ישנה",
     });
-    // מחירים שלא נגעו בהם אינם נכתבים למחירון: הוא אולי שונה מאז ההצעה
-    expect(CustomerPriceListServices.upsertItems).not.toHaveBeenCalled();
+    // מחיר שלא נגעו בו ושכבר במחירון אינו נכתב: המחירון אולי שונה מאז
+    // ההצעה. מחיר קטלוג נכתב — אין במחירון מה לדרוס
+    expect(CustomerPriceListServices.upsertItems).toHaveBeenCalledWith("c9", {
+      items: [{ sku: "B2", price: 10 }],
+      applyToGroup: true,
+    });
     // הבונה נסגר ומתרוקן
     expect(skuInputs()).toEqual([]);
   });
@@ -540,7 +556,7 @@ describe("Quotes — הפקת תעודה כותבת למחירון", () => {
     expect(CustomerPriceListServices.upsertItems).not.toHaveBeenCalled();
   });
 
-  it("מחיר ידני של מוצר שאינו במחירון נשמר; מוצר שכבר במחירון אינו נדרס", async () => {
+  it("מחיר מההצעה של מוצר שאינו במחירון נשמר; מוצר שכבר במחירון אינו נדרס", async () => {
     BillingServices.getQuotes.mockResolvedValue({
       quotes: [
         {
@@ -581,10 +597,14 @@ describe("Quotes — הפקת תעודה כותבת למחירון", () => {
       items: [
         { sku: "A1", quantity: 1 },
         { sku: "B2", quantity: 1 },
+        { sku: "C3", quantity: 1 },
       ],
     });
     expect(CustomerPriceListServices.upsertItems).toHaveBeenCalledWith("c9", {
-      items: [{ sku: "B2", price: 6 }],
+      items: [
+        { sku: "B2", price: 6 },
+        { sku: "C3", price: 4 },
+      ],
       applyToGroup: true,
     });
   });

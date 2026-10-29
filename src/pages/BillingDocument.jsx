@@ -24,6 +24,7 @@ import { FiArrowRight, FiCopy, FiEdit2, FiFileText, FiPrinter, FiRefreshCw, FiXC
 import { MdOutlineReceiptLong } from "react-icons/md";
 
 import DeliveryNoteEditor from "@/components/billing/DeliveryNoteEditor";
+import { saveQuotePricesOnConvert } from "@/components/billing/quotePriceList";
 
 import PageTitle from "@/components/Typography/PageTitle";
 import Loading from "@/components/preloader/Loading";
@@ -407,9 +408,13 @@ const BillingDocument = () => {
     try {
       const res = await BillingServices.convertQuote(id, { target });
       notifySuccess(res.message);
+      // כמו בהפקה מרשימת ההצעות — עד 29/10/2026 הפקה מכאן לא כתבה למחירון
+      await saveQuotePricesOnConvert(doc);
       history.push(`/delivery-note/${res.note._id}`, keepBack);
     } catch (err) {
       notifyError(err?.response?.data?.message || err.message);
+      // ההמרה יכולה להיכשל אחרי שהתעודה נוצרה (החשבונית נכשלה)
+      if (err?.response?.data?.note) await saveQuotePricesOnConvert(doc);
       await reload();
     } finally {
       setBusy("");
