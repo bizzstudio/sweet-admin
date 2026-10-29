@@ -271,6 +271,15 @@ const BillingServices = {
     return requests.patch(`/billing/credit-notes/${id}/cancel`, { reason });
   },
 
+  // חשבונית זיכוי מרוכזת: התעודות הפתוחות לפי לקוח, והפקה ללקוח אחד
+  getConsolidatedCredit: async () => {
+    return requests.get("/billing/credit-notes/consolidated");
+  },
+
+  issueConsolidatedCredit: async (customerId, noteIds) => {
+    return requests.post(`/billing/credit-notes/consolidated/${customerId}`, { noteIds });
+  },
+
   // --- הצעות מחיר ---
   // תמחור מקדים: מה יעלו הפריטים ללקוח הזה, לפני שמפיקים
   priceItems: async ({ customer, items }) => {

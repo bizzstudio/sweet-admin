@@ -43,6 +43,7 @@ import useCustomerKnownSkus from "@/hooks/useCustomerKnownSkus";
 import CatalogScopeToggle from "@/components/billing/CatalogScopeToggle";
 import ExpectedPrice, { useExpectedPrices } from "@/components/billing/ExpectedPrice";
 import CustomerPicker from "@/components/billing/CustomerPicker";
+import ConsolidatedCreditPanel from "@/components/billing/ConsolidatedCreditPanel";
 import BarcodeInput from "@/components/billing/BarcodeInput";
 import TableLoading from "@/components/preloader/TableLoading";
 import ListPager from "@/components/table/ListPager";
@@ -107,6 +108,7 @@ const CreditNotes = () => {
 
   // null = הטופס סגור; "invoice" / "note" = מה יופק בסופו
   const [mode, setMode] = useState(null);
+  const [consolidated, setConsolidated] = useState(false);
   const [customerId, setCustomerId] = useState("");
   const [invoices, setInvoices] = useState([]);
   const [originalDocNum, setOriginalDocNum] = useState("");
@@ -386,8 +388,15 @@ const CreditNotes = () => {
           <Button onClick={() => openForm("note")} disabled={mode === "note"}>
             <FiPlus className="ml-2" /> תעודת משלוח זיכוי
           </Button>
+          <Button layout="outline" onClick={() => setConsolidated(true)} disabled={consolidated}>
+            <MdOutlineReceiptLong className="ml-2" /> חשבונית זיכוי מרוכזת
+          </Button>
         </div>
       </div>
+
+      {consolidated && (
+        <ConsolidatedCreditPanel onClose={() => setConsolidated(false)} onIssued={load} />
+      )}
 
       {mode && (
         <Card className="min-w-0 shadow-xs overflow-hidden bg-white dark:bg-gray-800 mb-6">
