@@ -98,12 +98,16 @@ const exportNotesExcel = ({ data, companyName, vatNumber, headline }) => {
       Number(n.total ?? n.netTotal ?? 0),
     ]);
   });
+  (data.creditNotes || []).forEach((c) => {
+    rows.push([c.number, `זיכוי: ${String(c.notes || "").trim()}`, dayAndTime(c.issuedAt), -Number(c.total || 0)]);
+  });
   rows.push([]);
   if (data.totals.shipping > 0 || data.totals.discount > 0) {
     rows.push(["מוצרים", "", "", Number(data.totals.itemsTotal || 0)]);
     if (data.totals.shipping > 0) rows.push(["משלוח", "", "", Number(data.totals.shipping)]);
     if (data.totals.discount > 0) rows.push(["הנחה", "", "", Number(data.totals.discount)]);
   }
+  if (data.totals.creditTotal > 0) rows.push(["זיכויים", "", "", -Number(data.totals.creditTotal)]);
   rows.push(["סך ללא מעמ", "", "", Number(data.totals.net || 0)]);
 
   const sheet = XLSX.utils.aoa_to_sheet(rows);
@@ -260,6 +264,26 @@ const InvoiceNotesSummary = () => {
                     </td>
                   </tr>
                 ))}
+                {/* תעודות הזיכוי שנסגרו בחשבונית, במינוס */}
+                {(data.creditNotes || []).map((c) => (
+                  <tr key={c._id} className="border-b border-gray-300">
+                    <td className="py-1 px-3 border-l border-gray-400 font-mono align-top whitespace-nowrap">
+                      {c.number}
+                    </td>
+                    <td className="py-1 px-3 border-l border-gray-400 align-top whitespace-pre-wrap break-words">
+                      זיכוי: {String(c.notes || "").trim()}
+                    </td>
+                    <td
+                      className="py-1 px-3 border-l border-gray-400 align-top whitespace-nowrap text-right"
+                      dir="ltr"
+                    >
+                      {dayAndTime(c.issuedAt)}
+                    </td>
+                    <td className="py-1 px-3 align-top whitespace-nowrap" dir="ltr">
+                      -{shekel(c.total)}
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
 
@@ -273,6 +297,7 @@ const InvoiceNotesSummary = () => {
                 הסכום כולל: מוצרים {shekel(data.totals.itemsTotal)} ₪
                 {data.totals.shipping > 0 && ` · משלוח ${shekel(data.totals.shipping)} ₪`}
                 {data.totals.discount > 0 && ` · הנחה ${shekel(data.totals.discount)} ₪`}
+                {data.totals.creditTotal > 0 && ` · זיכויים ${shekel(data.totals.creditTotal)} ₪`}
               </p>
             )}
 

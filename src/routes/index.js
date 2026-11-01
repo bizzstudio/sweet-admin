@@ -70,6 +70,7 @@ const Receipts = lazy(() => import("@/pages/Receipts"));
 // דוח רכישות לקוחות — מה קנו ובאילו תעודות
 const PurchaseReports = lazy(() => import("@/pages/PurchaseReports"));
 const SummaryReport = lazy(() => import("@/pages/SummaryReport"));
+const DebtReport = lazy(() => import("@/pages/DebtReport"));
 
 /*
 //  * ⚠ These are internal routes!
@@ -243,6 +244,10 @@ const routes = [
   {
     path: "/reports/summary",
     component: SummaryReport,
+  },
+  {
+    path: "/reports/debts",
+    component: DebtReport,
   },
   // מסך הדגמה — פעיל רק כשהשרת מחובר לחשבון דמו (ICOUNT_MODE=demo)
   {

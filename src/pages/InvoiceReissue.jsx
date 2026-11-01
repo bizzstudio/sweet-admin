@@ -434,7 +434,10 @@ const InvoiceReissue = () => {
 
   // הסכום של החשבונית החדשה, לפי מה שמוצג עכשיו על המסך. אומדן ולא
   // הבטחה: ההנחה הקבועה של הלקוח מחושבת בשרת
-  const newNet = kept.reduce((sum, n) => sum + netOf(states[n._id] || initialState(n)), 0);
+  // תעודות הזיכוי שנסגרו בחשבונית נסגרות גם בזו שמחליפה אותה
+  const newNet =
+    kept.reduce((sum, n) => sum + netOf(states[n._id] || initialState(n)), 0) -
+    Number(data?.totals?.creditTotal || 0);
 
   // רק תעודות שנגעו בהן נבדקות: תעודה ישנה עם שורה בלי מק"ט (הזמנה
   // שנקלטה כך פעם) אינה נשלחת לשרת בכלל, וחסימה בגללה הייתה מונעת תיקון

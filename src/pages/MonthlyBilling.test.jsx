@@ -143,4 +143,55 @@ describe("MonthlyBilling — בורר לקוח", () => {
       expect.objectContaining({ customer: "c3" })
     );
   });
+
+  it("תעודות זיכוי: מורידות מהסכום, ונשלחות לפי הסימון", async () => {
+    BillingServices.previewMonth.mockResolvedValue({
+      month: "2026-10",
+      invoicesCreated: 1,
+      customersProcessed: 1,
+      failures: [],
+      results: [
+        {
+          customerId: "c3",
+          invoices: [{ netTotal: 850 }],
+          notes: [
+            { id: "n1", number: 1001, issuedAt: "2026-10-05", netTotal: 1000, categories: [] },
+          ],
+          creditNotes: [
+            { id: "k1", number: 9001, issuedAt: "2026-10-06", reason: "החזרה", total: 150, blocked: null },
+            { id: "k2", number: 9002, issuedAt: "2026-10-07", reason: "גדול", total: 5000, blocked: "הזיכוי גדול מסכום החשבונית" },
+          ],
+        },
+      ],
+    });
+    BillingServices.closeMonth.mockResolvedValue({ message: "ok", results: [], failures: [] });
+
+    await act(async () => {
+      input().focus();
+      typeInto(input(), "קפה");
+    });
+    await act(async () => {
+      document.querySelector('[id^="react-select-"][id*="-option-"]').click();
+    });
+    const button = (text) =>
+      [...container.querySelectorAll("button")].find((b) => b.textContent.includes(text));
+    await act(async () => button("תצוגה מקדימה").click());
+    await flush();
+
+    expect(container.textContent).toContain("-150.00 ₪");
+    expect(container.textContent).toContain("850.00 ₪");
+    expect(container.textContent).toContain("לא תיכנס לחשבונית: הזיכוי גדול מסכום החשבונית");
+    expect(container.querySelector("input[aria-label='תעודת זיכוי 9002']").checked).toBe(false);
+
+    const confirm = [...container.querySelectorAll("label")]
+      .find((l) => l.textContent.includes("בדקתי את הרשימה"))
+      .querySelector("input");
+    await act(async () => confirm.click());
+    await act(async () => button("הפק 1 חשבוניות").click());
+    await flush();
+
+    expect(BillingServices.closeMonth).toHaveBeenCalledWith(
+      expect.objectContaining({ notes: ["n1"], creditNotes: ["k1"] })
+    );
+  });
 });

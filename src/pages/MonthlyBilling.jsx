@@ -72,6 +72,7 @@ const MonthlyBilling = () => {
   const [openCustomers, setOpenCustomers] = useState([]);
   const [preview, setPreview] = useState(null);
   const [selected, setSelected] = useState([]); // מזהי התעודות שסומנו
+  const [selectedCredits, setSelectedCredits] = useState([]); // תעודות הזיכוי שסומנו
   // מצב ההתחלה מגיע מהשרת (BILLING_EMAIL_DOCUMENTS) ואינו מנוחש: תיבה
   // שמתחילה כבויה בזמן שהמדיניות שולחת הייתה מפסיקה את השליחה בשקט, ותיבה
   // שמתחילה דלוקה בזמן שהמדיניות כבויה הייתה מדליקה שליחה שכיבו בכוונה.
@@ -136,6 +137,7 @@ const MonthlyBilling = () => {
   const resetPreview = () => {
     setPreview(null);
     setSelected([]);
+    setSelectedCredits([]);
     setResult(null);
     setConfirmed(false);
     // הערה שהוקלדה ללקוח אחד לא עוברת ללקוח אחר
@@ -179,10 +181,17 @@ const MonthlyBilling = () => {
       // ברירת המחדל היא הכל מסומן. הפקה חלקית היא החריג, ולא מה שקורה
       // כשלוחצים בלי לשים לב
       setSelected((res?.results || []).flatMap((r) => (r.notes || []).map((n) => n.id)));
+      // תעודת זיכוי שלא תיכנס לחשבונית נשארת לא מסומנת, עם הסיבה בשורה שלה
+      setSelectedCredits(
+        (res?.results || []).flatMap((r) =>
+          (r.creditNotes || []).filter((c) => !c.blocked).map((c) => c.id)
+        )
+      );
     } catch (err) {
       notifyError(err?.response?.data?.message || err.message);
       setPreview(null);
       setSelected([]);
+      setSelectedCredits([]);
     } finally {
       setLoading(false);
     }
@@ -192,6 +201,14 @@ const MonthlyBilling = () => {
   // תעודות בודדות מתוך עשרות לקוחות אינו פעולה שמישהו מתכוון אליה.
   const customerResult = singleCustomer ? preview?.results?.[0] : null;
   const notes = customerResult?.notes || [];
+  const credits = customerResult?.creditNotes || [];
+
+  const toggleCredit = (id) => {
+    setConfirmed(false);
+    setSelectedCredits((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
 
   const toggleNote = (id) => {
     setConfirmed(false);
@@ -206,6 +223,7 @@ const MonthlyBilling = () => {
   };
 
   const selectedNotes = notes.filter((n) => selected.includes(n.id));
+  const chosenCredits = credits.filter((c) => selectedCredits.includes(c.id));
   const isPartial =
     singleCustomer && selectedNotes.length > 0 && selectedNotes.length < notes.length;
 
@@ -231,10 +249,11 @@ const MonthlyBilling = () => {
     // הסכום שיופק בפועל: שורות + משלוח - הנחה. עד 30/08/26 המשלוח וההנחה
     // לא נשלחו ל-iCount ולכן לא נספרו כאן; היום הם חלק מהחשבונית, ומספר
     // שמתעלם מהם אינו מה שהלקוח יקבל.
-    const netTotal = selectedNotes.reduce(
-      (s, n) => s + n.netTotal + (n.shippingCost || 0) - (n.discount || 0),
-      0
-    );
+    const netTotal =
+      selectedNotes.reduce(
+        (s, n) => s + n.netTotal + (n.shippingCost || 0) - (n.discount || 0),
+        0
+      ) - chosenCredits.reduce((s, c) => s + c.total, 0);
 
     // לקוח עם פיצול לפי קטגוריה מקבל חשבונית לכל קטגוריה *דומיננטית*
     // (או, עם separateDisposables/separateFruit, חשבונית לחד פעמי ו/או
@@ -252,7 +271,7 @@ const MonthlyBilling = () => {
           : 0;
 
     return { customers: selectedNotes.length ? 1 : 0, invoices, netTotal };
-  }, [preview, singleCustomer, selectedNotes, customerResult]);
+  }, [preview, singleCustomer, selectedNotes, chosenCredits, customerResult]);
 
   const doClose = async () => {
     // הגנה אחרונה. הכפתור אינו מוצג במצב הזה, אבל רשימה ריקה שתגיע לשרת
@@ -285,6 +304,9 @@ const MonthlyBilling = () => {
         // נגזר מ-selectedNotes ולא מ-selected: רק מזהים שקיימים בתצוגה
         // המקדימה שהוצגה על המסך נשלחים לחיוב
         notes: singleCustomer && !oversized ? selectedNotes.map((n) => n.id) : undefined,
+        // גם כאן הרשימה המדויקת, וריקה פירושה שאף זיכוי לא נכנס. בלעדיה
+        // השרת סוגר את כל תעודות הזיכוי הפתוחות של הלקוח
+        creditNotes: singleCustomer ? chosenCredits.map((c) => c.id) : undefined,
         emailDocument,
         remarks: singleCustomer ? remarks : undefined,
       });
@@ -293,6 +315,7 @@ const MonthlyBilling = () => {
       setResult({ ...res, emailDocument });
       setPreview(null);
       setSelected([]);
+      setSelectedCredits([]);
       setConfirmed(false);
       setRemarks("");
       notifySuccess(res.message);
@@ -386,7 +409,8 @@ const MonthlyBilling = () => {
             סגירת חודש אוספת את כל תעודות המשלוח הפתוחות של אותו חודש ומפיקה
             חשבונית מס אחת לכל לקוח. לקוח שמוגדר לו פיצול לפי קטגוריה יקבל
             חשבונית נפרדת לכל קטגוריה. בחירת לקוח מסוים מאפשרת להפיק לו
-            חשבונית גם באמצע החודש, ולבחור אילו תעודות ייכנסו אליה.
+            חשבונית גם באמצע החודש, ולבחור אילו תעודות ייכנסו אליה. תעודות
+            הזיכוי הפתוחות של הלקוח נסגרות בתוך החשבונית ומורידות את הסכום שלה.
           </p>
 
           {blockedBulkClose && (
@@ -506,6 +530,39 @@ const MonthlyBilling = () => {
                       </TableCell>
                     </TableRow>
                   ))}
+                  {/* תעודות הזיכוי באותה טבלה, במינוס: הן חלק מאותה חשבונית */}
+                  {credits.map((c) => (
+                    <TableRow
+                      key={c.id}
+                      className={selectedCredits.includes(c.id) ? "" : "opacity-50"}
+                    >
+                      <TableCell>
+                        <input
+                          type="checkbox"
+                          className="w-4 h-4"
+                          checked={selectedCredits.includes(c.id)}
+                          onChange={() => toggleCredit(c.id)}
+                          aria-label={`תעודת זיכוי ${c.number}`}
+                        />
+                      </TableCell>
+                      <TableCell className="font-mono">{c.number}</TableCell>
+                      <TableCell>זיכוי</TableCell>
+                      <TableCell>—</TableCell>
+                      <TableCell>{shortDate(c.issuedAt)}</TableCell>
+                      <TableCell>—</TableCell>
+                      <TableCell className="whitespace-normal">
+                        {c.note || c.reason}
+                        {c.blocked && (
+                          <span className="block text-xs text-amber-700 dark:text-amber-400">
+                            לא תיכנס לחשבונית: {c.blocked}. תישאר פתוחה לחודש הבא.
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-left text-red-600 dark:text-red-400" dir="ltr">
+                        -{shekel(c.total)} ₪
+                      </TableCell>
+                    </TableRow>
+                  ))}
                 </TableBody>
               </Table>
             </TableContainer>
@@ -521,7 +578,7 @@ const MonthlyBilling = () => {
                     <TableHeaderCell>קטגוריה</TableHeaderCell>
                     <TableHeaderCell className="text-center">תעודות</TableHeaderCell>
                     <TableHeaderCell className="text-center">שורות</TableHeaderCell>
-                    <TableHeaderCell className="text-left">הנחה / משלוח</TableHeaderCell>
+                    <TableHeaderCell className="text-left">הנחה / משלוח / זיכוי</TableHeaderCell>
                     <TableHeaderCell className="text-left">סכום לפני מע"מ</TableHeaderCell>
                   </tr>
                 </TableHeader>
@@ -557,7 +614,12 @@ const MonthlyBilling = () => {
                         <TableCell className="text-left text-xs text-gray-500">
                           {inv.discount > 0 && <div>-{shekel(inv.discount)} ₪ הנחה</div>}
                           {inv.shipping > 0 && <div>+{shekel(inv.shipping)} ₪ משלוח</div>}
-                          {!inv.discount && !inv.shipping && "—"}
+                          {inv.creditTotal > 0 && (
+                            <div>
+                              -{shekel(inv.creditTotal)} ₪ זיכוי ({inv.creditCount})
+                            </div>
+                          )}
+                          {!inv.discount && !inv.shipping && !inv.creditTotal && "—"}
                         </TableCell>
                         <TableCell className="text-left">{shekel(inv.netTotal)} ₪</TableCell>
                       </TableRow>
@@ -717,7 +779,14 @@ const MonthlyBilling = () => {
                         <TableCell>{idx === 0 ? r.customerName : ""}</TableCell>
                         <TableCell>{inv.category || "—"}</TableCell>
                         <TableCell className="font-mono">{inv.docNum}</TableCell>
-                        <TableCell className="text-center">{inv.noteCount}</TableCell>
+                        <TableCell className="text-center">
+                          {inv.noteCount}
+                          {inv.creditNotes?.length > 0 && (
+                            <span className="block text-xs text-gray-500">
+                              + {inv.creditNotes.length} זיכויים
+                            </span>
+                          )}
+                        </TableCell>
                         {/* חשבונית שלא נשלחה קיימת רק ב-iCount והלקוח אינו
                             יודע עליה. זו השורה היחידה שבה רואים את זה. */}
                         <TableCell className="text-xs">

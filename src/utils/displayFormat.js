@@ -5,6 +5,15 @@ import dayjs from "dayjs";
 
 export const EMPTY = "—";
 
+// "אוקטובר 2026" מתוך YYYY-MM. ערך אחר מוחזר כמו שהוא.
+export const formatMonth = (month) =>
+  /^\d{4}-\d{2}$/.test(month)
+    ? new Date(`${month}-01T12:00:00Z`).toLocaleDateString("he-IL", {
+        month: "long",
+        year: "numeric",
+      })
+    : month;
+
 export const formatDate = (value) =>
   value && dayjs(value).isValid() ? dayjs(value).format("DD/MM/YYYY") : EMPTY;
 

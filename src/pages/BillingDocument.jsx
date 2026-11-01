@@ -102,9 +102,10 @@ const PrintStatusBadge = ({ status }) => {
 
 // תעודת זיכוי אינה "מחויבת" — מה שמופק ממנה הוא חשבונית זיכוי
 const CREDIT_LABELS = {
-  open: { text: "טרם הופקה חשבונית זיכוי", type: "warning" },
+  open: { text: "ממתינה לסגירת החודש", type: "warning" },
   billing: { text: "בהפקה", type: "neutral" },
   billed: { text: "הופקה חשבונית זיכוי", type: "success" },
+  netted: { text: "נסגרה בחשבונית החודש", type: "success" },
   cancelled: { text: "בוטלה", type: "danger" },
 };
 
@@ -826,6 +827,19 @@ const BillingDocument = () => {
                 <FiEdit2 className="ml-1" /> תיקון החשבונית והפקה מחדש
               </Button>
             )}
+          </CardBody>
+        </Card>
+      )}
+
+      {isCredit && billingStatus === "netted" && (
+        <Card className="mb-4 border-r-4 border-green-500">
+          <CardBody>
+            <p className="text-sm text-gray-700 dark:text-gray-300">
+              התעודה נסגרה בתוך חשבונית{" "}
+              <span className="font-mono font-semibold">{doc.billing?.invoiceDocNum}</span>
+              {doc.billing?.nettedAt &&
+                ` ב-${hebDate(doc.billing.nettedAt)} בשעה ${hebTime(doc.billing.nettedAt)}`}
+            </p>
           </CardBody>
         </Card>
       )}

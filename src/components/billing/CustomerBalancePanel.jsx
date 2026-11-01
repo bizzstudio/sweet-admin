@@ -12,8 +12,10 @@
 
 import React, { useCallback, useEffect, useState } from "react";
 import { Button, Input, Label, Select } from "@windmill/react-ui";
+import { Link } from "react-router-dom";
 
 import BillingServices from "@/services/BillingServices";
+import { formatMonth } from "@/utils/displayFormat";
 import { notifyError, notifySuccess } from "@/utils/toast";
 
 const shekel = (n) =>
@@ -46,6 +48,8 @@ const describe = (e) => {
 const CustomerBalancePanel = ({ customerId }) => {
   const [balance, setBalance] = useState(0);
   const [entries, setEntries] = useState([]);
+  // החוב על חשבוניות פתוחות, לפי חודש
+  const [debt, setDebt] = useState(null);
   // null = עוד נטען · true = נטען · false = הטעינה נכשלה
   const [loaded, setLoaded] = useState(null);
 
@@ -70,6 +74,21 @@ const CustomerBalancePanel = ({ customerId }) => {
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const res = await BillingServices.getDebtReport({ customer: customerId });
+        if (alive) setDebt(res?.customers?.[0] || null);
+      } catch {
+        // כמו היתרה: תוספת לכרטיס, ובלעדיה פשוט אין שורת חוב
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [customerId]);
 
   const submit = async () => {
     const value = Number(amount);
@@ -130,6 +149,27 @@ const CustomerBalancePanel = ({ customerId }) => {
           </Button>
         )}
       </div>
+
+      {debt?.months?.length > 0 && (
+        <div className="mt-4">
+          <p className="text-sm font-medium">
+            חשבוניות שלא שולמו:{" "}
+            <Link
+              to={`/invoices?customer=${customerId}`}
+              className="text-blue-600 hover:underline"
+            >
+              {shekel(debt.total)} ₪
+            </Link>
+          </p>
+          <ul className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+            {debt.months.map((m) => (
+              <li key={m.month}>
+                {formatMonth(m.month)}: {shekel(m.amount)} ₪
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {adjusting && (
         <div className="mt-4 p-3 rounded border border-gray-200 dark:border-gray-700">

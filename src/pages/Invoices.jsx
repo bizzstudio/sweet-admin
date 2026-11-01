@@ -227,7 +227,7 @@ const Invoices = () => {
     const q = search.trim().toLowerCase();
     if (!q) return invoices;
     return invoices.filter((inv) =>
-      [inv.customerName, inv.customerNumber, inv.docNum].some((v) =>
+      [inv.customerName, inv.customerNumber, inv.docNum, ...(inv.notes || [])].some((v) =>
         String(v ?? "").toLowerCase().includes(q)
       )
     );
@@ -274,6 +274,11 @@ const Invoices = () => {
               >
                 {inv.customerBalance > 0 ? "יתרת זכות" : "יתרת חוב"}{" "}
                 {shekel(Math.abs(inv.customerBalance))} ₪
+              </span>
+            )}
+            {inv.creditNotes?.length > 0 && (
+              <span className="block text-xs text-gray-500" title={inv.creditNotes.join(", ")}>
+                כולל {inv.creditNotes.length} תעודות זיכוי
               </span>
             )}
             {inv.credits?.length > 0 && (
@@ -426,7 +431,7 @@ const Invoices = () => {
               <Input
                 className="mt-1"
                 type="search"
-                placeholder="שם לקוח, מס' לקוח או מס' חשבונית"
+                placeholder="שם לקוח, מס' לקוח, מס' חשבונית או תעודה"
                 value={search}
                 onChange={(e) => setSearchParam(e.target.value || null)}
               />

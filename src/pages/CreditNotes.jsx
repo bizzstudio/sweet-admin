@@ -55,14 +55,15 @@ import { notifyError, notifySuccess } from "@/utils/toast";
 const LIMIT = 25;
 
 const MODES = {
-  invoice: { title: "חשבונית זיכוי חדשה", submit: "הפק חשבונית זיכוי" },
+  invoice: { title: "חשבונית זיכוי נפרדת", submit: "הפק חשבונית זיכוי" },
   note: { title: "תעודת משלוח זיכוי חדשה", submit: "הפק תעודת משלוח זיכוי" },
 };
 
 const STATUS_LABELS = {
-  open: { text: "טרם הופקה חשבונית", type: "warning" },
+  open: { text: "ממתינה לסגירת החודש", type: "warning" },
   billing: { text: "בהפקה", type: "neutral" },
   billed: { text: "הופקה חשבונית זיכוי", type: "success" },
+  netted: { text: "נסגרה בחשבונית החודש", type: "success" },
   cancelled: { text: "בוטלה", type: "danger" },
 };
 
@@ -100,6 +101,8 @@ const CreditNotes = () => {
   const page = Number(pageParam) || 1;
   const setPage = useCallback((p) => setPageParam(p > 1 ? String(p) : null), [setPageParam]);
   const [status, setStatus] = useQueryParam("status");
+  const [search, setSearch] = useQueryParam("q");
+  const [searchInput, setSearchInput] = useState(search);
   const [loading, setLoading] = useState(true);
   // התעודה שעליה רצה כרגע פעולה — כדי לנטרל את הכפתורים שלה בלבד
   const [working, setWorking] = useState(null);
@@ -141,6 +144,7 @@ const CreditNotes = () => {
         limit: LIMIT,
         status,
         customer: customerFilter,
+        search,
       });
       setNotes(res.creditNotes || []);
       setTotal(res.total || 0);
@@ -153,11 +157,22 @@ const CreditNotes = () => {
     } finally {
       setLoading(false);
     }
-  }, [page, setPage, status, customerFilter]);
+  }, [page, setPage, status, customerFilter, search]);
 
   useEffect(() => {
     load();
   }, [load]);
+
+  // בקשה אחת אחרי שההקלדה נעצרה, ולא אחת לכל אות
+  useEffect(() => {
+    const next = searchInput.trim();
+    if (next === search) return undefined;
+    const timer = setTimeout(() => {
+      setSearch(next);
+      setPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchInput, search, setSearch, setPage]);
 
   // החשבוניות של הלקוח שנבחר — לקישור הזיכוי לחשבונית שהוא מתייחס אליה
   useEffect(() => {
@@ -382,11 +397,11 @@ const CreditNotes = () => {
       <div className="flex flex-wrap items-center justify-between gap-3 my-6">
         <PageTitle style={{ margin: 0 }}>זיכויים</PageTitle>
         <div className="flex flex-wrap gap-3">
-          <Button onClick={() => openForm("invoice")} disabled={mode === "invoice"}>
-            <FiPlus className="ml-2" /> חשבונית זיכוי
-          </Button>
           <Button onClick={() => openForm("note")} disabled={mode === "note"}>
             <FiPlus className="ml-2" /> תעודת משלוח זיכוי
+          </Button>
+          <Button layout="outline" onClick={() => openForm("invoice")} disabled={mode === "invoice"}>
+            <FiPlus className="ml-2" /> חשבונית זיכוי נפרדת
           </Button>
           <Button layout="outline" onClick={() => setConsolidated(true)} disabled={consolidated}>
             <MdOutlineReceiptLong className="ml-2" /> חשבונית זיכוי מרוכזת
@@ -408,8 +423,8 @@ const CreditNotes = () => {
                 </h2>
                 <p className="text-sm text-gray-500 mt-1">
                   {mode === "invoice"
-                    ? "תישמר תעודת זיכוי, ומיד תופק ממנה חשבונית זיכוי ב-iCount."
-                    : "המסמך נשמר ומודפס מהמערכת. חשבונית זיכוי אפשר להפיק ממנו אחר כך."}
+                    ? "תישמר תעודת זיכוי, ומיד תופק ממנה חשבונית זיכוי נפרדת ב-iCount, שתישלח ללקוח."
+                    : "המסמך נשמר ומודפס מהמערכת, ונסגר בתוך החשבונית של סוף החודש."}
                 </p>
               </div>
               <Button layout="outline" size="small" onClick={resetForm}>
@@ -714,10 +729,22 @@ const CreditNotes = () => {
               }}
             >
               <option value="">הכל</option>
-              <option value="open">טרם הופקה חשבונית</option>
+              <option value="open">ממתינה לסגירת החודש</option>
+              <option value="netted">נסגרה בחשבונית החודש</option>
               <option value="billed">הופקה חשבונית זיכוי</option>
               <option value="cancelled">בוטלה</option>
             </Select>
+          </Label>
+
+          <Label className="w-64">
+            <span>חיפוש</span>
+            <Input
+              className="mt-1"
+              type="search"
+              placeholder="לקוח, מס' תעודת זיכוי או חשבונית"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+            />
           </Label>
 
           {customerFilter && (
@@ -796,6 +823,22 @@ const CreditNotes = () => {
                           )}
                         </span>
                       )}
+                      {state === "netted" && n.billing?.invoiceDocNum && (
+                        <span className="block text-xs mt-1 font-mono">
+                          {n.billing.invoiceDocUrl ? (
+                            <a
+                              href={n.billing.invoiceDocUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-blue-600 hover:underline"
+                            >
+                              {n.billing.invoiceDocNum}
+                            </a>
+                          ) : (
+                            n.billing.invoiceDocNum
+                          )}
+                        </span>
+                      )}
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -812,9 +855,9 @@ const CreditNotes = () => {
                               onClick={() => issue(n)}
                               disabled={working === n._id}
                               className="text-sm text-blue-700 dark:text-blue-400 hover:underline flex items-center gap-1 disabled:opacity-40"
-                              title="הפקת חשבונית זיכוי ב-iCount מהתעודה הזו"
+                              title="חשבונית זיכוי נפרדת ב-iCount, במקום סגירה בחשבונית החודש"
                             >
-                              <MdOutlineReceiptLong /> חשבונית זיכוי
+                              <MdOutlineReceiptLong /> זיכוי נפרד
                             </button>
                             <button
                               onClick={() => cancel(n)}

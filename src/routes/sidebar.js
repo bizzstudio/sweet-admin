@@ -189,6 +189,10 @@ const sidebar = [
         name: "SummaryReport",
       },
       {
+        path: "/reports/debts",
+        name: "DebtReport",
+      },
+      {
         path: "/reports/purchases",
         name: "PurchaseReports",
       },

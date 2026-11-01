@@ -26,6 +26,7 @@ import {
   TableRow,
 } from "@windmill/react-ui";
 import { FiAlertTriangle, FiExternalLink, FiInfo } from "react-icons/fi";
+import { Link } from "react-router-dom";
 import useQueryParam from "@/hooks/useQueryParam";
 
 import PageTitle from "@/components/Typography/PageTitle";
@@ -108,7 +109,12 @@ const Receipts = () => {
 
   return (
     <>
-      <PageTitle>קבלות</PageTitle>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <PageTitle>קבלות</PageTitle>
+        <Link to="/reports/debts" className="text-sm text-blue-600 hover:underline">
+          כמה הלקוחות חייבים, לפי חודש
+        </Link>
+      </div>
 
       <DemoModeBanner />
 

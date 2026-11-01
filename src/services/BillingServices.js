@@ -141,12 +141,14 @@ const BillingServices = {
   //
   // emailDocument אינו נשלח כברירת מחדל: השרת שולח כל חשבונית ללקוח במייל,
   // ושליחת false מכאן הייתה מבטלת את זה בשקט. הוא עובר רק כשמישהו בחר במפורש.
-  closeMonth: async ({ month, customer, notes, emailDocument, remarks }) => {
+  closeMonth: async ({ month, customer, notes, creditNotes, emailDocument, remarks }) => {
     return requests.post("/billing/month/close", {
       confirm: true,
       month,
       customer,
       notes: notes?.length ? notes : undefined,
+      // רשימה ריקה נשלחת כמו שהיא: אף זיכוי לא נסגר בחשבונית
+      creditNotes,
       // הערה שמודפסת על החשבונית; נשלחת רק כשהוקלדה
       remarks: remarks?.trim() || undefined,
       ...(typeof emailDocument === "boolean" ? { emailDocument } : {}),
@@ -220,6 +222,14 @@ const BillingServices = {
       Object.entries(params).filter(([, v]) => v !== undefined && v !== "" && v !== null)
     ).toString();
     return requests.get(`/billing/reports/summary${q ? `?${q}` : ""}`);
+  },
+
+  // כמה כל לקוח חייב, לפי חודש: {months, customers, total}. params: {customer}
+  getDebtReport: async (params = {}) => {
+    const q = new URLSearchParams(
+      Object.entries(params).filter(([, v]) => v !== undefined && v !== "" && v !== null)
+    ).toString();
+    return requests.get(`/billing/reports/debts${q ? `?${q}` : ""}`);
   },
 
   // יתרת הלקוח: זכות או חוב שנשארו מתשלומים קודמים. {balance, entries}.

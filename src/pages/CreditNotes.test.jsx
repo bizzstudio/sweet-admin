@@ -148,7 +148,7 @@ afterEach(async () => {
 });
 
 describe("CreditNotes — הטופס", () => {
-  it.each(["חשבונית זיכוי", "תעודת משלוח זיכוי"])(
+  it.each(["חשבונית זיכוי נפרדת", "תעודת משלוח זיכוי"])(
     "%s: המחיר של הלקוח מוצג בשורה מיד כשנבחר מוצר",
     async (button) => {
       BillingServices.priceItems.mockResolvedValue({
@@ -207,8 +207,9 @@ describe("CreditNotes — הטופס", () => {
     await render();
     expect(container.querySelector("[data-testid='customer']")).toBeNull();
 
-    await click("חשבונית זיכוי");
-    expect(container.textContent).toContain("חשבונית זיכוי חדשה");
+    await click("חשבונית זיכוי נפרדת");
+    expect(container.querySelector("[data-testid='customer']")).not.toBeNull();
+    expect(container.textContent).toContain("חשבונית זיכוי נפרדת");
 
     await click("תעודת משלוח זיכוי");
     expect(container.textContent).toContain("תעודת משלוח זיכוי חדשה");
@@ -292,7 +293,7 @@ describe("CreditNotes — הטופס", () => {
   it("חשבונית זיכוי: בלי אישור לא מופק דבר; עם אישור נשלח issueInvoice", async () => {
     const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
     await render();
-    await fillAndPreview("חשבונית זיכוי");
+    await fillAndPreview("חשבונית זיכוי נפרדת");
     await type(byPlaceholder("החזרת סחורה"), "הפרש מחיר");
 
     await click("הפק חשבונית זיכוי");
@@ -330,7 +331,7 @@ describe("CreditNotes — הטופס", () => {
       note: { _id: "n9" },
     });
     await render();
-    await fillAndPreview("חשבונית זיכוי");
+    await fillAndPreview("חשבונית זיכוי נפרדת");
     await type(byPlaceholder("החזרת סחורה"), "x");
     await click("הפק חשבונית זיכוי");
 
@@ -387,7 +388,7 @@ describe("CreditNotes — הרשימה", () => {
 
     const rows = [...container.querySelectorAll("tbody tr")];
     expect(rows).toHaveLength(3);
-    expect(rows[0].textContent).toContain("חשבונית זיכוי");
+    expect(rows[0].textContent).toContain("זיכוי נפרד");
     expect(rows[0].textContent).toContain("בטל");
     expect(rows[1].textContent).toContain("501");
     expect(rows[1].querySelectorAll("button")).toHaveLength(0);
@@ -402,7 +403,7 @@ describe("CreditNotes — הרשימה", () => {
 
     const issue = () =>
       [...container.querySelectorAll("tbody button")].find((b) =>
-        b.textContent.includes("חשבונית זיכוי")
+        b.textContent.includes("זיכוי נפרד")
       );
     await act(async () => issue().dispatchEvent(new window.MouseEvent("click", { bubbles: true })));
     expect(BillingServices.issueCreditNoteInvoice).not.toHaveBeenCalled();

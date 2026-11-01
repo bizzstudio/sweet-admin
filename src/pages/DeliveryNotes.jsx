@@ -220,11 +220,11 @@ const DeliveryNotes = () => {
         <CardBody>
           <div className="flex flex-wrap items-end gap-4">
             <Label>
-              <span>חיפוש לפי לקוח</span>
+              <span>חיפוש</span>
               <Input
                 className="mt-1"
                 type="search"
-                placeholder="שם לקוח או מספר לקוח"
+                placeholder="שם לקוח, מס' לקוח, מס' תעודה או מס' חשבונית"
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
               />
