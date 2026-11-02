@@ -205,8 +205,8 @@ const CustomerDetails = () => {
                       error={errors.email}
                       hint="הכתובת המרכזית: התחברות לחנות וחשבוניות"
                     />
-                    {/* המייל המשני. שדה תצוגה בלבד - המערכת לא שולחת אליו
-                        דבר, ולכן הוא גם לא חייב להיות ייחודי */}
+                    {/* המייל המשני. המערכת לא שולחת אליו דבר, אבל הזמנות
+                        שמגיעות ממנו נקלטות ללקוח הזה. לא חייב להיות ייחודי */}
                     <EditableField
                       editing
                       label="מייל איש קשר"
@@ -215,7 +215,7 @@ const CustomerDetails = () => {
                       validate={validateContactEmail}
                       register={register}
                       error={errors.contactEmail}
-                      hint="לרישום בלבד — לא נשלחות אליו הודעות"
+                      hint="הזמנות שנשלחות ממנו נקלטות ללקוח הזה. לא נשלחות אליו הודעות"
                     />
                     <EditableField
                       editing

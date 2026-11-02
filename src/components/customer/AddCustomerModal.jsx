@@ -42,7 +42,7 @@ const FIELDS = [
   { key: "phone", label: "נייד", type: "tel" },
   { key: "landline", label: "טלפון נוסף", type: "tel" },
   { key: "email", label: "מייל ראשי (חשבוניות וכניסה לחנות)", type: "email" },
-  { key: "contactEmail", label: "מייל איש קשר", type: "email" },
+  { key: "contactEmail", label: "מייל נוסף להזמנות (איש קשר)", type: "email" },
   { key: "address", label: "כתובת" },
   { key: "city", label: "עיר" },
   { key: "password", label: "סיסמה לחנות (לא חובה)" },
