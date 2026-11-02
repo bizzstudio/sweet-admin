@@ -263,6 +263,14 @@ const BillingServices = {
     return requests.get(`/billing/credit-notes${q ? `?${q}` : ""}`);
   },
 
+  // חשבוניות הזיכוי שהופקו, אחת לכל מסמך (customer, search)
+  getIssuedCreditInvoices: async (params = {}) => {
+    const q = new URLSearchParams(
+      Object.entries(params).filter(([, v]) => v !== undefined && v !== "")
+    ).toString();
+    return requests.get(`/billing/credit-notes/issued${q ? `?${q}` : ""}`);
+  },
+
   getCreditNote: async (id) => {
     return requests.get(`/billing/credit-notes/${id}`);
   },

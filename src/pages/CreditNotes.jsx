@@ -44,6 +44,7 @@ import CatalogScopeToggle from "@/components/billing/CatalogScopeToggle";
 import ExpectedPrice, { useExpectedPrices } from "@/components/billing/ExpectedPrice";
 import CustomerPicker from "@/components/billing/CustomerPicker";
 import ConsolidatedCreditPanel from "@/components/billing/ConsolidatedCreditPanel";
+import IssuedCreditInvoicesPanel from "@/components/billing/IssuedCreditInvoicesPanel";
 import BarcodeInput from "@/components/billing/BarcodeInput";
 import TableLoading from "@/components/preloader/TableLoading";
 import ListPager from "@/components/table/ListPager";
@@ -106,6 +107,8 @@ const CreditNotes = () => {
   const [loading, setLoading] = useState(true);
   // התעודה שעליה רצה כרגע פעולה — כדי לנטרל את הכפתורים שלה בלבד
   const [working, setWorking] = useState(null);
+  // עולה אחרי כל הפקה או ביטול, כדי שקוביית חשבוניות הזיכוי תיטען מחדש
+  const [issuedVersion, setIssuedVersion] = useState(0);
 
   const [customerFilter, setCustomerFilter] = useQueryParam("customer");
 
@@ -116,6 +119,10 @@ const CreditNotes = () => {
   const [invoices, setInvoices] = useState([]);
   const [originalDocNum, setOriginalDocNum] = useState("");
   const [reason, setReason] = useState("");
+  // השדה בראש הטופס וכפתור ההפקה בתחתיתו: בלי קפיצה אל השדה, ההודעה
+  // האדומה לבדה לא אמרה איפה להשלים (02/11/2026 — חשבונית לא הופקה)
+  const reasonRef = useRef(null);
+  const [reasonMissing, setReasonMissing] = useState(false);
   const [docNotes, setDocNotes] = useState("");
   const [rows, setRows] = useState([emptyProductRow()]);
 
@@ -205,6 +212,7 @@ const CreditNotes = () => {
     setMode(null);
     setCustomerId("");
     setReason("");
+    setReasonMissing(false);
     setDocNotes("");
     setRows([emptyProductRow()]);
     setDiscount("");
@@ -311,7 +319,12 @@ const CreditNotes = () => {
   const hasMissing = (preview?.items || []).some((i) => i.source === "missing");
 
   const doCreate = async () => {
-    if (!reason.trim()) return notifyError("חובה לציין סיבת זיכוי");
+    if (!reason.trim()) {
+      setReasonMissing(true);
+      reasonRef.current?.scrollIntoView?.({ behavior: "smooth", block: "center" });
+      reasonRef.current?.focus();
+      return notifyError("חובה לציין סיבת זיכוי — השדה בראש הטופס");
+    }
 
     const issueInvoice = mode === "invoice";
     if (
@@ -371,6 +384,7 @@ const CreditNotes = () => {
       notifyError(err?.response?.data?.message || err.message);
     } finally {
       setWorking(null);
+      setIssuedVersion((v) => v + 1);
       load();
     }
   };
@@ -388,6 +402,7 @@ const CreditNotes = () => {
       notifyError(err?.response?.data?.message || err.message);
     } finally {
       setWorking(null);
+      setIssuedVersion((v) => v + 1);
       load();
     }
   };
@@ -410,7 +425,13 @@ const CreditNotes = () => {
       </div>
 
       {consolidated && (
-        <ConsolidatedCreditPanel onClose={() => setConsolidated(false)} onIssued={load} />
+        <ConsolidatedCreditPanel
+          onClose={() => setConsolidated(false)}
+          onIssued={() => {
+            setIssuedVersion((v) => v + 1);
+            load();
+          }}
+        />
       )}
 
       {mode && (
@@ -464,14 +485,25 @@ const CreditNotes = () => {
             </div>
 
             <Label className="mb-4">
-              <span>סיבת הזיכוי (מופיעה על המסמך)</span>
+              <span>
+                סיבת הזיכוי (מופיעה על המסמך) <span className="text-red-600">*</span>
+              </span>
               <Input
-                className="mt-1"
+                ref={reasonRef}
+                className={`mt-1 ${reasonMissing ? "border-red-500 ring-1 ring-red-500" : ""}`}
                 value={reason}
                 maxLength={300}
                 placeholder="למשל: החזרת סחורה פגומה, הפרש מחיר"
-                onChange={(e) => setReason(e.target.value)}
+                onChange={(e) => {
+                  setReason(e.target.value);
+                  if (e.target.value.trim()) setReasonMissing(false);
+                }}
               />
+              {reasonMissing && (
+                <span className="block mt-1 text-sm text-red-600">
+                  יש למלא סיבה לפני ההפקה
+                </span>
+              )}
             </Label>
 
             <div className="mb-4 max-w-sm">
@@ -761,6 +793,8 @@ const CreditNotes = () => {
           )}
         </CardBody>
       </Card>
+
+      <IssuedCreditInvoicesPanel customer={customerFilter} search={search} reload={issuedVersion} />
 
       {loading ? (
         <TableLoading row={8} col={7} width={160} height={20} />

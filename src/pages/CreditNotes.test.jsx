@@ -8,6 +8,7 @@
 // 5. אותו מפתח ייחודיות נשלח בשליחה חוזרת של אותו טופס.
 // 6. פעולות על תעודה מוצגות רק כשהיא פתוחה.
 // 7. המחיר של הלקוח מוצג בשורה מיד כשנבחר מוצר, בשני סוגי הזיכוי.
+// 8. קוביית חשבוניות הזיכוי מציגה כל מסמך פעם אחת, לפי החיפוש שבכתובת.
 
 import React from "react";
 import { createRoot } from "react-dom/client";
@@ -24,6 +25,7 @@ vi.mock("@/utils/toast", () => ({
 vi.mock("@/services/BillingServices", () => ({
   default: {
     getCreditNotes: vi.fn(),
+    getIssuedCreditInvoices: vi.fn(),
     getInvoices: vi.fn(),
     previewCreditNote: vi.fn(),
     createCreditNote: vi.fn(),
@@ -135,6 +137,7 @@ beforeEach(() => {
   root = createRoot(container);
   vi.clearAllMocks();
   BillingServices.getCreditNotes.mockResolvedValue({ creditNotes: [], total: 0 });
+  BillingServices.getIssuedCreditInvoices.mockResolvedValue({ docs: [] });
   BillingServices.getInvoices.mockResolvedValue({ invoices: [] });
   BillingServices.previewCreditNote.mockResolvedValue(PREVIEW);
   BillingServices.createCreditNote.mockResolvedValue({ message: "ok", note: { _id: "n9" } });
@@ -273,9 +276,13 @@ describe("CreditNotes — הטופס", () => {
 
     await click("הפק תעודת משלוח זיכוי");
     expect(BillingServices.createCreditNote).not.toHaveBeenCalled();
-    expect(notifyError).toHaveBeenLastCalledWith("חובה לציין סיבת זיכוי");
+    expect(notifyError).toHaveBeenLastCalledWith("חובה לציין סיבת זיכוי — השדה בראש הטופס");
+    // השדה רחוק מהכפתור: המסך מסמן אותו ומעביר אליו את הסמן
+    expect(document.activeElement).toBe(byPlaceholder("החזרת סחורה"));
+    expect(container.textContent).toContain("יש למלא סיבה לפני ההפקה");
 
     await type(byPlaceholder("החזרת סחורה"), "סחורה פגומה");
+    expect(container.textContent).not.toContain("יש למלא סיבה לפני ההפקה");
     await click("הפק תעודת משלוח זיכוי");
 
     const body = BillingServices.createCreditNote.mock.calls[0][0];
@@ -420,5 +427,51 @@ describe("CreditNotes — הרשימה", () => {
     expect(BillingServices.getCreditNotes).toHaveBeenLastCalledWith(
       expect.objectContaining({ customer: "c7" })
     );
+  });
+});
+
+describe("קוביית חשבוניות הזיכוי שהופקו", () => {
+  it("מציגה מסמך מרוכז פעם אחת עם התעודות שבו, ומעבירה את החיפוש לשרת", async () => {
+    BillingServices.getIssuedCreditInvoices.mockResolvedValue({
+      docs: [
+        {
+          creditDocNum: "5055",
+          creditDocUrl: "https://example.com/5055.pdf",
+          billedAt: "2026-11-01T10:00:00Z",
+          customerName: "לאסו סקיוריטי בעמ",
+          customerNumber: "771",
+          originalDocNum: null,
+          noteNumbers: [9034, 9067],
+          total: 196.49,
+        },
+        {
+          creditDocNum: "5080",
+          billedAt: "2026-11-02T08:00:00Z",
+          customerName: "לאסו סקיוריטי בעמ",
+          originalDocNum: "2050",
+          wholeInvoice: true,
+          noteNumbers: [],
+          total: null,
+        },
+      ],
+    });
+
+    await render("/credit-notes?q=לאסו");
+
+    expect(BillingServices.getIssuedCreditInvoices).toHaveBeenCalledWith(
+      expect.objectContaining({ search: "לאסו" })
+    );
+    expect(container.textContent).toContain("חשבוניות זיכוי שהופקו");
+    expect(container.textContent).toContain("9034, 9067");
+    expect(container.textContent).toContain("זיכוי כל חשבונית 2050");
+    // לזיכוי חשבונית שלמה אין סכום שמור — הוא אינו נספר בסיכום
+    expect(container.textContent).toContain("196.49 ₪ כולל מע\"מ (בלי 1 זיכויי חשבונית שלמה)");
+    const link = [...container.querySelectorAll("a")].find((a) => a.textContent.includes("5055"));
+    expect(link?.getAttribute("href")).toBe("https://example.com/5055.pdf");
+  });
+
+  it("אומרת שאין מסמכים כשהרשימה ריקה", async () => {
+    await render();
+    expect(container.textContent).toContain("עדיין לא הופקו חשבוניות זיכוי");
   });
 });
