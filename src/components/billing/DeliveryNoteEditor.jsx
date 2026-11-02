@@ -20,7 +20,7 @@
 // ⚠️ תעודה שנערכה מסומנת manuallyEdited, והסנכרון מההזמנה מפסיק לגעת בה.
 //    בלי זה עריכה של ההזמנה הייתה מוחקת בשקט את מה שתוקן כאן.
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   Button,
   Card,
@@ -34,9 +34,11 @@ import ProductPicker from "@/components/billing/ProductPicker";
 import CustomerPicker from "@/components/billing/CustomerPicker";
 import CatalogScopeToggle from "@/components/billing/CatalogScopeToggle";
 import BarcodeInput from "@/components/billing/BarcodeInput";
+import ExpectedPrice, { isPriceListSource, useExpectedPrices } from "@/components/billing/ExpectedPrice";
 import BillingServices from "@/services/BillingServices";
 import CustomerPriceListServices from "@/services/CustomerPriceListServices";
 import useCustomerKnownSkus from "@/hooks/useCustomerKnownSkus";
+import useRowEntryKeys from "@/hooks/useRowEntryKeys";
 import { notifyError, notifySuccess } from "@/utils/toast";
 
 const shekel = (n) =>
@@ -127,46 +129,12 @@ const DeliveryNoteEditor = ({ note, onSaved, onCancel }) => {
 
   // ── מה כתוב היום במחירון, לכל מוצר שבתעודה ──
   //
-  // נחוץ כדי לומר בשורה שהמחיר ישתנה במחירון הקבוצתי, וכדי לא לשלוח מחיר
-  // שזהה למה שכבר במחירון. ההכרעה לאיזה מחירון המחיר נכתב היא של השרת.
-  // { [sku]: { unitPrice, source } }
-  const [expected, setExpected] = useState({});
-  const skuKey = useMemo(
-    () => [...new Set(rows.map((r) => r.sku?.trim()).filter(Boolean))].sort().join("\n"),
-    [rows]
-  );
+  // מוצג מתחת לשדה המחיר כמו בטופס התעודה הרגיל, נחוץ כדי לומר בשורה שהמחיר
+  // ישתנה במחירון הקבוצתי, וכדי לא לשלוח מחיר שזהה למה שכבר במחירון.
+  // ההכרעה לאיזה מחירון המחיר נכתב היא של השרת.
+  const { expectedFor } = useExpectedPrices(customerId, rows);
 
-  useEffect(() => {
-    if (!customerId || !skuKey) return;
-    const missing = skuKey
-      .split("\n")
-      .filter((sku) => !Object.prototype.hasOwnProperty.call(expected, sku));
-    if (!missing.length) return;
-
-    let cancelled = false;
-    BillingServices.priceItems({
-      customer: customerId,
-      items: missing.map((sku) => ({ sku, quantity: 1 })),
-    })
-      .then((res) => {
-        if (cancelled) return;
-        const found = {};
-        for (const item of res?.items || []) {
-          found[String(item.sku)] = { unitPrice: item.unitPrice, source: item.source };
-        }
-        setExpected((prev) => ({ ...prev, ...found }));
-      })
-      // תצוגת עזר בלבד: השרת מכריע בשמירה ממילא
-      .catch(() => {});
-
-    return () => {
-      cancelled = true;
-    };
-    // expected נקרא רק כדי לדלג על מה שכבר ידוע
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [customerId, skuKey]);
-
-  const inGroupPriceList = (r) => expected[r.sku?.trim()]?.source === "groupPriceList";
+  const inGroupPriceList = (r) => expectedFor(r.sku)?.source === "groupPriceList";
 
   // כישלון כאן אינו מבטל את התעודה שכבר נשמרה — רק אומר במפורש שהמחירון
   // לא עודכן
@@ -174,10 +142,9 @@ const DeliveryNoteEditor = ({ note, onSaved, onCancel }) => {
     const items = validRows
       .filter(priceChanged)
       .filter((r) => {
-        const known = expected[r.sku.trim()];
-        const fromList = known?.source === "customerPriceList" || known?.source === "groupPriceList";
+        const known = expectedFor(r.sku);
         // מחיר שזהה למה שכבר במחירון — אין מה לשמור
-        return !(fromList && known.unitPrice === Number(r.unitPrice));
+        return !(isPriceListSource(known?.source) && known.unitPrice === Number(r.unitPrice));
       })
       .map((r) => ({ sku: r.sku.trim(), price: Number(r.unitPrice) }));
     if (!items.length || !customerId) return;
@@ -194,6 +161,18 @@ const DeliveryNoteEditor = ({ note, onSaved, onCancel }) => {
   };
 
   const addRow = () => setRows((prev) => [...prev, emptyRow()]);
+
+  // הקלדה רצופה בלי עכבר, כמו בטופס התעודה הרגיל: בחירת מוצר מעבירה
+  // לכמות, ו-Enter שם עובר לשורה הבאה ופותח חדשה אם זו האחרונה
+  const keys = useRowEntryKeys({
+    rows,
+    addRow,
+    hasItem: (r) => !!r.sku?.trim(),
+    onScan: (i) => {
+      updateRow(i, "quantity", "");
+      notifyError('נראה שנסרק ברקוד בשדה הכמות — הערך נמחק. לסריקה יש להשתמש בשדה "הקלדת ברקוד"');
+    },
+  });
   // שורה שנשכחה באמצע: נכנסת מעל השורה שנלחצה, כדי שסדר התעודה יישמר.
   // הכפתור שבתחתית ממשיך להוסיף בסוף
   const insertRow = (index) =>
@@ -243,8 +222,6 @@ const DeliveryNoteEditor = ({ note, onSaved, onCancel }) => {
   const changeCustomer = (id) => {
     // ניקוי הבורר אינו "בלי לקוח" — לתעודה תמיד יש לקוח, וחוזרים למקורי
     setCustomerId(id || originalCustomerId);
-    // מה שבמחירון של הלקוח הקודם אינו אומר דבר על החדש
-    setExpected({});
     setWholeCatalog(false);
   };
 
@@ -394,12 +371,18 @@ const DeliveryNoteEditor = ({ note, onSaved, onCancel }) => {
           />
         </div>
         {rows.map((row, i) => (
-          <div key={i} className="flex flex-wrap gap-2 mb-2 items-center">
+          // items-start: הרמז שמתחת לשדה המחיר מגביה רק את העמודה שלו
+          <div key={i} className="flex flex-wrap gap-2 mb-2 items-start">
             <div className="flex-1 min-w-[220px]">
               <ProductPicker
                 value={row.sku}
-                onChange={(sku) => updateRow(i, "sku", sku)}
+                onChange={(sku) => {
+                  updateRow(i, "sku", sku);
+                  // ניקוי הבחירה (X) אינו סיבה לקפוץ לשדה הכמות
+                  if (sku) keys.focusQuantity(i);
+                }}
                 onlySkus={pickerSkus}
+                selectRef={keys.itemRef(i)}
               />
               {/* שורה שהייתה על התעודה ואין לה מוצר בקטלוג — בלי הסימון
                   הזה היא פשוט נעלמת בשמירה, וזו סחורה שיצאה ולא תחויב */}
@@ -417,7 +400,9 @@ const DeliveryNoteEditor = ({ note, onSaved, onCancel }) => {
                 step="0.01"
                 placeholder="כמות"
                 value={row.quantity}
+                ref={keys.quantityRef(i)}
                 onChange={(e) => updateRow(i, "quantity", e.target.value)}
+                onKeyDown={(e) => keys.onQuantityKeyDown(e, i)}
               />
             </div>
             <div className="w-28">
@@ -428,14 +413,18 @@ const DeliveryNoteEditor = ({ note, onSaved, onCancel }) => {
                 placeholder="מחיר יח'"
                 value={row.unitPrice}
                 onChange={(e) => updateRow(i, "unitPrice", e.target.value)}
+                onKeyDown={(e) => keys.onRowEnter(e, i)}
               />
+              {/* מחיר שנשאר כפי שהיה על התעודה אינו נשמר במחירון, ולכן מוצג
+                  לצידו רק מה שכתוב במחירון היום */}
+              <ExpectedPrice known={expectedFor(row.sku)} typed={row.unitPrice} kept={!priceChanged(row)} />
             </div>
             {/* מוצר שמתומחר מהמחירון הקבוצתי: המחיר החדש נשמר שם, ולכן משנה
                 את המחיר לכל לקוחות הקבוצה ולא רק ללקוח שבתעודה */}
             {priceChanged(row) &&
               inGroupPriceList(row) &&
-              Number(row.unitPrice) !== expected[row.sku.trim()].unitPrice && (
-                <span className="text-xs text-yellow-700 dark:text-yellow-500 shrink-0">
+              Number(row.unitPrice) !== expectedFor(row.sku).unitPrice && (
+                <span className="py-2 text-xs text-yellow-700 dark:text-yellow-500 shrink-0">
                   ישתנה במחירון הקבוצתי — לכל לקוחות הקבוצה
                 </span>
               )}

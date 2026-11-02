@@ -114,8 +114,11 @@ export const useExpectedPrices = (customerId, rows) => {
  *
  * savesTyped — המסמך שומר מחיר שהוקלד במחירון (תעודה/חשבונית). בהצעת מחיר
  * מחיר ידני נשאר בהצעה בלבד, ואסור להבטיח שהוא יישמר.
+ *
+ * kept — המחיר שבשדה הוא זה שכבר היה על המסמך (עריכת תעודה), ולא הוקלד
+ * עכשיו. לא יישמר בשום מקום; מוצג רק מה שכתוב במחירון היום, גם כשהוא זהה.
  */
-const ExpectedPrice = ({ known, typed, savesTyped = true }) => {
+const ExpectedPrice = ({ known, typed, savesTyped = true, kept = false }) => {
   if (!known) return null;
 
   // שורה אחת, בלי שבירה: העמודה צרה (רוחב שדה המחיר), ורמז שנשבר לשתי
@@ -124,6 +127,18 @@ const ExpectedPrice = ({ known, typed, savesTyped = true }) => {
 
   // מחיר שהוקלד נשמר במחירון עם ההפקה, בלי כפתור. הלקוחה שאלה (19/10/2026)
   // איפה שומרים אותו, ולכן זה נאמר ליד השדה עצמו ולא רק בהערה שבתחתית
+  if (kept && typed !== undefined && typed !== null && typed !== "") {
+    // אין מחיר במחירון ולא בקטלוג — המחיר שעל המסמך הוא היחיד, ואין מה להשוות
+    if (known.source === "missing") return null;
+    const same = Number(typed) === known.unitPrice;
+    const cls = !same ? "text-gray-500" : isPriceListSource(known.source) ? "text-green-600" : "text-yellow-600";
+    return (
+      <p className={`${base} ${cls}`}>
+        {EXPECTED_SOURCE_TEXT[known.source] || EXPECTED_SOURCE_TEXT.catalog}: {shekel(known.unitPrice)} ₪
+      </p>
+    );
+  }
+
   if (typed !== undefined && typed !== null && typed !== "") {
     if (!(Number(typed) > 0)) return null;
     if (!isPriceListSource(known.source)) {

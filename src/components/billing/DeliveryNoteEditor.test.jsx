@@ -247,3 +247,59 @@ describe("DeliveryNoteEditor — החלפת לקוח", () => {
     );
   });
 });
+
+describe("DeliveryNoteEditor — כמו בטופס התעודה הרגיל", () => {
+  const enter = async (input) => {
+    await act(async () => {
+      input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    });
+  };
+
+  it("Enter בכמות עובר לכמות של השורה הבאה, ובשורה האחרונה פותח שורה", async () => {
+    await render();
+    await enter(quantityInputs()[0]);
+    expect(document.activeElement).toBe(quantityInputs()[1]);
+
+    await enter(quantityInputs()[1]);
+    expect(quantityInputs()).toHaveLength(3);
+  });
+
+  it("בחירת מוצר בשורה חדשה מעבירה לשדה הכמות עם 1", async () => {
+    await render();
+    await enter(quantityInputs()[1]);
+    await click(container.querySelectorAll("[data-picker]")[2]);
+    expect(document.activeElement).toBe(quantityInputs()[2]);
+    expect(quantityInputs()[2].value).toBe("1");
+  });
+
+  it("מתחת לשדה המחיר מוצג מה שכתוב במחירון הלקוח", async () => {
+    BillingServices.priceItems.mockResolvedValue({
+      items: [
+        { sku: "111", unitPrice: 10, source: "customerPriceList" },
+        { sku: "222", unitPrice: 7, source: "groupPriceList" },
+      ],
+    });
+    await render();
+    expect(container.textContent).toContain("מחירון הלקוח: 10.00 ₪");
+    expect(container.textContent).toContain("מחירון קבוצתי: 7.00 ₪");
+  });
+});
+
+describe("DeliveryNoteEditor — רמז המחיר בשורה שלא שונתה", () => {
+  it("מוצר בלי מחיר בשום מקום אינו מבטיח שמירה במחירון", async () => {
+    BillingServices.priceItems.mockResolvedValue({
+      items: [{ sku: "111", unitPrice: 0, source: "missing" }],
+    });
+    await render();
+    expect(container.textContent).not.toContain("יישמר במחירון");
+  });
+
+  it("מחיר ששונה מציג את מה שבמחירון ושיתעדכן", async () => {
+    BillingServices.priceItems.mockResolvedValue({
+      items: [{ sku: "111", unitPrice: 10, source: "customerPriceList" }],
+    });
+    await render();
+    await type(priceInputs()[0], "12");
+    expect(container.textContent).toContain("במחירון: 10.00 ₪ · יתעדכן");
+  });
+});
