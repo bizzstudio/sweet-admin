@@ -147,7 +147,8 @@ const ProductDetails = () => {
           autoComplete="off"
           onSubmit={onlySaveButtonSubmits(handleSubmit(onSubmit))}
         >
-          <div className="inline-block h-full w-full overflow-y-auto align-middle transition-all transform">
+          {/* בלי h-full: הוא מותח את הכרטיס העליון לגובה כל המסך ויוצר רווח ריק ענק מעל "מאפייני מוצר בחנות" */}
+          <div className="w-full">
             <div className="flex w-full flex-col overflow-hidden md:flex-row lg:flex-row">
               <div className="flex h-auto w-full flex-shrink-0 items-center justify-center md:w-80">
                 {editing ? (
