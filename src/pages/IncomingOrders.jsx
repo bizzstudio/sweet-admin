@@ -88,6 +88,7 @@ const ERROR_HINTS = {
   platform_login_required: "צריך להתחבר לפלטפורמה פעם אחת",
   link_unreadable: "הקישור להזמנה לא נפתח",
   platform_customer_unmapped: "צריך למפות את הלקוח בפלטפורמה פעם אחת",
+  branch_unresolved: "לא זוהה הסניף בקובץ — יש להחליף לקוח בהזמנה",
 };
 
 // שורות שדולגו בצדק — אין טעם להציג אותן כ"פריט שלא נכנס".
