@@ -172,6 +172,7 @@ const AccountingExport = () => {
           "מבוסס על": r.basedOn,
           "מספר הקצאה": r.allocationNumber,
           "קישור למסמך": r.url,
+          "✓": "",
         }))
       ),
       "מסמכים"
@@ -343,6 +344,9 @@ const AccountingExport = () => {
                     <TableHeaderCell>סה&quot;כ</TableHeaderCell>
                     <TableHeaderCell>סטטוס</TableHeaderCell>
                     <TableHeaderCell>מבוסס על</TableHeaderCell>
+                    <TableHeaderCell>מספר הקצאה</TableHeaderCell>
+                    {/* עמודה ריקה לסימון ידני של הנהלת החשבונות על הדף המודפס */}
+                    <TableHeaderCell className="text-center">✓</TableHeaderCell>
                   </tr>
                 </TableHeader>
                 <TableBody>
@@ -366,6 +370,10 @@ const AccountingExport = () => {
                       <TableCell><span className="text-sm font-semibold">{formatMoney(r.gross)}</span></TableCell>
                       <TableCell><span className="text-sm">{r.status || r.paymentMethod}</span></TableCell>
                       <TableCell><span className="text-xs">{r.basedOn}</span></TableCell>
+                      <TableCell><span className="text-xs" dir="ltr">{r.allocationNumber || "—"}</span></TableCell>
+                      <TableCell className="text-center">
+                        <span aria-hidden="true" className="inline-block h-4 w-4 border border-gray-500" />
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
