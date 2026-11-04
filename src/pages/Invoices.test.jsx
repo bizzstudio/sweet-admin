@@ -171,6 +171,32 @@ describe("רישום תשלום — יתרת הלקוח", () => {
     );
   });
 
+  it("אמצעי תשלום 'אחר' נשלח עם הפירוט החופשי", async () => {
+    await openDialog(0);
+    const select = [...document.querySelectorAll("select")].find((s) =>
+      [...s.options].some((o) => o.value === "other")
+    );
+    expect(select, "בחירת אמצעי תשלום").toBeTruthy();
+    const selectSetter = Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype, "value").set;
+    await act(async () => {
+      selectSetter.call(select, "other");
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+
+    const note = document.querySelector('input[placeholder^="למשל: ביט"]');
+    expect(note, "שדה הפירוט").toBeTruthy();
+    const inputSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
+    await act(async () => {
+      inputSetter.call(note, "ביט");
+      note.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+
+    await clickButton("הפק קבלה");
+    expect(BillingServices.createReceipt).toHaveBeenCalledWith(
+      expect.objectContaining({ method: "other", details: { otherNote: "ביט" } })
+    );
+  });
+
   it("סכום 0 בלי יתרה מכסה אינו נשלח", async () => {
     await openDialog(0);
     await typeAmount("0");

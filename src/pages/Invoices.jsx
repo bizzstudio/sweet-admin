@@ -68,6 +68,7 @@ const PAYMENT_METHODS = [
   { value: "check", label: "צ'ק" },
   { value: "cash", label: "מזומן" },
   { value: "creditcard", label: "אשראי" },
+  { value: "other", label: "אחר" },
 ];
 
 const Invoices = () => {
@@ -630,6 +631,18 @@ const Invoices = () => {
                 />
               </Label>
             </div>
+          )}
+
+          {!closesFromBalance && method === "other" && (
+            <Label>
+              <span>פירוט (לא חובה)</span>
+              <Input
+                className="mt-1"
+                placeholder="למשל: ביט, קיזוז, שובר"
+                value={details.otherNote || ""}
+                onChange={(e) => setDetails({ ...details, otherNote: e.target.value })}
+              />
+            </Label>
           )}
 
           {/* מה יישאר ללקוח אחרי הרישום. מוצג רק כשיש מה לומר: תשלום
