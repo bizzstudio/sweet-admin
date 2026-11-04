@@ -6,6 +6,7 @@
 // 3. בלי סוג מסמך אין פנייה לשרת.
 // 4. השורות והסיכום לפי סוג מוצגים; קבלה בלי מע"מ מוצגת כקו.
 // 5. תשובה שאינה במבנה הצפוי מוצגת כשגיאה.
+// 6. מספר ההקצאה ועמודת הסימון מופיעים גם בטבלה שמודפסת ל-PDF.
 
 import React from "react";
 import { createRoot } from "react-dom/client";
@@ -33,7 +34,8 @@ const REPORT = {
   types: ["invoice", "refund", "receipt"],
   rows: [
     { type: "invoice", typeLabel: "חשבונית מס", docNum: "2000", date: "2026-10-05", customerNumber: "519",
-      customerName: "מרגל", net: 100, taxable: 100, exempt: 0, vat: 18, gross: 118, status: "פתוחה", basedOn: "", url: "" },
+      customerName: "מרגל", net: 100, taxable: 100, exempt: 0, vat: 18, gross: 118, status: "פתוחה", basedOn: "", url: "",
+      allocationNumber: "20261029115413317302089835" },
     { type: "refund", typeLabel: "חשבונית זיכוי", docNum: "5000", date: "2026-10-06", customerNumber: "140",
       customerName: "סמלת", net: -50, taxable: -50, exempt: 0, vat: -9, gross: -59, status: "", basedOn: "חשבונית מס 2000", url: "" },
     { type: "receipt", typeLabel: "קבלה", docNum: "1000", date: "2026-10-07", customerNumber: "481",
@@ -113,6 +115,25 @@ describe("ייצוא להנהלת חשבונות", () => {
 
     expect(BillingServices.getAccountingExport).not.toHaveBeenCalled();
     expect(notifyError).toHaveBeenCalledWith("יש לבחור לפחות סוג מסמך אחד");
+  });
+
+  it("מציג מספר הקצאה ועמודת סימון בכל שורה", async () => {
+    await render();
+    await click(button("הצגה"));
+
+    const table = [...container.querySelectorAll("table")].pop();
+    const headers = [...table.querySelectorAll("thead th")].map((th) => th.textContent.trim());
+    expect(headers.slice(-2)).toEqual(["מספר הקצאה", "✓"]);
+
+    const cells = [...table.querySelectorAll("tbody tr")].map((tr) =>
+      [...tr.querySelectorAll("td")].slice(-2).map((td) => td.textContent.trim())
+    );
+    expect(cells).toEqual([
+      ["20261029115413317302089835", ""],
+      ["—", ""],
+      ["—", ""],
+    ]);
+    expect(table.querySelectorAll("tbody td:last-child span").length).toBe(3);
   });
 
   it("תשובה לא צפויה מוצגת כשגיאה", async () => {

@@ -78,7 +78,8 @@ const downloadWorkbook = (book, fileName) => {
 
 // הדפסה לרוחב: הטבלה רחבה, ובעמוד לאורך העמודות האחרונות נחתכות. מיכל
 // הטבלה גולל בגלילה אופקית, ובהדפסה מה שמעבר לרוחב היה נחתך — לכן overflow
-// גלוי ושורות שנשברות. כותרת הטבלה חוזרת בכל עמוד
+// גלוי ושורות שנשברות. כותרת הטבלה חוזרת בכל עמוד. סכומים לא נשברים (whitespace-nowrap
+// על התא): סימן המינוס של זיכוי ירד לשורה נפרדת ונראה כמו חיוב
 const PRINT_PAGE_STYLE = `
   @page { size: A4 landscape; margin: 10mm; }
   @media print {
@@ -315,11 +316,11 @@ const AccountingExport = () => {
                     <TableRow key={type}>
                       <TableCell><span className="text-sm font-semibold">{typeText(type)}</span></TableCell>
                       <TableCell className="text-center"><span className="text-sm">{formatNumber(t.count)}</span></TableCell>
-                      <TableCell><span className="text-sm">{payment ? "—" : formatMoney(t.taxable)}</span></TableCell>
-                      <TableCell><span className="text-sm">{payment ? "—" : formatMoney(t.exempt)}</span></TableCell>
-                      <TableCell><span className="text-sm">{payment ? "—" : formatMoney(t.net)}</span></TableCell>
-                      <TableCell><span className="text-sm">{payment ? "—" : formatMoney(t.vat)}</span></TableCell>
-                      <TableCell><span className="text-sm font-semibold">{formatMoney(t.gross)}</span></TableCell>
+                      <TableCell><span className="text-sm whitespace-nowrap">{payment ? "—" : formatMoney(t.taxable)}</span></TableCell>
+                      <TableCell><span className="text-sm whitespace-nowrap">{payment ? "—" : formatMoney(t.exempt)}</span></TableCell>
+                      <TableCell><span className="text-sm whitespace-nowrap">{payment ? "—" : formatMoney(t.net)}</span></TableCell>
+                      <TableCell><span className="text-sm whitespace-nowrap">{payment ? "—" : formatMoney(t.vat)}</span></TableCell>
+                      <TableCell><span className="text-sm font-semibold whitespace-nowrap">{formatMoney(t.gross)}</span></TableCell>
                     </TableRow>
                   );
                 })}
@@ -365,9 +366,9 @@ const AccountingExport = () => {
                       <TableCell><span className="text-sm">{showDate(r.date)}</span></TableCell>
                       <TableCell><span className="text-xs font-semibold">{r.customerNumber || "—"}</span></TableCell>
                       <TableCell><span className="text-sm">{r.customerName}</span></TableCell>
-                      <TableCell><span className="text-sm">{cellMoney(r.net)}</span></TableCell>
-                      <TableCell><span className="text-sm">{cellMoney(r.vat)}</span></TableCell>
-                      <TableCell><span className="text-sm font-semibold">{formatMoney(r.gross)}</span></TableCell>
+                      <TableCell><span className="text-sm whitespace-nowrap">{cellMoney(r.net)}</span></TableCell>
+                      <TableCell><span className="text-sm whitespace-nowrap">{cellMoney(r.vat)}</span></TableCell>
+                      <TableCell><span className="text-sm font-semibold whitespace-nowrap">{formatMoney(r.gross)}</span></TableCell>
                       <TableCell><span className="text-sm">{r.status || r.paymentMethod}</span></TableCell>
                       <TableCell><span className="text-xs">{r.basedOn}</span></TableCell>
                       <TableCell><span className="text-xs" dir="ltr">{r.allocationNumber || "—"}</span></TableCell>
