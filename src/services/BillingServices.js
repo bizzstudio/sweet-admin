@@ -232,6 +232,15 @@ const BillingServices = {
     return requests.get(`/billing/reports/debts${q ? `?${q}` : ""}`);
   },
 
+  // מסמכי המס מ-iCount להנהלת החשבונות: {rows, totals, typeLabels}.
+  // params: {from, to, types: "invoice,refund,..."}
+  getAccountingExport: async (params = {}) => {
+    const q = new URLSearchParams(
+      Object.entries(params).filter(([, v]) => v !== undefined && v !== "" && v !== null)
+    ).toString();
+    return requests.get(`/billing/reports/accounting-export${q ? `?${q}` : ""}`);
+  },
+
   // יתרת הלקוח: זכות או חוב שנשארו מתשלומים קודמים. {balance, entries}.
   // חיובי = לזכות הלקוח
   getCustomerBalance: async (customerId) => {

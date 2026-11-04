@@ -1329,6 +1329,7 @@
   "PurchaseReports": "Customer Purchases",
   "SummaryReport": "Income Summary",
   "DebtReport": "Customer Debts by Month",
+  "AccountingExport": "Accounting Export",
   "IcountDemo": "iCount Demo",
   "card": "Card",
   "manual": "Manual",

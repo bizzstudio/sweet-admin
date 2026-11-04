@@ -193,6 +193,10 @@ const sidebar = [
         name: "DebtReport",
       },
       {
+        path: "/reports/accounting-export",
+        name: "AccountingExport",
+      },
+      {
         path: "/reports/purchases",
         name: "PurchaseReports",
       },

@@ -40,7 +40,7 @@ const sidebarLeaves = sidebar.flatMap((route) =>
 
 // אותם נתיבים שהמסך מסתיר (HIDDEN_FROM_HOME ב-Dashboard.jsx): המסך הזה
 // עצמו, ונתוני המכירות וריכוז ההכנסות שהוסרו לבקשת הלקוחה
-const HIDDEN_FROM_HOME = new Set(["/dashboard", "/dashboard-stats", "/reports/summary", "/reports/debts"]);
+const HIDDEN_FROM_HOME = new Set(["/dashboard", "/dashboard-stats", "/reports/summary", "/reports/debts", "/reports/accounting-export"]);
 
 const internalPaths = sidebarLeaves
   .filter((route) => route.path && !HIDDEN_FROM_HOME.has(route.path))

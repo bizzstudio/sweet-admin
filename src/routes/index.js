@@ -71,6 +71,7 @@ const Receipts = lazy(() => import("@/pages/Receipts"));
 const PurchaseReports = lazy(() => import("@/pages/PurchaseReports"));
 const SummaryReport = lazy(() => import("@/pages/SummaryReport"));
 const DebtReport = lazy(() => import("@/pages/DebtReport"));
+const AccountingExport = lazy(() => import("@/pages/AccountingExport"));
 
 /*
 //  * ⚠ These are internal routes!
@@ -248,6 +249,10 @@ const routes = [
   {
     path: "/reports/debts",
     component: DebtReport,
+  },
+  {
+    path: "/reports/accounting-export",
+    component: AccountingExport,
   },
   // מסך הדגמה — פעיל רק כשהשרת מחובר לחשבון דמו (ICOUNT_MODE=demo)
   {

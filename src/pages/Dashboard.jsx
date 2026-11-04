@@ -182,7 +182,7 @@ const EXTRA_TILES = [];
  *   /reports/summary — ריכוז הכנסות. אותו כלל: עמוד של סכומים, ולכן רק
  *                      בתפריט הצדדי.
  */
-const HIDDEN_FROM_HOME = new Set(["/dashboard", "/dashboard-stats", "/reports/summary", "/reports/debts"]);
+const HIDDEN_FROM_HOME = new Set(["/dashboard", "/dashboard-stats", "/reports/summary", "/reports/debts", "/reports/accounting-export"]);
 
 /*
  * מחלקות Tailwind מלאות ולא מחורזות (`bg-${accent}-500`) — הסורק של
