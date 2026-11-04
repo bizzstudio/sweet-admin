@@ -152,32 +152,41 @@ const AccountingExport = () => {
     const book = XLSX.utils.book_new();
     const blank = (n) => (n === null || n === undefined ? "" : n);
 
-    XLSX.utils.book_append_sheet(
-      book,
-      XLSX.utils.json_to_sheet(
-        rows.map((r) => ({
-          "סוג מסמך": r.typeLabel,
-          "מספר מסמך": r.docNum,
-          תאריך: showDate(r.date),
-          "מספר לקוח": r.customerNumber,
-          לקוח: r.customerName,
-          'ח"פ / ת"ז': r.vatId,
-          'חייב במע"מ': blank(r.taxable),
-          'פטור ממע"מ': blank(r.exempt),
-          'סה"כ לפני מע"מ': blank(r.net),
-          'מע"מ': blank(r.vat),
-          'סה"כ': r.gross,
-          הנחה: r.discount || "",
-          "אמצעי תשלום": r.paymentMethod,
-          סטטוס: r.status,
-          "מבוסס על": r.basedOn,
-          "מספר הקצאה": r.allocationNumber,
-          "קישור למסמך": r.url,
-          "✓": "",
-        }))
-      ),
-      "מסמכים"
+    const docsSheet = XLSX.utils.json_to_sheet(
+      rows.map((r) => ({
+        "סוג מסמך": r.typeLabel,
+        "מספר מסמך": r.docNum,
+        תאריך: showDate(r.date),
+        "מספר לקוח": r.customerNumber,
+        לקוח: r.customerName,
+        'ח"פ / ת"ז': r.vatId,
+        'חייב במע"מ': blank(r.taxable),
+        'פטור ממע"מ': blank(r.exempt),
+        'סה"כ לפני מע"מ': blank(r.net),
+        'מע"מ': blank(r.vat),
+        'סה"כ': r.gross,
+        הנחה: r.discount || "",
+        "אמצעי תשלום": r.paymentMethod,
+        סטטוס: r.status,
+        "מבוסס על": r.basedOn,
+        "מספר הקצאה": r.allocationNumber,
+        "קישור למסמך": r.url,
+        "✓": "",
+      }))
     );
+
+    // מספר המסמך והקישור לחיצים ונפתחים ב-iCount. כטקסט רגיל הקישור לא נפתח
+    // בלחיצה, והנהלת החשבונות לא הצליחה להגיע מהשורה למסמך עצמו
+    const header = XLSX.utils.sheet_to_json(docsSheet, { header: 1 })[0] || [];
+    const linkCols = ["מספר מסמך", "קישור למסמך"].map((name) => header.indexOf(name)).filter((c) => c >= 0);
+    rows.forEach((r, i) => {
+      if (!r.url) return;
+      for (const c of linkCols) {
+        const cell = docsSheet[XLSX.utils.encode_cell({ r: i + 1, c })];
+        if (cell) cell.l = { Target: r.url, Tooltip: "פתיחת המסמך ב-iCount" };
+      }
+    });
+    XLSX.utils.book_append_sheet(book, docsSheet, "מסמכים");
 
     XLSX.utils.book_append_sheet(
       book,
