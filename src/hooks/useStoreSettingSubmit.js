@@ -21,6 +21,7 @@ const useStoreSettingSubmit = (id) => {
   const [enabledDeliveries, setEnabledDeliveries] = useState(true);
   const [enabledOrders, setEnabledOrders] = useState(true);
   const [enabledFreeShipping, setEnabledFreeShipping] = useState(false);
+  const [enabledUnlimitedStock, setEnabledUnlimitedStock] = useState(false);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -46,6 +47,9 @@ const useStoreSettingSubmit = (id) => {
 
           // סף התראת מלאי נמוך (ברירת מחדל 2)
           low_stock_threshold: Number(data.low_stock_threshold) || 2,
+
+          // מלאי חופשי — מלאי חסר אינו חוסם הזמנות
+          unlimited_stock_status: enabledUnlimitedStock,
 
           // משלוח חינם מעל סכום קנייה
           free_shipping_status: enabledFreeShipping,
@@ -122,6 +126,9 @@ const useStoreSettingSubmit = (id) => {
           // סף התראת מלאי נמוך (ברירת מחדל 2)
           setValue("low_stock_threshold", res.low_stock_threshold ?? 2);
 
+          // מלאי חופשי
+          setEnabledUnlimitedStock(res.unlimited_stock_status ?? false);
+
           // משלוח חינם מעל סכום קנייה
           setEnabledFreeShipping(res.free_shipping_status ?? false);
           setValue("free_shipping_threshold", res.free_shipping_threshold ?? "");
@@ -161,6 +168,8 @@ const useStoreSettingSubmit = (id) => {
     setEnabledOrders,
     enabledFreeShipping,
     setEnabledFreeShipping,
+    enabledUnlimitedStock,
+    setEnabledUnlimitedStock,
   };
 };
 

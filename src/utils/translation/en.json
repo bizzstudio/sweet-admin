@@ -1235,6 +1235,8 @@
   "EnableOrders": "Enable Orders",
   "LowStockThreshold": "Low Stock Alert Threshold",
   "LowStockThresholdHelp": "When a managed product's stock drops to this number or below, a bell notification is created",
+  "EnableUnlimitedStock": "Unlimited stock",
+  "EnableUnlimitedStockHelp": "When on, missing stock never blocks an order — not in email/WhatsApp intake, not when approving an error order, not at the cashier. Stock still decreases with every order",
   "EnableFreeShipping": "Free Shipping Over Amount",
   "FreeShippingThreshold": "Free Shipping Minimum Amount",
   "FreeShippingThresholdHelp": "When the products subtotal in the cart after discounts and coupon (excluding the shipping fee) is equal to or greater than this number, shipping is free",

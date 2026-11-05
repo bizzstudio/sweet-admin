@@ -37,6 +37,8 @@ const StoreSetting = () => {
     setEnabledOrders,
     enabledFreeShipping,
     setEnabledFreeShipping,
+    enabledUnlimitedStock,
+    setEnabledUnlimitedStock,
   } = useStoreSettingSubmit();
 
   const handleEnableDisableMethod = (checked, event, id) => {
@@ -85,6 +87,22 @@ const StoreSetting = () => {
                       id="orders"
                       processOption={enabledOrders}
                       handleProcess={setEnabledOrders}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid md:grid-cols-5 items-center sm:grid-cols-12 gap-3 md:gap-5 xl:gap-6 lg:gap-6 mb-6">
+                  <label className="block md:text-sm md:col-span-1 sm:col-span-2 text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">
+                    {t("EnableUnlimitedStock")} <br />
+                    <span className="text-xs font-normal text-gray-600 dark:text-gray-400">
+                      {t("EnableUnlimitedStockHelp")}
+                    </span>
+                  </label>
+                  <div className="sm:col-span-4">
+                    <SwitchToggle
+                      id="unlimited_stock"
+                      processOption={enabledUnlimitedStock}
+                      handleProcess={setEnabledUnlimitedStock}
                     />
                   </div>
                 </div>
