@@ -33,6 +33,7 @@ const CustomerBillingPanel = ({
     Boolean(billing?.separateDisposablesInvoice)
   );
   const [separateFruit, setSeparateFruit] = useState(Boolean(billing?.separateFruitInvoice));
+  const [separateNote, setSeparateNote] = useState(Boolean(billing?.separateDisposablesNote));
   const [summarize, setSummarize] = useState(billing?.summarizeInvoiceLines !== false);
   const [mergeProducts, setMergeProducts] = useState(billing?.mergeInvoiceProducts === true);
   const [discountPercent, setDiscountPercent] = useState(
@@ -51,6 +52,7 @@ const CustomerBillingPanel = ({
     setSplit(Boolean(billing?.splitInvoiceByCategory));
     setSeparateDisposables(Boolean(billing?.separateDisposablesInvoice));
     setSeparateFruit(Boolean(billing?.separateFruitInvoice));
+    setSeparateNote(Boolean(billing?.separateDisposablesNote));
     setSummarize(billing?.summarizeInvoiceLines !== false);
     setMergeProducts(billing?.mergeInvoiceProducts === true);
     setDiscountPercent(
@@ -272,6 +274,16 @@ const CustomerBillingPanel = ({
       successText: checked
         ? "מעכשיו הפירות יוצאים בחשבונית נפרדת"
         : "מעכשיו הפירות נכנסים לחשבונית של המזון",
+    });
+  };
+
+  const toggleSeparateNote = async (checked) => {
+    setSeparateNote(checked);
+    await saveField("separateDisposablesNote", checked, {
+      onRollback: () => setSeparateNote(!checked),
+      successText: checked
+        ? "מעכשיו הזמנה מעורבת מתפצלת לתעודת כיבוד ותעודת אחזקה"
+        : "מעכשיו הזמנה מעורבת יוצאת בתעודה אחת",
     });
   };
 
@@ -563,6 +575,35 @@ const CustomerBillingPanel = ({
             </div>
           )
         ))}
+
+      {/* ── תעודה נפרדת לאחזקה ── פיצול ההזמנה עצמה בקליטה, ולא רק החשבונית.
+          אינו תלוי בפיצול לפי קטגוריה, ולכן מוצג תמיד */}
+      {editing ? (
+        <label className="flex items-start gap-3 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={separateNote}
+            disabled={saving}
+            onChange={(e) => toggleSeparateNote(e.target.checked)}
+            className="w-4 h-4 mt-1"
+          />
+          <span>
+            <span className="text-sm font-medium">תעודה נפרדת לאחזקה</span>
+            <span className="block text-xs text-gray-500">
+              הזמנה ממייל או מווצאפ שיש בה גם כיבוד וגם ח.ניקוי+ח"פ מתפצלת לשתי
+              הזמנות ושתי תעודות. השיוך לפי קטגוריית המוצר; פירות ודמי המשלוח
+              נשארים עם הכיבוד. לחשבונית נפרדת יש לסמן גם "חד פעמי בחשבונית נפרדת".
+            </span>
+          </span>
+        </label>
+      ) : (
+        separateNote && (
+          <div>
+            <p className="text-sm font-medium">אחזקה</p>
+            <p className="text-sm text-gray-600 dark:text-gray-300">בתעודה נפרדת</p>
+          </div>
+        )
+      )}
 
       {/* ── המייל שאליו נשלחות החשבוניות ──
           שדה נפרד מכתובת הכניסה לחנות, שהיא ייחודית במסד: הנהלת חשבונות
