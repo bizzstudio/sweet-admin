@@ -264,7 +264,8 @@ const MonthlyBilling = () => {
     const invoices =
       customerResult?.splitByCategory ||
       customerResult?.separateDisposables ||
-      customerResult?.separateFruit
+      customerResult?.separateFruit ||
+      customerResult?.separateMilk
         ? new Set(selectedNotes.map((n) => n.invoiceCategory || "כללי")).size
         : selectedNotes.length
           ? 1

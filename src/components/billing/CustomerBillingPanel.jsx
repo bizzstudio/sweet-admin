@@ -34,6 +34,7 @@ const CustomerBillingPanel = ({
   );
   const [separateFruit, setSeparateFruit] = useState(Boolean(billing?.separateFruitInvoice));
   const [separateNote, setSeparateNote] = useState(Boolean(billing?.separateDisposablesNote));
+  const [separateMilk, setSeparateMilk] = useState(Boolean(billing?.separateMilk));
   const [summarize, setSummarize] = useState(billing?.summarizeInvoiceLines !== false);
   const [mergeProducts, setMergeProducts] = useState(billing?.mergeInvoiceProducts === true);
   const [discountPercent, setDiscountPercent] = useState(
@@ -53,6 +54,7 @@ const CustomerBillingPanel = ({
     setSeparateDisposables(Boolean(billing?.separateDisposablesInvoice));
     setSeparateFruit(Boolean(billing?.separateFruitInvoice));
     setSeparateNote(Boolean(billing?.separateDisposablesNote));
+    setSeparateMilk(Boolean(billing?.separateMilk));
     setSummarize(billing?.summarizeInvoiceLines !== false);
     setMergeProducts(billing?.mergeInvoiceProducts === true);
     setDiscountPercent(
@@ -284,6 +286,16 @@ const CustomerBillingPanel = ({
       successText: checked
         ? "מעכשיו הזמנה מעורבת מתפצלת לתעודת כיבוד ותעודת אחזקה"
         : "מעכשיו הזמנה מעורבת יוצאת בתעודה אחת",
+    });
+  };
+
+  const toggleSeparateMilk = async (checked) => {
+    setSeparateMilk(checked);
+    await saveField("separateMilk", checked, {
+      onRollback: () => setSeparateMilk(!checked),
+      successText: checked
+        ? "מעכשיו החלב יוצא בתעודה ובחשבונית נפרדות"
+        : "מעכשיו החלב נשאר בתעודה ובחשבונית של הכיבוד",
     });
   };
 
@@ -532,7 +544,7 @@ const CustomerBillingPanel = ({
             <span>
               <span className="text-sm font-medium">חד פעמי בחשבונית נפרדת</span>
               <span className="block text-xs text-gray-500">
-                שתי חשבוניות: אחת למזון ופירות, ואחת לחד פעמי (ח.ניקוי+ח"פ).
+                שתי חשבוניות: אחת למזון ופירות, ואחת לחד פעמי (ח.ניקוי+ח"פ ומשרד).
                 תעודה שמערבת מזון וחד פעמי נכנסת בשלמותה לחשבונית של מה
                 שרוב הכסף בה — תעודה אחת אינה מתחלקת בין שתי חשבוניות.
               </span>
@@ -590,7 +602,7 @@ const CustomerBillingPanel = ({
           <span>
             <span className="text-sm font-medium">תעודה נפרדת לאחזקה</span>
             <span className="block text-xs text-gray-500">
-              הזמנה ממייל או מווצאפ שיש בה גם כיבוד וגם ח.ניקוי+ח"פ מתפצלת לשתי
+              הזמנה ממייל או מווצאפ שיש בה גם כיבוד וגם ח.ניקוי+ח"פ או משרד מתפצלת לשתי
               הזמנות ושתי תעודות. השיוך לפי קטגוריית המוצר; פירות ודמי המשלוח
               נשארים עם הכיבוד. לחשבונית נפרדת יש לסמן גם "חד פעמי בחשבונית נפרדת".
             </span>
@@ -601,6 +613,36 @@ const CustomerBillingPanel = ({
           <div>
             <p className="text-sm font-medium">אחזקה</p>
             <p className="text-sm text-gray-600 dark:text-gray-300">בתעודה נפרדת</p>
+          </div>
+        )
+      )}
+
+      {/* ── חלב בנפרד ── פיצול ההזמנה בקליטה וגם החשבונית, בדגל אחד (בקשה
+          08/11/2026). מוצג תמיד: בפיצול המלא לפי קטגוריה החשבונית ממילא
+          נפרדת, אבל התעודה לא */}
+      {editing ? (
+        <label className="flex items-start gap-3 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={separateMilk}
+            disabled={saving}
+            onChange={(e) => toggleSeparateMilk(e.target.checked)}
+            className="w-4 h-4 mt-1"
+          />
+          <span>
+            <span className="text-sm font-medium">חלב בתעודה ובחשבונית נפרדות</span>
+            <span className="block text-xs text-gray-500">
+              הזמנה ממייל או מווצאפ שיש בה חלב ועוד מוצרים מתפצלת, והחלב מקבל
+              תעודה משלו. בסוף החודש תעודות החלב יוצאות בחשבונית נפרדת. חלב =
+              המוצרים בקטגוריה "חלב" בלבד; גבינות ושאר מוצרי החלב נשארים עם הכיבוד.
+            </span>
+          </span>
+        </label>
+      ) : (
+        separateMilk && (
+          <div>
+            <p className="text-sm font-medium">חלב</p>
+            <p className="text-sm text-gray-600 dark:text-gray-300">בתעודה ובחשבונית נפרדות</p>
           </div>
         )
       )}

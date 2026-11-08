@@ -110,3 +110,30 @@ describe("מייל לשליחת חשבוניות", () => {
     });
   });
 });
+
+describe("חלב בתעודה ובחשבונית נפרדות", () => {
+  const milkBox = () =>
+    [...container.querySelectorAll("label")]
+      .find((el) => el.textContent.includes("חלב בתעודה ובחשבונית נפרדות"))
+      .querySelector('input[type="checkbox"]');
+
+  it("סימון נשמר כ-billing.separateMilk", async () => {
+    CustomerServices.updateCustomer.mockResolvedValue({ billing: { separateMilk: true } });
+    render({});
+    expect(milkBox().checked).toBe(false);
+
+    await act(async () => milkBox().click());
+
+    expect(CustomerServices.updateCustomer).toHaveBeenCalledWith("c1", {
+      billing: { separateMilk: true },
+    });
+    expect(milkBox().checked).toBe(true);
+  });
+
+  it("שרת שלא שמר — הסימון חוזר", async () => {
+    CustomerServices.updateCustomer.mockResolvedValue({ billing: { separateMilk: false } });
+    render({});
+    await act(async () => milkBox().click());
+    expect(milkBox().checked).toBe(false);
+  });
+});
