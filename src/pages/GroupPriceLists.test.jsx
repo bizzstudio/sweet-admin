@@ -6,6 +6,7 @@
 //   3. עריכה בלי קובץ חדש אינה שולחת שורות — אחרת שינוי של רשימת הלקוחות
 //      היה דורס את המחירים.
 //   4. לקוח ששייך לקבוצה אחרת מסומן, כי השמירה מעבירה אותו.
+//   5. "השוואת מחירונים" בונה את שורות המחירון מהמחירים שנבחרו, בלי קובץ.
 
 import React from "react";
 import { createRoot } from "react-dom/client";
@@ -19,6 +20,7 @@ vi.mock("@/services/GroupPriceListServices", () => ({
     getAll: vi.fn(),
     getOne: vi.fn(),
     checkImport: vi.fn(),
+    compare: vi.fn(),
     create: vi.fn(() => Promise.resolve({ message: "נשמר" })),
     update: vi.fn(() => Promise.resolve({ message: "עודכן" })),
     remove: vi.fn(() => Promise.resolve({ message: "נמחק" })),
@@ -213,5 +215,61 @@ describe("GroupPriceLists", () => {
     await click(del());
     expect(GroupPriceListServices.remove).toHaveBeenCalledWith("g1");
     confirm.mockRestore();
+  });
+  it("השוואת מחירונים: המחיר שנבחר לכל מוצר נשמר כמחירון הקבוצה", async () => {
+    GroupPriceListServices.compare.mockResolvedValue({
+      customers: [
+        { _id: "c1", name: "גן רימון", customerNumber: "101", itemsCount: 2 },
+        { _id: "c2", name: "גן תמר", customerNumber: "102", itemsCount: 1 },
+      ],
+      group: null,
+      items: [
+        { sku: "85", name: "אובלטים", inCatalog: true, prices: { c1: 12, c2: 14 } },
+        { sku: "500", name: "שקדים", inCatalog: true, prices: { c1: 20 } },
+      ],
+    });
+    await open([]);
+    await click(button("מחירון קבוצתי חדש"));
+    typeName("גנים");
+    await click(customerCheckbox("רימון"));
+    await click(customerCheckbox("תמר"));
+    await click(button("השוואת המחירונים של 2"));
+
+    expect(GroupPriceListServices.compare).toHaveBeenCalledWith({
+      customers: ["c1", "c2"],
+      groupId: null,
+    });
+    // בתיקו (12 מול 14) נבחר הגבוה; לחיצה על 12 משנה את הבחירה
+    const cell = [...screen().querySelectorAll("button[aria-pressed]")].find(
+      (el) => el.getAttribute("aria-pressed") === "false",
+    );
+    await click(cell);
+    await click(button("שימוש במחירים האלה"));
+    await click(button("שמירת המחירון הקבוצתי"));
+
+    expect(GroupPriceListServices.checkImport).toHaveBeenCalledTimes(1);
+    const body = GroupPriceListServices.create.mock.calls[0][0];
+    expect(body.customers).toEqual(["c1", "c2"]);
+    expect(body.rows.map((row) => [row.sku, row.price])).toEqual([["85", 12], ["500", 20]]);
+  });
+  it("השוואה בקבוצה קיימת: ברירת המחדל היא המחיר שכבר בקבוצה", async () => {
+    GroupPriceListServices.compare.mockResolvedValue({
+      customers: [{ _id: "c1", name: "גן רימון", customerNumber: "101", itemsCount: 1 }],
+      group: { _id: "g1", name: "גני ילדים" },
+      items: [{ sku: "85", name: "אובלטים", inCatalog: true, prices: { c1: 12 }, groupPrice: 13 }],
+    });
+    await open([GROUP]);
+    await click(button("גני ילדים"));
+    await click(button("השוואת המחירונים של 1"));
+
+    expect(GroupPriceListServices.compare).toHaveBeenCalledWith({ customers: ["c1"], groupId: "g1" });
+    await click(button("שימוש במחירים האלה"));
+    expect(screen().textContent).toContain("הקובץ יחליף את המחירון הקיים");
+    await click(button("שמירת המחירון הקבוצתי"));
+
+    const [id, body] = GroupPriceListServices.update.mock.calls[0];
+    expect(id).toBe("g1");
+    expect(body.rows.map((row) => [row.sku, row.price])).toEqual([["85", 13]]);
+    expect(body.fileName).toBe("השוואת מחירונים");
   });
 });

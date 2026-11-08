@@ -9,11 +9,15 @@
 //   1. מחירון קבוצתי גובר על המחירון הפרטי של הלקוח, בכל מק"ט שמופיע בו.
 //   2. לקוח שייך לקבוצה אחת — שיוך לכאן מוציא אותו מהקבוצה הקודמת.
 //   3. העלאת קובץ לקבוצה קיימת דורסת את המחירון שלה במלואו.
+//
+// במקום קובץ אפשר לבנות את המחירון מ"השוואת מחירונים" של הלקוחות שנבחרו
+// (PriceListComparison). התוצאה נכנסת בדיוק כמו קובץ שפוענח.
 import { Badge, Button, Card, CardBody } from "@windmill/react-ui";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   FiAlertTriangle,
   FiArrowRight,
+  FiColumns,
   FiEdit2,
   FiList,
   FiPlus,
@@ -26,6 +30,7 @@ import {
 // Internal import
 import spinnerLoadingImage from "@/assets/img/spinner.gif";
 import PageTitle from "@/components/Typography/PageTitle";
+import PriceListComparison from "@/components/customer/PriceListComparison";
 import CustomerServices from "@/services/CustomerServices";
 import GroupPriceListServices from "@/services/GroupPriceListServices";
 import { describeApiError } from "@/utils/apiError";
@@ -105,6 +110,9 @@ const GroupPriceLists = () => {
   const [priceRows, setPriceRows] = useState(null);
   const [priceSearch, setPriceSearch] = useState("");
   const [isLoadingRows, setIsLoadingRows] = useState(false);
+  // השוואת המחירונים הפרטיים של הלקוחות שנבחרו — הלקוחות שבהשוואה נקבעים
+  // ברגע הפתיחה, כדי שסימון לקוח נוסף לא יטען אותה מחדש באמצע בחירה
+  const [comparing, setComparing] = useState(null);
 
   const isNew = editing === "new";
   const busy = isSaving || Boolean(deletingId);
@@ -137,6 +145,7 @@ const GroupPriceLists = () => {
     setPriceRows(null);
     setPriceSearch("");
     setIsLoadingRows(false);
+    setComparing(null);
     openGroupId.current = null;
     resetFile();
   }, [resetFile]);
@@ -220,6 +229,25 @@ const GroupPriceLists = () => {
       setCheck(await GroupPriceListServices.checkImport({ rows }));
     } catch (err) {
       setParseError(describeApiError(err, "פענוח הקובץ נכשל"));
+    } finally {
+      setIsParsing(false);
+    }
+  };
+
+  // המחירים שנבחרו בהשוואה נכנסים כמו קובץ: אותה בדיקה מול הקטלוג ואותה שמירה
+  const handleApplyComparison = async (result) => {
+    setComparing(null);
+    setParseError("");
+    setCheck(null);
+    if (fileRef.current) fileRef.current.value = "";
+    try {
+      const rows = result.rows.map(toServerRow);
+      assertPayloadFits(rows);
+      setParsed(result);
+      setIsParsing(true);
+      setCheck(await GroupPriceListServices.checkImport({ rows }));
+    } catch (err) {
+      setParseError(describeApiError(err, "בדיקת המחירים מול הקטלוג נכשלה"));
     } finally {
       setIsParsing(false);
     }
@@ -499,6 +527,13 @@ const GroupPriceLists = () => {
               )}
             </div>
 
+            {!parsed && (
+              <p className="-mt-2 mb-4 text-xs text-gray-500 dark:text-gray-400">
+                {"אפשר גם בלי קובץ: מסמנים למטה את הלקוחות (למשל כל הסניפים של חברה) " +
+                  'ולוחצים "השוואת המחירונים" — שם בוחרים מחיר אחד לכל מוצר.'}
+              </p>
+            )}
+
             {/* המחירים שבמחירון כרגע — לצפייה. שינוי מחירים נעשה בהעלאת קובץ */}
             {!isNew && !parsed && (
               <div className="mb-4">
@@ -734,6 +769,27 @@ const GroupPriceLists = () => {
                 })
               )}
             </div>
+
+            {comparing ? (
+              <PriceListComparison
+                customerIds={comparing}
+                groupId={isNew ? null : editing._id}
+                onApply={handleApplyComparison}
+                onClose={() => setComparing(null)}
+              />
+            ) : (
+              <button
+                type="button"
+                onClick={() => setComparing([...selected])}
+                disabled={selected.size === 0 || busy || isParsing}
+                className="mb-3 flex items-center gap-1 text-sm text-blue-600 underline focus:outline-none disabled:opacity-40 dark:text-blue-400"
+              >
+                <FiColumns />
+                {selected.size === 0
+                  ? "השוואת מחירונים — יש לסמן קודם לקוחות"
+                  : `השוואת המחירונים של ${selected.size} הלקוחות שנבחרו ובחירת מחיר לכל מוצר`}
+              </button>
+            )}
 
             {movedCount > 0 && (
               <div className="flex items-start gap-2 p-3 mb-3 rounded-md bg-yellow-50 dark:bg-gray-700 text-sm text-yellow-700 dark:text-yellow-500">

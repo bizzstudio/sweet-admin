@@ -17,6 +17,11 @@ const GroupPriceListServices = {
     return requests.get(`/group-price-list/${id}${suffix}`);
   },
 
+  // המחירונים הפרטיים של כמה לקוחות זה לצד זה: {customers, groupId?}
+  compare: async (body) => {
+    return requests.post("/group-price-list/compare", body);
+  },
+
   // בדיקה מקדימה של קובץ מול הקטלוג: {rows}
   checkImport: async (body) => {
     return requests.post("/group-price-list/check", body);
