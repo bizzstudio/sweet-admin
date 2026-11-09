@@ -40,6 +40,11 @@ const IncomingOrderServices = {
     return requests.post(`/incoming-orders/${id}/approve-sender`, body);
   },
 
+  // "זו הזמנה של לקוח קיים" — בוחרים לקוח, וההודעה נקראת מחדש בשמו
+  assignCustomer: async (id, customerId) => {
+    return requests.post(`/incoming-orders/${id}/assign-customer`, { customerId });
+  },
+
   // מצב הרשימה הלבנה
   getWhitelistStats: async () => {
     return requests.get("/incoming-orders/whitelist/stats");

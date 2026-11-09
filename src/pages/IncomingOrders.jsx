@@ -13,6 +13,10 @@ import {
   Card,
   CardBody,
   Input,
+  Modal,
+  ModalBody,
+  ModalFooter,
+  ModalHeader,
   Pagination,
   Table,
   TableBody,
@@ -23,7 +27,16 @@ import {
   TableRow,
 } from "@windmill/react-ui";
 import { Link } from "react-router-dom";
-import { FiCheck, FiLink, FiMail, FiRefreshCw, FiSearch, FiSlash, FiUserPlus } from "react-icons/fi";
+import {
+  FiCheck,
+  FiLink,
+  FiMail,
+  FiRefreshCw,
+  FiSearch,
+  FiSlash,
+  FiUserCheck,
+  FiUserPlus,
+} from "react-icons/fi";
 import { FaWhatsapp } from "react-icons/fa";
 
 import { notifyError, notifySuccess } from "@/utils/toast";
@@ -33,6 +46,7 @@ import NotFound from "@/components/table/NotFound";
 import PageTitle from "@/components/Typography/PageTitle";
 import TableLoading from "@/components/preloader/TableLoading";
 import PlatformCustomerResolver from "@/components/order/PlatformCustomerResolver";
+import CustomerPicker from "@/components/billing/CustomerPicker";
 
 import TableHeaderCell from "@/components/table/TableHeaderCell";
 const RESULTS_PER_PAGE = 20;
@@ -212,6 +226,34 @@ const IncomingOrders = () => {
     e.preventDefault();
     setPage(1);
     setSearch(searchInput.trim());
+  };
+
+  // ── "שייך ללקוח" ──
+  //
+  // הזמנה שהועברה מהפלאפון הפרטי מגיעה מהמשרד ולא מהלקוח. "לקוח חדש" היה
+  // פותח כרטיס על המספר של המשרד; כאן בוחרים את הלקוח האמיתי מהרשימה.
+  const [assignRow, setAssignRow] = useState(null);
+  const [assignCustomerId, setAssignCustomerId] = useState("");
+
+  const openAssign = (row) => {
+    setAssignRow(row);
+    setAssignCustomerId("");
+  };
+
+  const handleAssign = async () => {
+    if (!assignRow || !assignCustomerId) return;
+    const id = assignRow._id;
+    setBusyId(id);
+    try {
+      const res = await IncomingOrderServices.assignCustomer(id, assignCustomerId);
+      notifySuccess(res.message);
+      setAssignRow(null);
+      await load();
+    } catch (err) {
+      notifyError(err?.response?.data?.message || err.message);
+    } finally {
+      setBusyId(null);
+    }
   };
 
   const handleRetry = async (id) => {
@@ -810,6 +852,15 @@ const IncomingOrders = () => {
                         // לא "לנסות שוב" — ניסיון חוזר יידחה מאותה סיבה בדיוק.
                         <div className="flex items-center justify-center gap-1">
                           <button
+                            onClick={() => openAssign(row)}
+                            disabled={busyId === row._id}
+                            className="px-2 py-1.5 text-xs font-medium text-white bg-blue-600 rounded hover:bg-blue-700 disabled:opacity-40 flex items-center gap-1"
+                            title="ההזמנה של לקוח קיים (למשל הועברה מהפלאפון הפרטי)"
+                          >
+                            <FiUserCheck className="w-3.5 h-3.5" />
+                            שייך ללקוח
+                          </button>
+                          <button
                             onClick={() => handleApproveSender(row)}
                             disabled={busyId === row._id}
                             className="px-2 py-1.5 text-xs font-medium text-white bg-green-600 rounded hover:bg-green-700 disabled:opacity-40 flex items-center gap-1"
@@ -839,6 +890,19 @@ const IncomingOrders = () => {
                               className={`w-4 h-4 ${busyId === row._id ? "animate-spin" : ""}`}
                             />
                           </button>
+                          {/* הודעה שנקראה על הלקוח הלא נכון, או שהמשרד העביר בלי שם ברור */}
+                          {(row.status === "failed" || row.status === "not_an_order") &&
+                            !row.platform?.ref && (
+                              <button
+                                onClick={() => openAssign(row)}
+                                disabled={busyId === row._id}
+                                title="שייך ללקוח וקרא מחדש"
+                                aria-label="שייך ללקוח וקרא מחדש"
+                                className="p-2 text-blue-600 hover:bg-blue-50 rounded disabled:opacity-40"
+                              >
+                                <FiUserCheck className="w-4 h-4" />
+                              </button>
+                            )}
                           {row.status !== "ignored" && (
                             <button
                               onClick={() => handleIgnore(row._id)}
@@ -876,6 +940,38 @@ const IncomingOrders = () => {
       ) : (
         <NotFound title="אין הודעות להצגה" />
       )}
+
+      {/* ── שיוך ללקוח קיים ── */}
+      <Modal isOpen={!!assignRow} onClose={() => setAssignRow(null)}>
+        <ModalHeader>שיוך ההזמנה ללקוח</ModalHeader>
+        <ModalBody>
+          <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+            ההודעה תיקרא מחדש כאילו הלקוח שלח אותה: עם המחירון שלו, ואם הכול
+            נקרא — גם תעודת משלוח. המספר או המייל של השולח <b>לא</b> נוספים
+            לכרטיס הלקוח.
+          </p>
+          {assignRow?.rawText && (
+            <pre
+              dir="auto"
+              className="text-xs whitespace-pre-wrap bg-gray-50 dark:bg-gray-800 rounded p-2 mb-3 max-h-40 overflow-auto"
+            >
+              {String(assignRow.rawText).slice(0, 600)}
+            </pre>
+          )}
+          <CustomerPicker value={assignCustomerId} onChange={setAssignCustomerId} />
+        </ModalBody>
+        <ModalFooter>
+          <Button layout="outline" onClick={() => setAssignRow(null)}>
+            ביטול
+          </Button>
+          <Button
+            onClick={handleAssign}
+            disabled={!assignCustomerId || busyId === assignRow?._id}
+          >
+            {busyId === assignRow?._id ? "קורא..." : "שייך וקרא"}
+          </Button>
+        </ModalFooter>
+      </Modal>
     </>
   );
 };
