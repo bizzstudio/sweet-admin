@@ -58,6 +58,15 @@ vi.mock("@/components/customer/CustomerHistoryModal", () => ({
         )
       : null,
 }));
+// חלון "קניות אחרונות" נבדק ב-RecentPurchasesModal.test.jsx; כאן — מה הטופס
+// מעביר אליו ומה קורה כשמוסיפים ממנו מוצר
+const recentProps = vi.hoisted(() => ({ current: null }));
+vi.mock("@/components/customer/RecentPurchasesModal", () => ({
+  default: (props) => {
+    recentProps.current = props;
+    return props.isOpen ? React.createElement("div", { "data-recent": props.customerId }) : null;
+  },
+}));
 vi.mock("@/components/billing/BarcodeInput", () => ({
   default: () => React.createElement("div"),
 }));
@@ -542,5 +551,47 @@ describe("ManualDeliveryNoteForm — חלון ההיסטוריה של הלקוח
     await click(historyButton());
     await click(container.querySelector("[data-history]"));
     expect(CustomerHistoryServices.getCustomerHistory.mock.calls.length).toBe(before + 1);
+  });
+});
+
+describe("ManualDeliveryNoteForm — קניות אחרונות", () => {
+  const recentButton = () =>
+    [...container.querySelectorAll("button")].find((b) => b.textContent.includes("קניות אחרונות"));
+  const pickers = () => container.querySelectorAll("[data-picker]");
+
+  it("הכפתור פותח את החלון של הלקוח שבתעודה, עם המק\"טים שכבר בטופס", async () => {
+    await render();
+    expect(container.querySelector("[data-recent]")).toBeNull();
+
+    await click(recentButton());
+    expect(container.querySelector("[data-recent]").getAttribute("data-recent")).toBe("c1");
+    expect(recentProps.current.formSkus).toEqual(["111", "222"]);
+  });
+
+  it("בלי לקוח הכפתור כבוי", async () => {
+    await act(async () => {
+      root.render(React.createElement(ManualDeliveryNoteForm, { onCreated: () => {} }));
+    });
+    expect(recentButton().disabled).toBe(true);
+  });
+
+  it("מוצר שנוסף מהחלון נכנס כשורה חדשה עם כמות 1", async () => {
+    await render();
+    await click(recentButton());
+    expect(pickers().length).toBe(2);
+
+    await act(async () => recentProps.current.onAdd({ sku: "333", name: "בצל" }));
+    expect(pickers().length).toBe(3);
+    expect(recentProps.current.formSkus).toEqual(["111", "222", "333"]);
+    const quantities = [...container.querySelectorAll('input[type="number"]')].map((i) => i.value);
+    expect(quantities).toContain("1");
+  });
+
+  it("מוצר שכבר בטופס אינו נכנס פעם שנייה", async () => {
+    await render();
+    await click(recentButton());
+    await act(async () => recentProps.current.onAdd({ sku: "111", name: "עגבניות" }));
+    expect(pickers().length).toBe(2);
+    expect(notifyError).toHaveBeenCalled();
   });
 });

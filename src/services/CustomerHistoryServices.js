@@ -18,6 +18,12 @@ const CustomerHistoryServices = {
     return requests.get(`/customer-history/${customerId}${suffix}`);
   },
 
+  // קניות אחרונות לפי תאריך: תעודות שהופקו במערכת והזמנות ארכיון.
+  // ‏months: 1 / 3 / 6 / 12 (אחר — 3)
+  getRecentPurchases: async (customerId, months = 3) => {
+    return requests.get(`/customer-history/${customerId}/recent?months=${Number(months) || 3}`);
+  },
+
   // בדיקה מקדימה: {rows, customerNumbers}. מחזירה גם כמה שורות תקועות
   // ההיסטוריה הזו הייתה פותרת — זה המספר שאומר אם הקובץ בכלל עוזר
   checkImport: async (customerId, body) => {

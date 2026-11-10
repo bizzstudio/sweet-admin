@@ -36,7 +36,7 @@ import {
   TableHeader,
   TableRow,
 } from "@windmill/react-ui";
-import { FiAlertTriangle, FiClock, FiPlus, FiTrash2 } from "react-icons/fi";
+import { FiAlertTriangle, FiClock, FiPlus, FiShoppingBag, FiTrash2 } from "react-icons/fi";
 
 import ProductPicker from "@/components/billing/ProductPicker";
 import CatalogScopeToggle from "@/components/billing/CatalogScopeToggle";
@@ -44,6 +44,7 @@ import CustomerPicker from "@/components/billing/CustomerPicker";
 import ExpectedPrice, { isPriceListSource, useExpectedPrices } from "@/components/billing/ExpectedPrice";
 import BarcodeInput from "@/components/billing/BarcodeInput";
 import CustomerHistoryWindow from "@/components/customer/CustomerHistoryWindow";
+import RecentPurchasesModal from "@/components/customer/RecentPurchasesModal";
 import BillingServices from "@/services/BillingServices";
 import CustomerPriceListServices from "@/services/CustomerPriceListServices";
 import useCustomerKnownSkus from "@/hooks/useCustomerKnownSkus";
@@ -148,6 +149,8 @@ const ManualDeliveryNoteForm = ({
 
   // חלון ההיסטוריה של הלקוח. null — עוד לא נפתח, ואז אינו מורכב כלל
   const [historyOpen, setHistoryOpen] = useState(null);
+  // חלון "קניות אחרונות" — אותו דפוס: null עד הפתיחה הראשונה
+  const [recentOpen, setRecentOpen] = useState(null);
 
   // טעינת השורות הממתינות מההזמנה
   useEffect(() => {
@@ -354,7 +357,7 @@ const ManualDeliveryNoteForm = ({
   };
 
   /**
-   * הוספת שורה מסריקת ברקוד.
+   * הוספת שורה מסריקת ברקוד או מחלון "קניות אחרונות".
    *
    * ממלא שורה ריקה קיימת לפני שהוא מוסיף חדשה — הטופס נפתח עם שורה ריקה
    * אחת, ובלי זה הסריקה הראשונה הייתה משאירה אותה תלויה מתחת.
@@ -362,7 +365,7 @@ const ManualDeliveryNoteForm = ({
    * מק"ט שכבר נמצא בטופס מקבל אזהרה ולא שורה שנייה: השרת חוסם ממילא שתי
    * שורות לאותו מק"ט, ועדיף שזה ייאמר בסריקה ולא בהפקה.
    */
-  const addByBarcode = (product) => {
+  const addProductRow = (product) => {
     if (!product?.sku) return;
 
     setPriced(null);
@@ -612,6 +615,15 @@ const ManualDeliveryNoteForm = ({
             onChanged={() => setHistoryVersion((v) => v + 1)}
           />
         )}
+        {recentOpen !== null && (
+          <RecentPurchasesModal
+            isOpen={recentOpen}
+            onClose={() => setRecentOpen(false)}
+            customerId={customerId}
+            formSkus={rows.map((r) => r.sku)}
+            onAdd={addProductRow}
+          />
+        )}
 
         <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
           <div>
@@ -627,16 +639,28 @@ const ManualDeliveryNoteForm = ({
 
           {/* בכותרת ולא ליד בורר הלקוח: כשמגיעים מהזמנה הבורר אינו מוצג,
               וההיסטוריה נחוצה גם שם */}
-          <Button
-            type="button"
-            size="small"
-            layout="outline"
-            onClick={() => setHistoryOpen(true)}
-            disabled={!customerId}
-            title={customerId ? "מה הלקוח קנה בעבר" : "יש לבחור לקוח"}
-          >
-            <FiClock className="ml-1" /> היסטוריית הלקוח
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              size="small"
+              layout="outline"
+              onClick={() => setHistoryOpen(true)}
+              disabled={!customerId}
+              title={customerId ? "מה הלקוח קנה בעבר" : "יש לבחור לקוח"}
+            >
+              <FiClock className="ml-1" /> היסטוריית הלקוח
+            </Button>
+            <Button
+              type="button"
+              size="small"
+              layout="outline"
+              onClick={() => setRecentOpen(true)}
+              disabled={!customerId}
+              title={customerId ? "כל קנייה של הלקוח בתאריך שלה, עם הוספה לטופס" : "יש לבחור לקוח"}
+            >
+              <FiShoppingBag className="ml-1" /> קניות אחרונות
+            </Button>
+          </div>
         </div>
 
         <div className="flex flex-wrap gap-4 mb-5">
@@ -714,7 +738,7 @@ const ManualDeliveryNoteForm = ({
             נוספת. הבורר למטה נשאר למי שמחפש לפי שם */}
         <div className="mb-4 max-w-sm">
           <BarcodeInput
-            onPick={addByBarcode}
+            onPick={addProductRow}
             hint="סריקה או הקלדה של הברקוד ואז Enter — השורה תתווסף למטה"
           />
         </div>
