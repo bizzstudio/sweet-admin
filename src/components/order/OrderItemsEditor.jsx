@@ -10,7 +10,7 @@
 // מתקנים אותו. מחיר שהוקלד ידנית על שורה בודדת היה נעלם בהזמנה הבאה
 // ומייצר שני מחירים שונים לאותו מוצר לאותו לקוח.
 
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Badge,
   Button,
@@ -25,10 +25,11 @@ import {
   TableHeader,
   TableRow,
 } from "@windmill/react-ui";
-import { FiAlertTriangle, FiPlus, FiSave, FiTrash2, FiX } from "react-icons/fi";
+import { FiAlertTriangle, FiPlus, FiRepeat, FiSave, FiTrash2, FiX } from "react-icons/fi";
 
 import ProductPicker from "@/components/billing/ProductPicker";
 import BillingServices from "@/services/BillingServices";
+import IncomingOrderServices from "@/services/IncomingOrderServices";
 import OrderServices from "@/services/OrderServices";
 import { notifyError, notifySuccess } from "@/utils/toast";
 
@@ -70,6 +71,10 @@ const toRow = (line) => ({
   key: String(line._id || line.id || line.sku || Math.random()),
   id: String(line._id || line.id || ""),
   sku: line.sku ? String(line.sku) : "",
+  // המק"ט שהשורה נקלטה איתו. כשהוא שונה מ-sku, המוצר הוחלף כאן — וזה הסימן
+  // לשמור את ההחלפה גם כהכרעה לפעם הבאה
+  origSku: line.sku ? String(line.sku) : "",
+  origId: String(line._id || line.id || ""),
   name: titleOf(line),
   quantity: String(line.quantity ?? ""),
   unitPrice: Number(line.prices?.price ?? line.price) || 0,
@@ -129,6 +134,50 @@ const OrderItemsEditor = ({ orderId, order, onSaved, onCancel }) => {
   // אישור מפורש לעריכה כשהתעודה כבר נעולה (חויבה / נתפסה / בוטלה)
   const [lockWarning, setLockWarning] = useState(null);
 
+  // ── מה הלקוח כתב בכל שורה (הזמנה שנקלטה ממייל/ווצאפ) ──
+  //
+  // שורה שזוהתה אוטומטית בטעות ("פחיות" → בקבוק 1.5 ליטר) לא נעצרת, ולכן לא
+  // עוברת במסך ההכרעות — ועד עכשיו לא היה מקום לומר למערכת "לא, זה המוצר".
+  // כאן, ליד כל שורה, מוצג הטקסט המקורי, ו"החלפת מוצר" מתקנת את ההזמנה
+  // ושומרת את הבחירה ללקוח (אותו resolve-item של מסך ההכרעות).
+  // ‏requested: מק"ט שנקלט → השמות שהלקוח כתב.
+  // ‏spread: שמות שנפרשו לכמה מוצרים (הכרעה של "סכו"ם וצלחות" → מזלגות,
+  // סכינים...). כל המוצרים שלהם נושאים את אותו שם, ושמירת ההחלפה של אחד מהם
+  // הייתה דורסת את כל ההכרעה למוצר יחיד — ולכן הם אינם נשמרים מכאן.
+  const [requested, setRequested] = useState({});
+  const [spread, setSpread] = useState(() => new Set());
+  const incomingId = customerIdOf(order?.incomingOrder);
+  useEffect(() => {
+    if (!incomingId) return undefined;
+    let alive = true;
+    IncomingOrderServices.getIncomingOrderById(incomingId)
+      .then((doc) => {
+        if (!alive) return;
+        const map = {};
+        const skusByName = new Map();
+        for (const item of doc?.matchedItems || []) {
+          const sku = item.product?.sku ?? item.sku;
+          if (sku === undefined || sku === null || !item.rawName) continue;
+          if (!map[String(sku)]) map[String(sku)] = [];
+          const list = map[String(sku)];
+          if (!list.includes(item.rawName)) list.push(item.rawName);
+          if (!skusByName.has(item.rawName)) skusByName.set(item.rawName, new Set());
+          skusByName.get(item.rawName).add(String(sku));
+        }
+        setRequested(map);
+        setSpread(
+          new Set([...skusByName].filter(([, skus]) => skus.size > 1).map(([name]) => name))
+        );
+      })
+      // בלי הטקסט המקורי העריכה עובדת כרגיל, רק בלי ההחלפה הנזכרת
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [incomingId]);
+
+  const [swappingKey, setSwappingKey] = useState(null);
+
   const setQuantity = (key, value) =>
     setRows((prev) => prev.map((r) => (r.key === key ? { ...r, quantity: value } : r)));
 
@@ -169,6 +218,54 @@ const OrderItemsEditor = ({ orderId, order, onSaved, onCancel }) => {
       notifyError(err?.response?.data?.message || err.message);
     }
   };
+
+  // החלפת המוצר בשורה קיימת: הכמות נשארת, המחיר נשלף מחדש ממחירון הלקוח
+  const swapProduct = async (key, sku) => {
+    if (!sku) return;
+    setSwappingKey(null);
+    if (rows.some((r) => r.key !== key && r.sku === String(sku))) {
+      notifyError("המוצר כבר קיים בהזמנה — אפשר למחוק את השורה הזו ולהגדיל את הכמות בשורה שלו");
+      return;
+    }
+    try {
+      const res = await BillingServices.priceItems({
+        customer: customerId,
+        items: [{ sku: String(sku), quantity: 1 }],
+      });
+      const priced = res?.items?.[0];
+      if (!priced) throw new Error("תמחור המוצר נכשל");
+      setRows((prev) =>
+        prev.map((r) =>
+          r.key === key
+            ? {
+                ...r,
+                // חזרה למוצר המקורי מחזירה גם את מזהה השורה המקורית
+                id: String(sku) === r.origSku ? r.origId : "",
+                sku: String(sku),
+                name: priced.name,
+                unitPrice: Number(priced.unitPrice) || 0,
+                source: priced.source,
+                oldName: r.oldName || r.name,
+                remember: r.remember ?? true,
+              }
+            : r
+        )
+      );
+    } catch (err) {
+      notifyError(err?.response?.data?.message || err.message);
+    }
+  };
+
+  // השמות שאפשר לשמור עבורם הכרעה מהשורה הזו (בלי שמות שנפרשו לכמה מוצרים)
+  const rememberable = (row) => (requested[row.origSku] || []).filter((n) => !spread.has(n));
+
+  // הכרעות לשמירה: שורות שהמוצר בהן הוחלף ושיש לנו מה הלקוח כתב בהן
+  const aliasesToSave = () =>
+    rows.flatMap((r) =>
+      r.origSku && r.sku !== r.origSku && r.remember !== false
+        ? rememberable(r).map((rawName) => ({ rawName, sku: r.sku, name: r.name }))
+        : []
+    );
 
   const itemsTotal = rows.reduce(
     (sum, r) => sum + (Number(r.quantity) || 0) * (Number(r.unitPrice) || 0),
@@ -213,6 +310,22 @@ const OrderItemsEditor = ({ orderId, order, onSaved, onCancel }) => {
         // הסנכרון לא נגע בתעודה — חשוב לומר את זה, אחרת "נשמר בהצלחה"
         // נקרא כאילו גם החיוב תוקן
         notifyError(`שימו לב: תעודה ${note.number} לא עודכנה — ${NOTE_REASONS[note.reason] || note.reason}`);
+      }
+      // ההזמנה כבר נשמרה; כשל בשמירת ההכרעה אינו מבטל אותה, רק נאמר
+      for (const a of aliasesToSave()) {
+        try {
+          const r = await IncomingOrderServices.resolveItem(orderId, {
+            rawName: a.rawName,
+            sku: a.sku,
+            scope: "customer",
+          });
+          notifySuccess(r?.message || `נשמר לפעם הבאה: «${a.rawName}» → ${a.name}`);
+        } catch (e) {
+          notifyError(
+            `ההזמנה עודכנה, אבל הבחירה ל«${a.rawName}» לא נשמרה לפעם הבאה: ` +
+              (e?.response?.data?.message || e.message)
+          );
+        }
       }
       onSaved?.();
     } catch (err) {
@@ -283,6 +396,57 @@ const OrderItemsEditor = ({ orderId, order, onSaved, onCancel }) => {
                       <span className={`block text-xs ${SOURCE_LABELS[row.source].cls}`}>
                         {SOURCE_LABELS[row.source].text}
                       </span>
+                    )}
+                    {requested[row.origSku]?.length > 0 && (
+                      <span className="block text-xs text-gray-500 whitespace-normal">
+                        הלקוח כתב: {requested[row.origSku].map((n) => `«${n}»`).join(", ")}
+                      </span>
+                    )}
+                    {row.oldName && row.sku !== row.origSku && (
+                      <span className="block text-xs text-orange-600 whitespace-normal">
+                        במקום: {row.oldName}
+                      </span>
+                    )}
+                    {row.oldName && row.sku !== row.origSku && rememberable(row).length > 0 && (
+                      <label className="flex items-center gap-1 text-xs mt-1">
+                        <input
+                          type="checkbox"
+                          checked={row.remember !== false}
+                          onChange={(e) =>
+                            setRows((prev) =>
+                              prev.map((r) =>
+                                r.key === row.key ? { ...r, remember: e.target.checked } : r
+                              )
+                            )
+                          }
+                        />
+                        לזכור ללקוח הזה לפעם הבאה
+                      </label>
+                    )}
+                    {row.oldName &&
+                      row.sku !== row.origSku &&
+                      (requested[row.origSku] || []).some((n) => spread.has(n)) && (
+                        <span className="block text-xs text-gray-500 whitespace-normal">
+                          השורה הזו נפרשת לכמה מוצרים, ולכן ההחלפה חלה רק על ההזמנה הזו. לשינוי
+                          לפעם הבאה: כרטיס הלקוח ← "איך הלקוח קורא למוצרים"
+                        </span>
+                      )}
+                    {swappingKey === row.key ? (
+                      <div className="mt-1 w-72 whitespace-normal">
+                        <ProductPicker value="" onChange={(sku) => swapProduct(row.key, sku)} />
+                        <Button size="small" layout="link" onClick={() => setSwappingKey(null)}>
+                          ביטול
+                        </Button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        className="block text-xs text-blue-600 hover:underline mt-1"
+                        onClick={() => setSwappingKey(row.key)}
+                      >
+                        <FiRepeat className="inline ml-1" />
+                        החלפת מוצר
+                      </button>
                     )}
                   </TableCell>
                   <TableCell className="text-center font-mono text-xs">{row.sku || "—"}</TableCell>

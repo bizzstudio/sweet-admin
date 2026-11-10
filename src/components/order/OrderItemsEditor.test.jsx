@@ -24,12 +24,22 @@ vi.mock("@/utils/toast", () => ({
   notifyError: vi.fn(),
   notifySuccess: vi.fn(),
 }));
-// בורר המוצרים מושך את הקטלוג מהשרת; לבדיקות האלה הוא אינו רלוונטי
+vi.mock("@/services/IncomingOrderServices", () => ({
+  default: { getIncomingOrderById: vi.fn(), resolveItem: vi.fn() },
+}));
+// בורר המוצרים מושך את הקטלוג מהשרת; כאן הוא כפתור שבוחר מק"ט 333
 vi.mock("@/components/billing/ProductPicker", () => ({
-  default: () => React.createElement("div", { "data-testid": "product-picker" }),
+  default: ({ onChange }) =>
+    React.createElement(
+      "button",
+      { "data-testid": "product-picker", onClick: () => onChange("333") },
+      "בחירת 333"
+    ),
 }));
 
 import OrderServices from "@/services/OrderServices";
+import BillingServices from "@/services/BillingServices";
+import IncomingOrderServices from "@/services/IncomingOrderServices";
 import { notifyError } from "@/utils/toast";
 import OrderItemsEditor from "@/components/order/OrderItemsEditor";
 
@@ -183,5 +193,97 @@ describe("OrderItemsEditor", () => {
 
     expect(OrderServices.updateOrderItems).not.toHaveBeenCalled();
     expect(notifyError).toHaveBeenCalled();
+  });
+
+  // 10/11/26: "פחיות" של טבולה נקלטו כבקבוק 1.5 ליטר. שורה שזוהתה בטעות לא
+  // נעצרת, ולכן ההחלפה כאן היא המקום היחיד לומר למערכת מה הלקוח התכוון.
+  it("החלפת מוצר בהזמנה שנקלטה שולחת את המוצר החדש ושומרת הכרעה ללקוח", async () => {
+    IncomingOrderServices.getIncomingOrderById.mockResolvedValue({
+      matchedItems: [{ rawName: "פחיות קולה", product: { sku: "222" } }],
+    });
+    BillingServices.priceItems.mockResolvedValue({
+      items: [{ name: "קולה פחית", unitPrice: 3, source: "catalog" }],
+    });
+    OrderServices.updateOrderItems.mockResolvedValue({ note: null });
+    IncomingOrderServices.resolveItem.mockResolvedValue({ message: "ok" });
+
+    await act(async () => {
+      render({ order: { ...ORDER, incomingOrder: "in1" } });
+    });
+    expect(container.textContent).toContain("הלקוח כתב: «פחיות קולה»");
+
+    // השורה השנייה (אגוזים, 222) — כפתור ההחלפה שלה
+    const swaps = [...container.querySelectorAll("button")].filter((b) =>
+      b.textContent.includes("החלפת מוצר")
+    );
+    await click(swaps[1]);
+    await click(container.querySelector('[data-testid="product-picker"]'));
+    expect(container.textContent).toContain("במקום: אגוזים");
+
+    await click(byText("button", "שמירת השינויים"));
+
+    const [, body] = OrderServices.updateOrderItems.mock.calls[0];
+    expect(body.items).toEqual([
+      { _id: "p1", sku: "111", quantity: 5 },
+      { _id: undefined, sku: "333", quantity: 1 },
+    ]);
+    expect(IncomingOrderServices.resolveItem).toHaveBeenCalledWith("o1", {
+      rawName: "פחיות קולה",
+      sku: "333",
+      scope: "customer",
+    });
+  });
+
+  it("בלי הסימון 'לזכור' ההזמנה מתוקנת ושום הכרעה אינה נשמרת", async () => {
+    IncomingOrderServices.getIncomingOrderById.mockResolvedValue({
+      matchedItems: [{ rawName: "פחיות קולה", product: { sku: "222" } }],
+    });
+    BillingServices.priceItems.mockResolvedValue({
+      items: [{ name: "קולה פחית", unitPrice: 3, source: "catalog" }],
+    });
+    OrderServices.updateOrderItems.mockResolvedValue({ note: null });
+
+    await act(async () => {
+      render({ order: { ...ORDER, incomingOrder: "in1" } });
+    });
+    const swaps = [...container.querySelectorAll("button")].filter((b) =>
+      b.textContent.includes("החלפת מוצר")
+    );
+    await click(swaps[1]);
+    await click(container.querySelector('[data-testid="product-picker"]'));
+    await click(container.querySelector('input[type="checkbox"]'));
+    await click(byText("button", "שמירת השינויים"));
+
+    expect(OrderServices.updateOrderItems).toHaveBeenCalledTimes(1);
+    expect(IncomingOrderServices.resolveItem).not.toHaveBeenCalled();
+  });
+
+  // שם שנפרש לכמה מוצרים: החלפה של אחד מהם הייתה דורסת את כל ההכרעה
+  it("שורה שנפרשת לכמה מוצרים מתוקנת בהזמנה בלבד, בלי לדרוס את ההכרעה", async () => {
+    IncomingOrderServices.getIncomingOrderById.mockResolvedValue({
+      matchedItems: [
+        { rawName: "סכום וצלחות", product: { sku: "111" } },
+        { rawName: "סכום וצלחות", product: { sku: "222" } },
+      ],
+    });
+    BillingServices.priceItems.mockResolvedValue({
+      items: [{ name: "כפות", unitPrice: 3, source: "catalog" }],
+    });
+    OrderServices.updateOrderItems.mockResolvedValue({ note: null });
+
+    await act(async () => {
+      render({ order: { ...ORDER, incomingOrder: "in1" } });
+    });
+    const swaps = [...container.querySelectorAll("button")].filter((b) =>
+      b.textContent.includes("החלפת מוצר")
+    );
+    await click(swaps[1]);
+    await click(container.querySelector('[data-testid="product-picker"]'));
+    expect(container.querySelector('input[type="checkbox"]')).toBeNull();
+    expect(container.textContent).toContain("נפרשת לכמה מוצרים");
+
+    await click(byText("button", "שמירת השינויים"));
+    expect(OrderServices.updateOrderItems).toHaveBeenCalledTimes(1);
+    expect(IncomingOrderServices.resolveItem).not.toHaveBeenCalled();
   });
 });
