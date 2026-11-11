@@ -153,6 +153,11 @@ const useCustomerSubmit = (id, options = {}) => {
         // וכל מה שיוצא ללקוח הולך ל-email
         contactEmail: String(data.contactEmail || "").trim(),
         phone: data.phone,
+        // טלפונים נוספים שמהם הלקוח מזמין בווצאפ. נשלח כמחרוזת; השרת מפצל,
+        // מנרמל ודוחה מספר לא תקין. undefined כשהשדה לא בטופס (חלון "הוספת
+        // לקוח"), כדי שעדכון משם לא ינקה את הרשימה
+        extraPhones:
+          data.extraPhones === undefined ? undefined : String(data.extraPhones || "").trim(),
         address: {
           ...(baseCustomer?.address || {}),
           // העיר נבחרת מרשימת היישובים של הלמ"ס ונשמרת כרשומה מלאה
@@ -228,6 +233,7 @@ const useCustomerSubmit = (id, options = {}) => {
       setValue("phone", res.phone || "");
       setValue("email", res.email || "");
       setValue("contactEmail", res.contactEmail || "");
+      setValue("extraPhones", (res.extraPhones || []).join(", "));
       setValue("street", res?.address?.street || "");
       setValue("houseNumber", res?.address?.houseNumber || "");
       setValue("apartmentNumber", res?.address?.apartmentNumber || "");

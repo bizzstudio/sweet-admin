@@ -224,6 +224,17 @@ const CustomerDetails = () => {
                       register={register}
                       error={errors.phone}
                     />
+                    {/* אנשי קשר נוספים שמזמינים בווצאפ לאותו כרטיס (סמלת:
+                        רותם ועומר). רק לקליטת הזמנות — לא כניסה לחנות */}
+                    <EditableField
+                      editing
+                      label="טלפונים נוספים להזמנות"
+                      name="extraPhones"
+                      inputMode="tel"
+                      register={register}
+                      error={errors.extraPhones}
+                      hint="הזמנות בווצאפ מהמספרים האלה נקלטות ללקוח הזה. כמה מספרים — מפרידים בפסיק"
+                    />
 
                     {/* מספר הלקוח בהנהח"ש וסטטוס הפעילות קיימים רק ללקוח
                         שהגיע מיבוא האקסל, ולכן הם נערכים רק עבורו */}
@@ -270,6 +281,12 @@ const CustomerDetails = () => {
                       </Contact>
                     ) : null}
                     <Contact icon={<FiPhone />}>{text(customer.phone)}</Contact>
+                    {(customer.extraPhones || []).length ? (
+                      <Contact icon={<FiPhone />}>
+                        {customer.extraPhones.join(", ")}{" "}
+                        <span className="text-gray-400">(נוספים להזמנות)</span>
+                      </Contact>
+                    ) : null}
                     {addressLine ? (
                       <Contact icon={<FiMapPin />}>{addressLine}</Contact>
                     ) : null}
