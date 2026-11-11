@@ -312,10 +312,11 @@ export default function ProductPicker({
     }
     const note = preferredMeta.get(String(p.sku));
     return (
-      // בטלפון אין רוחב לשם ולפרטים באותה שורה: השם מלא למעלה, הפרטים מתחתיו
+      // השם תמיד מלא ונשבר לשורות — שם שנחתך ב"…" לא מאפשר להבחין בין
+      // מוצרים דומים. בטלפון הפרטים יורדים מתחת לשם
       <div className="flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-3">
-        <span className="flex flex-wrap items-baseline gap-x-1.5 min-w-0 sm:flex-nowrap">
-          <span className="break-words sm:truncate">{p.name}</span>
+        <span className="flex flex-wrap items-baseline gap-x-1.5 min-w-0 sm:flex-1">
+          <span className="break-words min-w-0">{p.name}</span>
           {note && (
             <span className="text-xs shrink-0 text-emerald-700 dark:text-emerald-400">{note}</span>
           )}

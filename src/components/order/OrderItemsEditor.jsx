@@ -432,7 +432,7 @@ const OrderItemsEditor = ({ orderId, order, onSaved, onCancel }) => {
                         </span>
                       )}
                     {swappingKey === row.key ? (
-                      <div className="mt-1 w-72 whitespace-normal">
+                      <div className="mt-1 w-[28rem] max-w-full whitespace-normal">
                         <ProductPicker value="" onChange={(sku) => swapProduct(row.key, sku)} />
                         <Button size="small" layout="link" onClick={() => setSwappingKey(null)}>
                           ביטול
