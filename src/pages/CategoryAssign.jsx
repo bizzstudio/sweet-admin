@@ -132,17 +132,31 @@ const CategoryAssign = () => {
       return;
     }
 
+    // השרת מקבל עד 1,000 מזהים בבקשה (MAX_BULK_CATEGORY), ובחירה של
+    // "סמן הכל" על קטגוריה גדולה עוברת את זה — לכן שולחים במנות
+    const ids = [...selected];
+    const BATCH = 500;
+    let moved = 0;
     setSaving(true);
     try {
-      const res = await ProductServices.bulkChangeCategory({
-        ids: [...selected],
-        category: target,
-      });
-      notifySuccess(res.message);
+      for (let i = 0; i < ids.length; i += BATCH) {
+        const res = await ProductServices.bulkChangeCategory({
+          ids: ids.slice(i, i + BATCH),
+          category: target,
+        });
+        moved += Number(res?.modified) || 0;
+      }
+      notifySuccess(`${moved} מוצרים הועברו לקטגוריית "${targetName}"`);
       setSelected(new Set());
       await load();
     } catch (err) {
-      notifyError(err?.response?.data?.message || err.message);
+      const msg = err?.response?.data?.message || err.message;
+      // מנות שכבר עברו נשמרו; מרעננים כדי שהרשימה תשקף את המצב בפועל
+      notifyError(moved ? `${moved} מוצרים הועברו, ואז נעצר: ${msg}` : msg);
+      if (moved) {
+        setSelected(new Set());
+        await load();
+      }
     } finally {
       setSaving(false);
     }
