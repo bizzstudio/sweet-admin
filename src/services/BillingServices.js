@@ -188,6 +188,11 @@ const BillingServices = {
     return requests.get(`/billing/invoices/${docNum}/total`);
   },
 
+  // חשבונות הבנק של העסק ב-iCount — "לחשבון" בהעברה בנקאית
+  getBankAccounts: async () => {
+    return requests.get("/billing/icount/bank-accounts");
+  },
+
   createReceipt: async (body) => {
     return requests.post("/billing/receipt", body);
   },

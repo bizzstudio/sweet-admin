@@ -71,6 +71,62 @@ const PAYMENT_METHODS = [
   { value: "other", label: "אחר" },
 ];
 
+// אילו פרטים שייכים לכל אמצעי. נשלחים רק אלה: מעבר מהעברה לצ'ק היה
+// משאיר בטופס את התאריך והחשבון של ההעברה ושולח אותם עם הצ'ק
+const DETAIL_KEYS = {
+  transfer: ["date", "depositAccountId", "bank", "branch"],
+  check: ["checkNum", "date", "bank", "branch", "account"],
+  other: ["otherNote"],
+  cash: [],
+  creditcard: [],
+};
+
+const todayIso = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+
+// החשבון שאליו נכנסות ההעברות כמעט תמיד אותו חשבון, ולכן הבחירה
+// האחרונה נזכרת בדפדפן (בקשת הלקוחה, 16/11/2026: "מספר החשבון שלי שאני
+// בדרך כלל ממלאה")
+const DEPOSIT_KEY = "receipt.depositAccountId";
+const rememberedDeposit = () => {
+  try {
+    return localStorage.getItem(DEPOSIT_KEY) || "";
+  } catch {
+    return "";
+  }
+};
+// גם "לא לציין" נזכר — אחרת החשבון הקודם היה חוזר בפעם הבאה
+const rememberDeposit = (id) => {
+  try {
+    localStorage.setItem(DEPOSIT_KEY, id || "");
+  } catch {
+    // דפדפן בלי אחסון — פשוט לא נזכר
+  }
+};
+
+// השדות המספריים בקבלה (בנק, סניף, חשבון, מס' צ'ק) — ספרות בלבד
+const onlyDigits = (v) => String(v || "").replace(/\D/g, "");
+
+// סכום כל חשבונית נקרא מ-iCount בנפרד. ללקוח בחיוב לכל משלוח יכולות
+// להיות עשרות חשבוניות פתוחות, ועשרות בקשות בבת אחת היו מציפות את iCount
+const settledInBatches = async (items, fn, size = 4) => {
+  const out = [];
+  for (let k = 0; k < items.length; k += size) {
+    out.push(...(await Promise.allSettled(items.slice(k, k + size).map(fn))));
+  }
+  return out;
+};
+
+/** סכום החשבוניות שנבחרו: מ-iCount כשנטען, אחרת האומדן מהתעודות. */
+const selectedTotal = (list, selected) =>
+  round2(
+    list
+      .filter((i) => selected.includes(i.docNum))
+      .reduce((s, i) => s + (i.total ?? i.estimate), 0)
+  );
+
 const Invoices = () => {
   const [invoices, setInvoices] = useState([]);
   const [termsConfirmed, setTermsConfirmed] = useState(true);
@@ -94,9 +150,16 @@ const Invoices = () => {
   // הטיוטה שפתוחה בטופס (null — הטופס סגור). כל טופס נשמר כטיוטה, וסגירה
   // מהכותרת או "השהה" משאירות אותה ברשימה להמשך (בקשת הלקוחה, 19/10/2026)
   const [building, setBuilding] = useState(null);
-  // הסכום המחייב מ-iCount, או null אם לא נטען (iCount לא זמין)
-  const [icountTotal, setIcountTotal] = useState(null);
+  // כל החשבוניות הפתוחות של הלקוח, כדי שתשלום אחד יסגור כמה מהן בקבלה
+  // אחת (בקשת הלקוחה, 16/11/2026 — "ריכוז חשבוניות פתוחות ללקוח" מהתוכנה
+  // הקודמת). total הוא הסכום מ-iCount, או null אם לא נטען
+  const [openList, setOpenList] = useState([]);
+  const [selected, setSelected] = useState([]);
   const [loadingTotal, setLoadingTotal] = useState(false);
+  // חשבונות הבנק של העסק ב-iCount. null — טרם נטענו
+  const [bankAccounts, setBankAccounts] = useState(null);
+  const bankAccountsRef = useRef(null);
+  const bankLoading = useRef(false);
   // יתרת הלקוח מתשלומים קודמים. חיובי = לזכותו, שלילי = לחובתו
   const [balance, setBalance] = useState(0);
   // איזו פתיחה של החלון היא האחרונה. תשובה שחוזרת אחרי שהחלון כבר נפתח
@@ -136,53 +199,140 @@ const Invoices = () => {
 
   const openPayment = useCallback(async (inv) => {
     setMethod("transfer");
-    setDetails({});
-    setIcountTotal(null);
+    // תאריך ההעברה/הצ'ק מתחיל מהיום, כמו בתוכנה הקודמת
+    setDetails({ date: todayIso(), depositAccountId: rememberedDeposit() });
     // האומדן שלנו כערך פתיחה, כדי שהשדה לא יהיה ריק אם iCount לא זמין
     // היתרה שהגיעה עם הרשימה, עד שהעדכנית נטענת
     const known = Number(inv.customerBalance) || 0;
+    const first = {
+      docNum: inv.docNum,
+      billedAt: inv.billedAt,
+      dueDate: inv.dueDate,
+      estimate: inv.grossEstimate,
+      total: null,
+    };
+    setOpenList([first]);
+    setSelected([inv.docNum]);
     setBalance(known);
     setAmount(String(Math.max(0, round2(inv.grossEstimate - known))));
     setPayFor(inv);
     const seq = ++openSeq.current;
 
+    // חשבונות הבנק נטענים פעם אחת למסך. כשלון אינו חוסם: הקבלה תופק
+    // בלי החשבון שאליו נכנס הכסף, והמסך אומר זאת
+    // חשבון יחיד — אין מה לבחור. חשבון שנזכר ונמחק ב-iCount — לא נשלח
+    const pickDeposit = (accounts) =>
+      setDetails((d) => {
+        const keep = accounts.some((a) => a.id === d.depositAccountId);
+        return {
+          ...d,
+          depositAccountId: keep ? d.depositAccountId : accounts.length === 1 ? accounts[0].id : "",
+        };
+      });
+    if (bankAccountsRef.current) {
+      pickDeposit(bankAccountsRef.current);
+    } else if (!bankLoading.current) {
+      bankLoading.current = true;
+      BillingServices.getBankAccounts()
+        .then((res) => {
+          const accounts = res?.accounts || [];
+          bankAccountsRef.current = accounts;
+          setBankAccounts(accounts);
+          pickDeposit(accounts);
+        })
+        // ננסה שוב בפתיחה הבאה
+        .catch(() => setBankAccounts([]))
+        .finally(() => {
+          bankLoading.current = false;
+        });
+    }
+
     // הסכום המחייב הוא זה שעל החשבונית ב-iCount, לא האומדן שלנו.
     // היתרה נטענת מחדש באותה הזדמנות: הרשימה יכולה להיות פתוחה שעה,
     // ובינתיים נרשם ללקוח תשלום ממסך אחר.
     setLoadingTotal(true);
-    const [totalRes, balanceRes] = await Promise.allSettled([
-      BillingServices.getInvoiceTotal(inv.docNum),
+    const [openRes, balanceRes] = await Promise.allSettled([
+      BillingServices.getCustomerOpenInvoices(inv.customer),
       BillingServices.getCustomerBalance(inv.customer),
     ]);
     if (seq !== openSeq.current) return;
 
+    const others = openRes.status === "fulfilled"
+      ? (openRes.value?.invoices || [])
+          .filter((i) => !i.isPaid && String(i.docNum) !== String(inv.docNum))
+          .map((i) => ({
+            docNum: i.docNum,
+            billedAt: i.billedAt,
+            dueDate: i.dueDate,
+            estimate: i.grossEstimate,
+            total: null,
+          }))
+      : [];
+    const list = [first, ...others].sort(
+      (a, b) => new Date(a.billedAt || 0) - new Date(b.billedAt || 0)
+    );
+
     // iCount לא זמין — נשארים עם האומדן, והמסך מציין זאת
-    const total = totalRes.status === "fulfilled" && totalRes.value?.totalWithVat > 0
-      ? totalRes.value
-      : null;
+    const totals = await settledInBatches(list, (i) => BillingServices.getInvoiceTotal(i.docNum));
+    if (seq !== openSeq.current) return;
+    const withTotals = list.map((i, k) => {
+      const r = totals[k];
+      const t = r.status === "fulfilled" ? Number(r.value?.totalWithVat) : 0;
+      return { ...i, total: t > 0 ? t : null };
+    });
+
     const fresh = balanceRes.status === "fulfilled"
       ? Number(balanceRes.value?.balance) || 0
       : known;
 
-    if (total) setIcountTotal(total);
+    setOpenList(withTotals);
     setBalance(fresh);
     // מה שנשאר לגבות: החשבונית פחות יתרת הזכות, או בתוספת חוב קודם
-    setAmount(String(Math.max(0, round2((total?.totalWithVat ?? inv.grossEstimate) - fresh))));
+    setAmount(String(Math.max(0, round2(selectedTotal(withTotals, [inv.docNum]) - fresh))));
     setLoadingTotal(false);
   }, []);
 
-  // סכום החשבונית שמולו נמדד התשלום, ומה יישאר ביתרה אחריו. אותו חשבון
+  // סימון/ביטול חשבונית בתשלום. הסכום המוצע מתעדכן לפי הבחירה — זה
+  // הסכום שנשלח ברוב המקרים בלי שאיש נוגע בו
+  const applySelection = (next) => {
+    if (!next.length) return; // קבלה תמיד סוגרת לפחות חשבונית אחת
+    setSelected(next);
+    setAmount(String(Math.max(0, round2(selectedTotal(openList, next) - balance))));
+  };
+  const toggleInvoice = (docNum) =>
+    applySelection(
+      selected.includes(docNum) ? selected.filter((d) => d !== docNum) : [...selected, docNum]
+    );
+
+  // סכום החשבוניות שמולו נמדד התשלום, ומה יישאר ביתרה אחריו. אותו חשבון
   // שהשרת עושה ברישום — כאן רק כדי להראות מראש מה עומד לקרות.
-  const invoiceTotal = icountTotal?.totalWithVat ?? payFor?.grossEstimate ?? 0;
+  const invoiceTotal = selectedTotal(openList, selected);
+  const chosen = openList.filter((i) => selected.includes(i.docNum));
+  const allFromIcount = chosen.length > 0 && chosen.every((i) => i.total != null);
+  // לפי סדר הרשימה (מהישנה לחדשה), לא לפי סדר הלחיצות
+  const chosenNums = chosen.map((i) => i.docNum);
+  const chosenLabel =
+    chosenNums.length > 1 ? `חשבוניות ${chosenNums.join(", ")}` : `חשבונית ${chosenNums[0] || ""}`;
   const balanceAfter = round2(balance + (Number(amount) || 0) - invoiceTotal);
   // היתרה מכסה את כל החשבונית: אין כסף שנכנס, ולכן גם אין קבלה
   const closesFromBalance = !(Number(amount) > 0) && balance + 0.005 >= invoiceTotal;
+
+  const setDetail = (key, value) => setDetails((d) => ({ ...d, [key]: value }));
 
   const submitPayment = async () => {
     const value = Number(amount) || 0;
     if (value < 0 || (!(value > 0) && !closesFromBalance)) {
       return notifyError("יש להזין סכום חיובי");
     }
+    if (!closesFromBalance && method === "check" && !details.checkNum) {
+      return notifyError("יש להזין מספר צ'ק");
+    }
+
+    const sentDetails = Object.fromEntries(
+      (DETAIL_KEYS[method] || [])
+        .filter((k) => details[k])
+        .map((k) => [k, details[k]])
+    );
 
     setWorking(true);
     try {
@@ -190,9 +340,10 @@ const Invoices = () => {
         customer: payFor.customer,
         amount: value,
         method,
-        forInvoices: [payFor.docNum],
-        details,
+        forInvoices: chosenNums,
+        details: sentDetails,
       });
+      if (method === "transfer") rememberDeposit(details.depositAccountId);
       notifySuccess(res.message);
       setPayFor(null);
       load();
@@ -515,12 +666,54 @@ const Invoices = () => {
 
       {/* ── רישום תשלום ── */}
       <Modal isOpen={!!payFor} onClose={() => setPayFor(null)}>
-        <ModalHeader>רישום תשלום — חשבונית {payFor?.docNum}</ModalHeader>
+        <ModalHeader>רישום תשלום — {chosenLabel}</ModalHeader>
         <ModalBody>
-          <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-            {payFor?.customerName} · הופקה {hebDate(payFor?.billedAt)}
-            {payFor?.dueDate ? ` · לפירעון ${hebDate(payFor.dueDate)}` : ""}
-          </p>
+          {openList.length > 1 ? (
+            <div className="mb-4">
+              <div className="flex items-center justify-between mb-1">
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  {payFor?.customerName} · {openList.length} חשבוניות פתוחות. סמנו את כל
+                  מה שהתשלום הזה סוגר, ותופק עליהן קבלה אחת.
+                </p>
+                {selected.length < openList.length && (
+                  <button
+                    type="button"
+                    className="text-sm text-blue-600 hover:underline shrink-0 mr-3"
+                    onClick={() => applySelection(openList.map((i) => i.docNum))}
+                  >
+                    סמן הכל
+                  </button>
+                )}
+              </div>
+              <div className="border rounded divide-y dark:border-gray-700 dark:divide-gray-700 max-h-48 overflow-y-auto">
+                {openList.map((i) => (
+                  <label
+                    key={i.docNum}
+                    className="flex items-center gap-3 px-3 py-1.5 text-sm cursor-pointer"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selected.includes(i.docNum)}
+                      onChange={() => toggleInvoice(i.docNum)}
+                    />
+                    <span className="font-mono font-semibold">{i.docNum}</span>
+                    <span className="text-gray-500">{hebDate(i.billedAt)}</span>
+                    <span className="mr-auto">
+                      {shekel(i.total ?? i.estimate)} ₪
+                      {i.total == null && !loadingTotal && (
+                        <span className="text-xs text-yellow-700"> (אומדן)</span>
+                      )}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+              {payFor?.customerName} · הופקה {hebDate(payFor?.billedAt)}
+              {payFor?.dueDate ? ` · לפירעון ${hebDate(payFor.dueDate)}` : ""}
+            </p>
+          )}
 
           <Label className="mb-1">
             <span>סכום שהתקבל (כולל מע"מ)</span>
@@ -550,10 +743,11 @@ const Invoices = () => {
           <p className="text-xs mb-3">
             {loadingTotal ? (
               <span className="text-gray-500">טוען את הסכום מ-iCount...</span>
-            ) : icountTotal ? (
+            ) : allFromIcount ? (
               <span className="text-green-700 dark:text-green-500">
-                סכום החשבונית ב-iCount: {shekel(icountTotal.totalWithVat)} ₪
-                {" "}({shekel(icountTotal.totalBeforeVat)} + מע"מ {shekel(icountTotal.vat)})
+                {chosen.length > 1
+                  ? `סכום ${chosen.length} החשבוניות ב-iCount: ${shekel(invoiceTotal)} ₪`
+                  : `סכום החשבונית ב-iCount: ${shekel(invoiceTotal)} ₪`}
               </span>
             ) : (
               <span className="text-yellow-700 dark:text-yellow-500">
@@ -580,33 +774,46 @@ const Invoices = () => {
                 <span>מספר צ'ק</span>
                 <Input
                   className="mt-1"
+                  inputMode="numeric"
                   value={details.checkNum || ""}
-                  onChange={(e) => setDetails({ ...details, checkNum: e.target.value })}
+                  onChange={(e) => setDetail("checkNum", onlyDigits(e.target.value))}
                 />
               </Label>
               <Label>
-                <span>תאריך הצ'ק</span>
+                <span>תאריך פירעון</span>
                 <Input
                   className="mt-1"
                   type="date"
                   value={details.date || ""}
-                  onChange={(e) => setDetails({ ...details, date: e.target.value })}
+                  onChange={(e) => setDetail("date", e.target.value)}
                 />
               </Label>
               <Label>
                 <span>בנק</span>
                 <Input
                   className="mt-1"
+                  inputMode="numeric"
+                  placeholder="מספר בנק"
                   value={details.bank || ""}
-                  onChange={(e) => setDetails({ ...details, bank: e.target.value })}
+                  onChange={(e) => setDetail("bank", onlyDigits(e.target.value))}
                 />
               </Label>
               <Label>
                 <span>סניף</span>
                 <Input
                   className="mt-1"
+                  inputMode="numeric"
                   value={details.branch || ""}
-                  onChange={(e) => setDetails({ ...details, branch: e.target.value })}
+                  onChange={(e) => setDetail("branch", onlyDigits(e.target.value))}
+                />
+              </Label>
+              <Label className="col-span-2">
+                <span>מספר חשבון (של הלקוח, כפי שמודפס על הצ'ק)</span>
+                <Input
+                  className="mt-1"
+                  inputMode="numeric"
+                  value={details.account || ""}
+                  onChange={(e) => setDetail("account", onlyDigits(e.target.value))}
                 />
               </Label>
             </div>
@@ -615,19 +822,56 @@ const Invoices = () => {
           {!closesFromBalance && method === "transfer" && (
             <div className="grid grid-cols-2 gap-3">
               <Label>
-                <span>בנק</span>
+                <span>תאריך ההעברה</span>
                 <Input
                   className="mt-1"
-                  value={details.bank || ""}
-                  onChange={(e) => setDetails({ ...details, bank: e.target.value })}
+                  type="date"
+                  value={details.date || ""}
+                  onChange={(e) => setDetail("date", e.target.value)}
                 />
               </Label>
               <Label>
-                <span>סניף</span>
+                <span>לחשבון (שלנו)</span>
+                {bankAccounts && bankAccounts.length > 0 ? (
+                  <Select
+                    className="mt-1"
+                    value={details.depositAccountId || ""}
+                    onChange={(e) => setDetail("depositAccountId", e.target.value)}
+                  >
+                    <option value="">— לא לציין —</option>
+                    {bankAccounts.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {[a.title, a.account && `חשבון ${a.account}`, a.branch && `סניף ${a.branch}`]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </option>
+                    ))}
+                  </Select>
+                ) : (
+                  <p className="mt-2 text-xs text-gray-500">
+                    {bankAccounts === null
+                      ? "טוען את חשבונות הבנק מ-iCount..."
+                      : "לא נמצאו חשבונות בנק ב-iCount. אפשר להגדיר אותם ב-iCount תחת הגדרות ← חשבונות בנק."}
+                  </p>
+                )}
+              </Label>
+              <Label>
+                <span>בנק הלקוח (לא חובה)</span>
                 <Input
                   className="mt-1"
+                  inputMode="numeric"
+                  placeholder="מספר בנק"
+                  value={details.bank || ""}
+                  onChange={(e) => setDetail("bank", onlyDigits(e.target.value))}
+                />
+              </Label>
+              <Label>
+                <span>סניף (לא חובה)</span>
+                <Input
+                  className="mt-1"
+                  inputMode="numeric"
                   value={details.branch || ""}
-                  onChange={(e) => setDetails({ ...details, branch: e.target.value })}
+                  onChange={(e) => setDetail("branch", onlyDigits(e.target.value))}
                 />
               </Label>
             </div>
@@ -640,7 +884,7 @@ const Invoices = () => {
                 className="mt-1"
                 placeholder="למשל: ביט, קיזוז, שובר"
                 value={details.otherNote || ""}
-                onChange={(e) => setDetails({ ...details, otherNote: e.target.value })}
+                onChange={(e) => setDetail("otherNote", e.target.value)}
               />
             </Label>
           )}
@@ -670,8 +914,10 @@ const Invoices = () => {
 
           <p className="mt-4 text-xs text-gray-500">
             {closesFromBalance
-              ? `החשבונית ${payFor?.docNum} תיסגר מיתרת הזכות של הלקוח. לא תופק קבלה, כי לא התקבל תשלום חדש.`
-              : `תופק קבלה ב-iCount המקושרת לחשבונית ${payFor?.docNum}. יש לרשום תשלום רק אחרי שהכסף התקבל בפועל.`}
+              ? `${chosenNums.length > 1 ? "החשבוניות" : "החשבונית"} ${chosenNums.join(", ")} ${
+                  chosenNums.length > 1 ? "ייסגרו" : "תיסגר"
+                } מיתרת הזכות של הלקוח. לא תופק קבלה, כי לא התקבל תשלום חדש.`
+              : `תופק קבלה אחת ב-iCount המקושרת ל${chosenLabel}. יש לרשום תשלום רק אחרי שהכסף התקבל בפועל.`}
           </p>
         </ModalBody>
         <ModalFooter>

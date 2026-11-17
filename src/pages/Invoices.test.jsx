@@ -18,6 +18,8 @@ vi.mock("@/services/BillingServices", () => ({
     getInvoices: vi.fn(),
     getInvoiceTotal: vi.fn(),
     getCustomerBalance: vi.fn(),
+    getCustomerOpenInvoices: vi.fn(),
+    getBankAccounts: vi.fn(),
     createReceipt: vi.fn(),
     getIcountMode: vi.fn(() => Promise.resolve({ mode: "live" })),
   },
@@ -61,14 +63,15 @@ const flush = async () => {
 };
 
 /** טוען את המסך עם חשבונית אחת של 800 ₪ ופותח עליה את חלון התשלום. */
-const openDialog = async (balance) => {
+const openDialog = async (balance, totals = {}) => {
   BillingServices.getInvoices.mockResolvedValue({ invoices: [invoice(balance)] });
-  BillingServices.getInvoiceTotal.mockResolvedValue({
-    totalWithVat: 800,
-    totalBeforeVat: 677.97,
-    vat: 122.03,
-  });
+  BillingServices.getInvoiceTotal.mockImplementation((n) =>
+    Promise.resolve({ totalWithVat: totals[n] ?? 800, totalBeforeVat: 677.97, vat: 122.03 })
+  );
   BillingServices.getCustomerBalance.mockResolvedValue({ balance, entries: [] });
+  if (!BillingServices.getCustomerOpenInvoices.getMockImplementation()) {
+    BillingServices.getCustomerOpenInvoices.mockResolvedValue({ invoices: [invoice(balance)] });
+  }
 
   await act(async () => {
     root.render(
@@ -115,6 +118,15 @@ beforeEach(() => {
   vi.clearAllMocks();
   BillingServices.getIcountMode.mockResolvedValue({ mode: "live" });
   BillingServices.createReceipt.mockResolvedValue({ message: "ok" });
+  BillingServices.getCustomerOpenInvoices.mockReset();
+  BillingServices.getBankAccounts.mockResolvedValue({
+    accounts: [{ id: "7", title: "אגוד עסקי", bank: "13", branch: "41", account: "123456" }],
+  });
+  try {
+    localStorage.clear();
+  } catch {
+    // אין אחסון בסביבת הבדיקה
+  }
 });
 
 afterEach(() => {
@@ -200,6 +212,101 @@ describe("רישום תשלום — יתרת הלקוח", () => {
   it("סכום 0 בלי יתרה מכסה אינו נשלח", async () => {
     await openDialog(0);
     await typeAmount("0");
+    await clickButton("הפק קבלה");
+    expect(BillingServices.createReceipt).not.toHaveBeenCalled();
+  });
+});
+
+const setSelect = async (predicate, value) => {
+  const select = [...document.querySelectorAll("select")].find(predicate);
+  expect(select).toBeTruthy();
+  const setter = Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype, "value").set;
+  await act(async () => {
+    setter.call(select, value);
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+};
+
+const typeInto = async (input, value) => {
+  const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
+  await act(async () => {
+    setter.call(input, value);
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+};
+
+const labelInput = (text) =>
+  [...document.querySelectorAll("label")]
+    .find((l) => l.textContent.includes(text))
+    ?.querySelector("input, select");
+
+describe("רישום תשלום — כמה חשבוניות בקבלה אחת", () => {
+  const second = { ...invoice(0), docNum: "5002", billedAt: "2026-10-31T00:00:00.000Z", grossEstimate: 300 };
+
+  const openWithTwo = async () => {
+    BillingServices.getCustomerOpenInvoices.mockResolvedValue({
+      invoices: [invoice(0), second, { ...second, docNum: "4999", isPaid: true }],
+    });
+    await openDialog(0, { 5002: 300 });
+  };
+
+  it("מציג את החשבוניות הפתוחות בלבד, והחשבונית שנלחצה מסומנת", async () => {
+    await openWithTwo();
+    const boxes = [...document.querySelectorAll('input[type="checkbox"]')];
+    expect(boxes).toHaveLength(2);
+    expect(boxes.filter((b) => b.checked)).toHaveLength(1);
+    expect(amountInput().value).toBe("800");
+  });
+
+  it("סמן הכל: הסכום המוצע הוא סכום כולן, ונשלחת קבלה אחת לשתיהן", async () => {
+    await openWithTwo();
+    await clickButton("סמן הכל");
+    expect(amountInput().value).toBe("1100");
+    expect(document.body.textContent).toContain("חשבוניות 5001, 5002");
+
+    await clickButton("הפק קבלה");
+    expect(BillingServices.createReceipt).toHaveBeenCalledTimes(1);
+    expect(BillingServices.createReceipt).toHaveBeenCalledWith(
+      expect.objectContaining({ amount: 1100, forInvoices: ["5001", "5002"] })
+    );
+  });
+
+  it("אי אפשר לבטל את הסימון של החשבונית האחרונה", async () => {
+    await openWithTwo();
+    const box = [...document.querySelectorAll('input[type="checkbox"]')].find((b) => b.checked);
+    await act(async () => {
+      box.click();
+    });
+    expect([...document.querySelectorAll('input[type="checkbox"]')].filter((b) => b.checked)).toHaveLength(1);
+  });
+});
+
+describe("רישום תשלום — פרטי העברה וצ'ק", () => {
+  it("העברה: תאריך היום וחשבון הבנק היחיד שלנו נשלחים", async () => {
+    await openDialog(0);
+    await clickButton("הפק קבלה");
+    const sent = BillingServices.createReceipt.mock.calls[0][0];
+    expect(sent.method).toBe("transfer");
+    expect(sent.details.depositAccountId).toBe("7");
+    expect(sent.details.date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+
+  it("צ'ק: מספר, חשבון ותאריך נשלחים, ופרטי ההעברה לא", async () => {
+    await openDialog(0);
+    await setSelect((s) => [...s.options].some((o) => o.value === "check"), "check");
+    await typeInto(labelInput("מספר צ'ק"), "00123");
+    await typeInto(labelInput("מספר חשבון"), "55-667");
+    await clickButton("הפק קבלה");
+    const { details } = BillingServices.createReceipt.mock.calls[0][0];
+    expect(details.checkNum).toBe("00123");
+    expect(details.account).toBe("55667");
+    expect(details.date).toBeTruthy();
+    expect(details.depositAccountId).toBeUndefined();
+  });
+
+  it("צ'ק בלי מספר אינו נשלח", async () => {
+    await openDialog(0);
+    await setSelect((s) => [...s.options].some((o) => o.value === "check"), "check");
     await clickButton("הפק קבלה");
     expect(BillingServices.createReceipt).not.toHaveBeenCalled();
   });
