@@ -7,11 +7,12 @@
 // (ראה utils/purchaseHistoryRanking בשרת).
 import { Badge, Button } from "@windmill/react-ui";
 import React, { useCallback, useEffect, useState } from "react";
-import { FiAlertTriangle, FiClock, FiSearch, FiUploadCloud } from "react-icons/fi";
+import { FiAlertTriangle, FiCalendar, FiClock, FiSearch, FiUploadCloud } from "react-icons/fi";
 
 // Internal import
 import { Field, Panel } from "@/components/common/ReadOnlyFields";
 import CustomerHistoryModal from "@/components/customer/CustomerHistoryModal";
+import RecentPurchasesModal from "@/components/customer/RecentPurchasesModal";
 import CustomerHistoryServices from "@/services/CustomerHistoryServices";
 import { describeApiError } from "@/utils/apiError";
 import {
@@ -34,6 +35,7 @@ const CustomerHistoryPanel = ({ customerId, customerName = "" }) => {
   const [loadError, setLoadError] = useState("");
   const [search, setSearch] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isRecentOpen, setIsRecentOpen] = useState(false);
 
   const load = useCallback(
     async (searchText = "") => {
@@ -92,6 +94,17 @@ const CustomerHistoryPanel = ({ customerId, customerName = "" }) => {
         onChanged={() => load(search)}
       />
 
+      {/* הטבלה למטה היא שורה למוצר עם התאריך האחרון בלבד. כאן — כל קנייה
+          בתאריך שלה (ברירת מחדל 3 חודשים), מתעודות המערכת ומהארכיון */}
+      {isRecentOpen && (
+        <RecentPurchasesModal
+          isOpen={isRecentOpen}
+          onClose={() => setIsRecentOpen(false)}
+          customerId={customerId}
+          customerName={customerName}
+        />
+      )}
+
       <div className="sm:col-span-2">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-2">
@@ -119,14 +132,23 @@ const CustomerHistoryPanel = ({ customerId, customerName = "" }) => {
 
           {/* type="button" הכרחי: הפאנל יושב בתוך הטופס של עמוד הלקוח,
               וכפתור בלי type שולח אותו */}
-          <Button
-            type="button"
-            layout="outline"
-            onClick={() => setIsModalOpen(true)}
-            className="px-4 py-2 text-sm"
-          >
-            <FiUploadCloud className="mr-1" /> העלאת היסטוריה מאקסל
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              onClick={() => setIsRecentOpen(true)}
+              className="px-4 py-2 text-sm"
+            >
+              <FiCalendar className="mr-1" /> קניות לפי תאריך
+            </Button>
+            <Button
+              type="button"
+              layout="outline"
+              onClick={() => setIsModalOpen(true)}
+              className="px-4 py-2 text-sm"
+            >
+              <FiUploadCloud className="mr-1" /> העלאת היסטוריה מאקסל
+            </Button>
+          </div>
         </div>
 
         {loadError ? (

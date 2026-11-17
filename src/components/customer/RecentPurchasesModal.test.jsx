@@ -187,4 +187,13 @@ describe("RecentPurchasesModal", () => {
     await render();
     expect(rowOf("פריט ישן").textContent).not.toContain("0.00");
   });
+
+  it("בלי onAdd (כרטיס הלקוח): צפייה בלבד, בלי עמודת פעולה, ועם השם שהועבר", async () => {
+    await render({ onAdd: undefined, customerName: "שם מהכרטיס" });
+    expect(screen().textContent).toContain("קניות אחרונות — שם מהכרטיס");
+    expect(rowOf("תפוח").textContent).toContain("20/10/2026");
+    expect(buttonWith("הוסף")).toBeUndefined();
+    expect(screen().textContent).not.toContain("אינו בקטלוג");
+    expect(screen().querySelectorAll("thead th").length).toBe(6);
+  });
 });

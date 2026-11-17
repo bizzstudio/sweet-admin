@@ -2,6 +2,8 @@
 //
 // "קניות אחרונות" — מה הלקוח קנה בחודשים האחרונים, כל קנייה בתאריך שלה.
 // נפתח מטופס התעודה/החשבונית, ולחיצה על "הוסף" מכניסה את המוצר לטופס.
+// נפתח גם מפאנל ההיסטוריה בכרטיס הלקוח — שם אין טופס, ולכן בלי onAdd
+// עמודת הפעולה אינה מוצגת.
 //
 // ── במה זה שונה מחלון "היסטוריית הלקוח" ──
 //
@@ -42,14 +44,23 @@ const SOURCE_STYLE = {
  * @param {function} onClose
  * @param {string}   customerId
  * @param {string[]} [formSkus]  המק"טים שכבר בטופס — הכפתור שלהם מושבת
- * @param {function} [onAdd]     נקרא עם { sku, name } של מוצר מהקטלוג
+ * @param {function} [onAdd]     נקרא עם { sku, name } של מוצר מהקטלוג; בלי — חלון צפייה בלבד
+ * @param {string}   [customerName] כשהשם כבר ידוע (כרטיס הלקוח) — עדיף על החיפוש ברשימה
  */
-const RecentPurchasesModal = ({ isOpen, onClose, customerId, formSkus = [], onAdd }) => {
+const RecentPurchasesModal = ({
+  isOpen,
+  onClose,
+  customerId,
+  formSkus = [],
+  onAdd,
+  customerName: knownName = "",
+}) => {
   const { customers } = useCustomers();
   const customerName = useMemo(
-    () => customerNameOf(customers.find((c) => String(c._id) === String(customerId))),
-    [customers, customerId]
+    () => knownName || customerNameOf(customers.find((c) => String(c._id) === String(customerId))),
+    [knownName, customers, customerId]
   );
+  const withActions = typeof onAdd === "function";
 
   const [months, setMonths] = useState(3);
   const [data, setData] = useState(null);
@@ -199,9 +210,11 @@ const RecentPurchasesModal = ({ isOpen, onClose, customerId, formSkus = [], onAd
                       <th className="px-2 py-1.5 text-center font-medium">קנייה אחרונה</th>
                       <th className="px-2 py-1.5 text-center font-medium">כמות אחרונה</th>
                       <th className="px-2 py-1.5 text-center font-medium">מחיר אחרון</th>
-                      <th className="px-2 py-1.5 text-center font-medium">
-                        <span className="sr-only">פעולה</span>
-                      </th>
+                      {withActions && (
+                        <th className="px-2 py-1.5 text-center font-medium">
+                          <span className="sr-only">פעולה</span>
+                        </th>
+                      )}
                     </tr>
                   </thead>
                   <tbody>
@@ -242,7 +255,9 @@ const RecentPurchasesModal = ({ isOpen, onClose, customerId, formSkus = [], onAd
                             <td className="px-2 py-1.5 text-center dark:text-gray-300">
                               {formatMoney(p.lastPrice)}
                             </td>
-                            <td className="px-2 py-1.5 text-center whitespace-nowrap">{actionFor(p)}</td>
+                            {withActions && (
+                              <td className="px-2 py-1.5 text-center whitespace-nowrap">{actionFor(p)}</td>
+                            )}
                           </tr>
                           {open &&
                             p.purchases.map((buy, i) => (
@@ -264,7 +279,7 @@ const RecentPurchasesModal = ({ isOpen, onClose, customerId, formSkus = [], onAd
                                 <td className="px-2 py-1 text-center">{formatFileDate(buy.day)}</td>
                                 <td className="px-2 py-1 text-center">{formatNumber(buy.quantity)}</td>
                                 <td className="px-2 py-1 text-center">{formatMoney(buy.unitPrice)}</td>
-                                <td className="px-2 py-1" />
+                                {withActions && <td className="px-2 py-1" />}
                               </tr>
                             ))}
                         </Fragment>
