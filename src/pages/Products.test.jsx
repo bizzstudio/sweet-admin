@@ -8,6 +8,7 @@ import React, { useState } from "react";
 import { createRoot } from "react-dom/client";
 import { act } from "react-dom/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { MemoryRouter } from "react-router-dom";
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({ t: (key) => key, i18n: { language: "he" } }),
@@ -99,12 +100,14 @@ const flush = async (ms) => {
   }
 };
 
-const render = async (initial) => {
+const render = async (initial, url = "/products") => {
   await act(async () => {
     root.render(
-      <TestSidebar initial={initial}>
-        <Products />
-      </TestSidebar>
+      <MemoryRouter initialEntries={[url]}>
+        <TestSidebar initial={initial}>
+          <Products />
+        </TestSidebar>
+      </MemoryRouter>
     );
   });
   await flush(1500);
@@ -163,6 +166,30 @@ describe("Products filters", () => {
       price: "",
     });
     expect(container.querySelector('input[name="search"]').value).toBe("");
+  });
+
+  // חזרה מעמוד מוצר: הכתובת נושאת את החיפוש, הקטגוריה, המיון והעמוד
+  it("restores the search, filters and page from the URL", async () => {
+    ProductServices.getAllProducts.mockResolvedValue({
+      products: [{ _id: "p1" }],
+      totalDoc: 200,
+    });
+    await render(
+      { searchText: null, category: null, sortedField: "", currentPage: 1 },
+      "/products?q=%D7%A1%D7%95%D7%99%D7%94&category=cat1&sort=high&page=6"
+    );
+
+    expect(lastQuery()).toEqual({
+      page: 6,
+      limit: 20,
+      category: "cat1",
+      title: "סויה",
+      price: "high",
+    });
+    expect(container.querySelector('input[name="search"]').value).toBe("סויה");
+    expect(
+      container.querySelector('[aria-current="page"]').textContent
+    ).toBe("6");
   });
 
   it("searches while typing and goes back to page 1", async () => {

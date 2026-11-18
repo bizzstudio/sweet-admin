@@ -19,6 +19,7 @@ import React, { useContext, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FiEdit } from "react-icons/fi";
 import { useParams } from "react-router";
+import { Link, useLocation } from "react-router-dom";
 // Internal import
 
 import useAsync from "@/hooks/useAsync";
@@ -49,6 +50,8 @@ const ProductDetails = () => {
   const [editing, setEditing] = useState(false);
   const [variantTitle, setVariantTitle] = useState([]);
   const { lang } = useContext(SidebarContext);
+  // חזרה לרשימת המוצרים באותו חיפוש ואותו עמוד שממנו נכנסו (ראה Products)
+  const backTo = useLocation().state?.from || "/products";
 
   // אותו הוק של טופס המוצר, רק שהוא נפתח על ידי מצב העריכה של העמוד
   // ולא על ידי המגירה, ובסיום השמירה חוזרים למצב קריאה
@@ -133,6 +136,11 @@ const ProductDetails = () => {
   return (
     <>
       <PageTitle>{t("ProductDetails")}</PageTitle>
+      <div className="mb-4">
+        <Link to={backTo} className="text-sm text-blue-600 hover:underline dark:text-blue-400">
+          ← חזרה לרשימת המוצרים
+        </Link>
+      </div>
       {loading ? (
         <Loading loading={loading} />
       ) : !product ? (

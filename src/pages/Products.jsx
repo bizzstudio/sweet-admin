@@ -11,7 +11,6 @@ import {
   Button,
   Card,
   CardBody,
-  Pagination,
 } from "@windmill/react-ui";
 import { useTranslation } from "react-i18next";
 import { FiPlus } from "react-icons/fi";
@@ -37,6 +36,8 @@ import SelectCategory from "@/components/form/selectOption/SelectCategory";
 import ImportExcelModal from "@/components/product/ImportExcelModal";
 
 import TableHeaderCell from "@/components/table/TableHeaderCell";
+import ListPager from "@/components/table/ListPager";
+import useQueryParam from "@/hooks/useQueryParam";
 const Products = () => {
   const {
     title,
@@ -55,7 +56,6 @@ const Products = () => {
     setIsUpdate,
     currentPage,
     setCurrentPage,
-    handleChangePage,
     searchText,
     setSearchText,
     category,
@@ -80,22 +80,34 @@ const Products = () => {
   // החיפוש, הקטגוריה והמיון יושבים ב-SidebarContext המשותף לכל העמודים.
   // חיפוש שנשאר מעמוד אחר היה מסנן כאן את הרשימה בזמן שתיבת החיפוש ריקה,
   // ולכן העמוד מתחיל נקי
+  //
+  // מקור האמת הוא הכתובת (?q=&category=&sort=&page=), והקונטקסט רק מועתק
+  // ממנה עבור useAsync. כך מי שנכנסת למוצר (למשל כדי להעלות תמונה) וחוזרת
+  // ב"חזרה לרשימת המוצרים" או בכפתור אחורה מגיעה לאותו חיפוש ואותו עמוד.
+  // כניסה מהתפריט היא /products בלי פרמטרים, ולכן היא עדיין מתחילה נקייה
+  const [qParam, setQParam] = useQueryParam("q");
+  const [categoryParam, setCategoryParam] = useQueryParam("category");
+  const [sortParam, setSortParam] = useQueryParam("sort");
+  const [pageParam, setPageParam] = useQueryParam("page");
+  const page = Number(pageParam) || 1;
+  const setPage = (p) => setPageParam(p > 1 ? String(p) : null);
+
   useEffect(() => {
-    setSearchText(null);
-    setCategory(null);
-    setSortedField("");
-    setCurrentPage(1);
+    setSearchText(qParam || null);
+    setCategory(categoryParam || null);
+    setSortedField(sortParam || "");
+    setCurrentPage(page);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [qParam, categoryParam, sortParam, page]);
 
   // חיפוש חי תוך כדי הקלדה. כל שינוי בסינון חוזר לעמוד 1, אחרת חיפוש
   // מעמוד 5 עם תוצאה של עמוד אחד מציג רשימה ריקה
-  const [searchInput, setSearchInput] = useState("");
+  const [searchInput, setSearchInput] = useState(qParam);
   const searchDebounce = useRef();
   const applySearch = (value) => {
     clearTimeout(searchDebounce.current);
-    setSearchText(value.trim() || null);
-    setCurrentPage(1);
+    setQParam(value.trim() || null);
+    setPage(1);
   };
   const handleSearchChange = (e) => {
     const value = e.target.value;
@@ -122,10 +134,10 @@ const Products = () => {
   const handleResetField = () => {
     clearTimeout(searchDebounce.current);
     setSearchInput("");
-    setSearchText(null);
-    setCategory(null);
-    setSortedField("");
-    setCurrentPage(1);
+    setQParam(null);
+    setCategoryParam(null);
+    setSortParam(null);
+    setPage(1);
   };
 
   return (
@@ -239,10 +251,10 @@ const Products = () => {
 
             <div className="flex-grow-0 md:flex-grow lg:flex-grow xl:flex-grow">
               <SelectCategory
-                value={category || ""}
+                value={categoryParam}
                 setCategory={(value) => {
-                  setCategory(value);
-                  setCurrentPage(1);
+                  setCategoryParam(value || null);
+                  setPage(1);
                 }}
                 lang={lang}
               />
@@ -250,10 +262,10 @@ const Products = () => {
 
             <div className="flex-grow-0 md:flex-grow lg:flex-grow xl:flex-grow">
               <Select
-                value={sortedField || ""}
+                value={sortParam}
                 onChange={(e) => {
-                  setSortedField(e.target.value);
-                  setCurrentPage(1);
+                  setSortParam(e.target.value || null);
+                  setPage(1);
                 }}
               >
                 <option value="" hidden>
@@ -350,14 +362,13 @@ const Products = () => {
             />
           </Table>
           <TableFooter>
-            {/* ל-Pagination של Windmill אין prop לעמוד הנוכחי, הוא זוכר אותו
-                בעצמו. המפתח מרכיב אותו מחדש בכל שינוי סינון כדי שיחזור ל-1 */}
-            <Pagination
-              key={`${searchText || ""}|${category || ""}|${sortedField || ""}`}
-              className="pagination-ltr"
-              totalResults={data?.totalDoc}
+            {/* ListPager ולא Pagination של Windmill: זה של Windmill תמיד מתחיל
+                בעמוד 1, ואז החזרה ממוצר לעמוד 6 הייתה מסמנת עמוד 1 */}
+            <ListPager
+              totalResults={data?.totalDoc || 0}
               resultsPerPage={limitData}
-              onChange={handleChangePage}
+              page={page}
+              onChange={setPage}
               label="Product Page Navigation"
             />
           </TableFooter>

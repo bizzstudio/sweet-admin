@@ -7,7 +7,7 @@ import {
   Input
 } from "@windmill/react-ui";
 import { t } from "i18next";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
 
 // Internal import
@@ -29,6 +29,7 @@ const ProductTable = ({
   setIsCheck,
   title, serviceId, handleModalOpen
 }) => {
+  const location = useLocation();
   const { currency, showingTranslateValue, getNumberTwo } = useUtilsFunction();
   const { data: offers, loading, error } = useAsync(() => OfferServices.getAllOffers());
   const [products, setProducts] = useState(initialProducts);
@@ -130,7 +131,11 @@ const ProductTable = ({
                 <div>
                   {/* שם המוצר הוא הכניסה לעמוד המוצר - החליף את אייקון הצפייה */}
                   <Link
-                    to={`/product/${product._id}`}
+                    // from: הרשימה עם החיפוש והעמוד, ל"חזרה לרשימת המוצרים"
+                    to={{
+                      pathname: `/product/${product._id}`,
+                      state: { from: location.pathname + location.search },
+                    }}
                     className={`text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline ${product?.title?.length > 30 ? "wrap-long-title" : ""
                       }`}
                   >
