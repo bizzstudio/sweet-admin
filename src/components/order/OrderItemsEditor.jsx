@@ -28,6 +28,8 @@ import {
 import { FiAlertTriangle, FiPlus, FiRepeat, FiSave, FiTrash2, FiX } from "react-icons/fi";
 
 import ProductPicker from "@/components/billing/ProductPicker";
+import CatalogScopeToggle from "@/components/billing/CatalogScopeToggle";
+import useCustomerKnownSkus from "@/hooks/useCustomerKnownSkus";
 import BillingServices from "@/services/BillingServices";
 import IncomingOrderServices from "@/services/IncomingOrderServices";
 import OrderServices from "@/services/OrderServices";
@@ -130,6 +132,22 @@ const OrderItemsEditor = ({ orderId, order, onSaved, onCancel }) => {
   const [discount, setDiscount] = useState(String(order?.discount ?? 0));
 
   const [picking, setPicking] = useState(false);
+
+  // כמו בתעודת המשלוח (23/11/2026): הבורר בהחלפה ובהוספה מציג רק מוצרים
+  // שהלקוח קנה או שבמחירון שלו, ו"כל הקטלוג" פותח את השאר. ללקוח בלי
+  // היסטוריה ובלי מחירון ה-hook מחזיר null — וכל הקטלוג מוצג כרגיל
+  const knownSkus = useCustomerKnownSkus(customerId);
+  const [wholeCatalog, setWholeCatalog] = useState(false);
+  const pickerSkus = wholeCatalog ? null : knownSkus;
+  const scopeToggle = (
+    <div className="mt-1">
+      <CatalogScopeToggle
+        knownSkus={knownSkus}
+        wholeCatalog={wholeCatalog}
+        onChange={setWholeCatalog}
+      />
+    </div>
+  );
   const [saving, setSaving] = useState(false);
   // אישור מפורש לעריכה כשהתעודה כבר נעולה (חויבה / נתפסה / בוטלה)
   const [lockWarning, setLockWarning] = useState(null);
@@ -433,7 +451,13 @@ const OrderItemsEditor = ({ orderId, order, onSaved, onCancel }) => {
                       )}
                     {swappingKey === row.key ? (
                       <div className="mt-1 w-[28rem] max-w-full whitespace-normal">
-                        <ProductPicker value="" onChange={(sku) => swapProduct(row.key, sku)} />
+                        <ProductPicker
+                          value=""
+                          onChange={(sku) => swapProduct(row.key, sku)}
+                          onlySkus={pickerSkus}
+                          autoFocus
+                        />
+                        {scopeToggle}
                         <Button size="small" layout="link" onClick={() => setSwappingKey(null)}>
                           ביטול
                         </Button>
@@ -502,7 +526,8 @@ const OrderItemsEditor = ({ orderId, order, onSaved, onCancel }) => {
         {picking ? (
           <div className="mb-4">
             <Label className="mb-1 block">הוספת מוצר</Label>
-            <ProductPicker value="" onChange={addProduct} />
+            <ProductPicker value="" onChange={addProduct} onlySkus={pickerSkus} autoFocus />
+            {scopeToggle}
             <Button size="small" layout="link" className="mt-1" onClick={() => setPicking(false)}>
               ביטול
             </Button>

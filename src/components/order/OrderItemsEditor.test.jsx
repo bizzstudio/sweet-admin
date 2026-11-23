@@ -29,13 +29,22 @@ vi.mock("@/services/IncomingOrderServices", () => ({
 }));
 // בורר המוצרים מושך את הקטלוג מהשרת; כאן הוא כפתור שבוחר מק"ט 333
 vi.mock("@/components/billing/ProductPicker", () => ({
-  default: ({ onChange }) =>
+  default: ({ onChange, onlySkus }) =>
     React.createElement(
       "button",
-      { "data-testid": "product-picker", onClick: () => onChange("333") },
+      {
+        "data-testid": "product-picker",
+        "data-only": onlySkus ? [...onlySkus].join(",") : "*",
+        onClick: () => onChange("333"),
+      },
       "בחירת 333"
     ),
 }));
+// המוצרים שלקוח c1 מכיר (היסטוריה ומחירון)
+vi.mock("@/hooks/useCustomerKnownSkus", () => {
+  const known = new Set(["111", "333"]);
+  return { default: (id) => (id === "c1" ? known : null) };
+});
 
 import OrderServices from "@/services/OrderServices";
 import BillingServices from "@/services/BillingServices";
@@ -285,5 +294,19 @@ describe("OrderItemsEditor", () => {
     await click(byText("button", "שמירת השינויים"));
     expect(OrderServices.updateOrderItems).toHaveBeenCalledTimes(1);
     expect(IncomingOrderServices.resolveItem).not.toHaveBeenCalled();
+  });
+
+  it("החלפת מוצר מציגה רק את מוצרי הלקוח, ו'כל הקטלוג' פותח את השאר", async () => {
+    render();
+    const swap = [...container.querySelectorAll("button")].find((b) =>
+      b.textContent.includes("החלפת מוצר")
+    );
+    await click(swap);
+    const picker = () => container.querySelector('[data-testid="product-picker"]');
+    expect(picker().getAttribute("data-only")).toBe("111,333");
+
+    const box = byText("label", "כל הקטלוג").querySelector("input");
+    await click(box);
+    expect(picker().getAttribute("data-only")).toBe("*");
   });
 });
