@@ -385,9 +385,6 @@ const Invoices = () => {
     );
   }, [invoices, search]);
 
-  const totalOwed = shown
-    .filter((i) => !i.isPaid)
-    .reduce((s, i) => s + i.grossEstimate, 0);
   const overdueCount = shown.filter((i) => i.isOverdue).length;
 
   // השורות נבנות מחדש רק כשהרשימה משתנה. בלי זה כל הקלדה בחלון התשלום
@@ -603,12 +600,6 @@ const Invoices = () => {
                 <p className="text-xs text-gray-500">חשבוניות</p>
                 <p className="text-2xl font-semibold">{shown.length}</p>
               </div>
-              {status !== "paid" && (
-                <div>
-                  <p className="text-xs text-gray-500">סה"כ לגבייה</p>
-                  <p className="text-2xl font-semibold">{shekel(totalOwed)} ₪</p>
-                </div>
-              )}
               {overdueCount > 0 && (
                 <div>
                   <p className="text-xs text-gray-500">באיחור</p>
