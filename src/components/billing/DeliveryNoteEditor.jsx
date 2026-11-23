@@ -59,7 +59,9 @@ const dayValue = (d) =>
  */
 const DeliveryNoteEditor = ({ note, onSaved, onCancel }) => {
   const [rows, setRows] = useState(() =>
-    (note.items || []).map((i) => ({
+    // שורות הפיקדון אינן נערכות: השרת מחשב אותן מחדש בשמירה לפי המשקאות
+    // שבתעודה (sweet-backend/lib/billing/deposits.js)
+    (note.items || []).filter((i) => !i.isDeposit).map((i) => ({
       sku: String(i.sku || ""),
       name: i.name,
       barcode: i.barcode || "",
@@ -75,6 +77,7 @@ const DeliveryNoteEditor = ({ note, onSaved, onCancel }) => {
       fromNote: true,
     }))
   );
+  const depositLines = (note.items || []).filter((i) => i.isDeposit);
   const [issuedAt, setIssuedAt] = useState(dayValue(note.issuedAt));
   const [manualReference, setManualReference] = useState(note.manualReference || "");
   const [notes, setNotes] = useState(note.notes || "");
@@ -357,6 +360,13 @@ const DeliveryNoteEditor = ({ note, onSaved, onCancel }) => {
             נכללה בתצוגה מקדימה של סגירת חודש — כדאי לבדוק שם שוב.
           </span>
         </p>
+
+        {depositLines.length > 0 && (
+          <p className="text-xs text-gray-600 dark:text-gray-400 mb-3">
+            פיקדון ({depositLines.map((i) => `${i.name} × ${i.quantity}`).join(", ")}) אינו
+            ברשימה: הוא מחושב מחדש בשמירה לפי המשקאות שבתעודה.
+          </p>
+        )}
 
         <div className="mb-4 max-w-sm">
           <BarcodeInput onPick={addByBarcode} hint="הוספת שורה לפי ברקוד ואז Enter" />

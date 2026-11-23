@@ -13,6 +13,8 @@ const ProductDetails = lazy(() => import("@/pages/ProductDetails"));
 const Category = lazy(() => import("@/pages/Category"));
 // שיוך מוצרים לקטגוריה באצווה — אייוש קטגוריות כמו "כיבוד"
 const CategoryAssign = lazy(() => import("@/pages/CategoryAssign"));
+// שיוך משקאות למוצר הפיקדון שלהם
+const Deposits = lazy(() => import("@/pages/Deposits"));
 // ⛔ מבצעים כבויים (הקוד נשמר) - להחזרה: להסיר את ההערה כאן ובמסלול למטה
 // const Offers = lazy(() => import("@/pages/Offers"));
 const ChildCategory = lazy(() => import("@/pages/ChildCategory"));
@@ -129,6 +131,10 @@ const routes = [
   {
     path: "/categories/assign",
     component: CategoryAssign,
+  },
+  {
+    path: "/deposits",
+    component: Deposits,
   },
   // ⛔ מבצעים כבויים (לא נמחקו) - להחזרה: להסיר את ההערה
   // {

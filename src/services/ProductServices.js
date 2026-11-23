@@ -35,6 +35,21 @@ const ProductServices = {
     return requests.patch("/products/bulk-category", { ids, category });
   },
 
+  // שיוך משקאות למוצר הפיקדון: מוצרי הפיקדון, השיוכים הקיימים וההצעות
+  getDepositSetup: async () => {
+    return requests.get("/products/deposits");
+  },
+
+  // items: [{ productId, depositProductId (null = הסרה), perUnit }]
+  saveDeposits: async (items) => {
+    return requests.put("/products/deposits", { items });
+  },
+
+  // הוספת פיקדון לתעודות הפתוחות. apply: false = תצוגה מקדימה בלבד
+  applyDepositsToOpenNotes: async (apply) => {
+    return requests.post("/products/deposits/open-notes", { apply });
+  },
+
   getProductById: async (id) => {
     return requests.post(`/products/${id}`);
   },

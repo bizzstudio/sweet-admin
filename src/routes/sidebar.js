@@ -49,6 +49,10 @@ const sidebar = [
         path: "/categories/assign",
         name: "CategoryAssign",
       },
+      {
+        path: "/deposits",
+        name: "Deposits",
+      },
       // ⛔ תכונות, קופונים ומבצעים כבויים (לא נמחקו) - להחזרה: להסיר את ההערה
       // {
       //   path: "/attributes",
