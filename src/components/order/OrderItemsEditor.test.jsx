@@ -24,6 +24,9 @@ vi.mock("@/utils/toast", () => ({
   notifyError: vi.fn(),
   notifySuccess: vi.fn(),
 }));
+vi.mock("@/services/CustomerPriceListServices", () => ({
+  default: { upsertItems: vi.fn() },
+}));
 vi.mock("@/services/IncomingOrderServices", () => ({
   default: { getIncomingOrderById: vi.fn(), resolveItem: vi.fn() },
 }));
@@ -49,6 +52,7 @@ vi.mock("@/hooks/useCustomerKnownSkus", () => {
 import OrderServices from "@/services/OrderServices";
 import BillingServices from "@/services/BillingServices";
 import IncomingOrderServices from "@/services/IncomingOrderServices";
+import CustomerPriceListServices from "@/services/CustomerPriceListServices";
 import { notifyError } from "@/utils/toast";
 import OrderItemsEditor from "@/components/order/OrderItemsEditor";
 
@@ -140,7 +144,9 @@ describe("OrderItemsEditor", () => {
     render();
 
     // תמרים (2+3) ואגוזים — שתי שורות ניתנות לעריכה
-    const quantities = [...container.querySelectorAll('input[type="number"]')];
+    const quantities = [
+      ...container.querySelectorAll('input[type="number"]:not([aria-label^="מחיר"])'),
+    ];
     // שני שדות כמות + דמי משלוח + הנחה
     expect(quantities).toHaveLength(4);
     expect(quantities[0].value).toBe("5");
@@ -183,6 +189,43 @@ describe("OrderItemsEditor", () => {
 
     const [, body] = OrderServices.updateOrderItems.mock.calls[1];
     expect(body.allowLockedNote).toBe(true);
+  });
+
+  // 23/11/26: בקשת בעלת העסק — לשנות מחיר מעמוד ההזמנה. המחיר נשלח רק
+  // בשורה שבה שונה, ונשמר גם במחירון כמו בתעודת משלוח
+  it("מחיר שהוקלד נשלח בשורה שלו בלבד ונשמר במחירון הלקוח", async () => {
+    OrderServices.updateOrderItems.mockResolvedValue({ note: null });
+    CustomerPriceListServices.upsertItems.mockResolvedValue({ message: "נשמר" });
+    render();
+
+    const price = container.querySelector('[aria-label="מחיר ליחידה של תמרים"]');
+    expect(price.value).toBe("10");
+    await act(async () => {
+      const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
+      setter.call(price, "12.5");
+      price.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    expect(container.textContent).toContain("62.50"); // 5 × 12.5
+
+    await click(byText("button", "שמירת השינויים"));
+
+    const [, body] = OrderServices.updateOrderItems.mock.calls[0];
+    expect(body.items).toEqual([
+      { _id: "p1", sku: "111", quantity: 5, price: 12.5 },
+      { _id: "p2", sku: "222", quantity: 1 },
+    ]);
+    expect(CustomerPriceListServices.upsertItems).toHaveBeenCalledWith("c1", {
+      items: [{ sku: "111", price: 12.5 }],
+      applyToGroup: true,
+    });
+  });
+
+  it("בלי שינוי מחיר המחירון אינו נכתב", async () => {
+    OrderServices.updateOrderItems.mockResolvedValue({ note: null });
+    render();
+    await click(byText("button", "שמירת השינויים"));
+    expect(OrderServices.updateOrderItems).toHaveBeenCalledTimes(1);
+    expect(CustomerPriceListServices.upsertItems).not.toHaveBeenCalled();
   });
 
   it("כמות לא תקינה נעצרת במסך ואינה נשלחת", async () => {

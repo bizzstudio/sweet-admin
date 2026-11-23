@@ -6,9 +6,9 @@
 // ותעודת המשלוח נגזרת ממנה אוטומטית. כמות שגויה שנקלטה הייתה ממשיכה עד
 // לחשבונית החודשית בלי שום מקום לתקן אותה — זה המקום.
 //
-// המחיר אינו נערך כאן במכוון: הוא נקבע במחירון הלקוח, וזו הנקודה שבה
-// מתקנים אותו. מחיר שהוקלד ידנית על שורה בודדת היה נעלם בהזמנה הבאה
-// ומייצר שני מחירים שונים לאותו מוצר לאותו לקוח.
+// המחיר נערך כאן מ-23/11/2026 (בקשת בעלת העסק). כמו בתעודת המשלוח, מחיר
+// שהוקלד נשמר גם במחירון הלקוח (או במחירון הקבוצתי, כשהמוצר מתומחר ממנו) —
+// אחרת היה נעלם בהזמנה הבאה ומייצר שני מחירים לאותו מוצר לאותו לקוח.
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -33,6 +33,7 @@ import useCustomerKnownSkus from "@/hooks/useCustomerKnownSkus";
 import BillingServices from "@/services/BillingServices";
 import IncomingOrderServices from "@/services/IncomingOrderServices";
 import OrderServices from "@/services/OrderServices";
+import CustomerPriceListServices from "@/services/CustomerPriceListServices";
 import { notifyError, notifySuccess } from "@/utils/toast";
 
 import TableHeaderCell from "@/components/table/TableHeaderCell";
@@ -79,7 +80,9 @@ const toRow = (line) => ({
   origId: String(line._id || line.id || ""),
   name: titleOf(line),
   quantity: String(line.quantity ?? ""),
-  unitPrice: Number(line.prices?.price ?? line.price) || 0,
+  unitPrice: String(Number(line.prices?.price ?? line.price) || 0),
+  // המחיר כפי שהגיע מהשרת. שורה שהמחיר בה שונה ממנו — המחיר הוקלד כאן
+  basePrice: Number(line.prices?.price ?? line.price) || 0,
   source: line.priceSource === "customer-price-list" ? "customerPriceList" : null,
 });
 
@@ -199,6 +202,28 @@ const OrderItemsEditor = ({ orderId, order, onSaved, onCancel }) => {
   const setQuantity = (key, value) =>
     setRows((prev) => prev.map((r) => (r.key === key ? { ...r, quantity: value } : r)));
 
+  const setPrice = (key, value) =>
+    setRows((prev) => prev.map((r) => (r.key === key ? { ...r, unitPrice: value } : r)));
+
+  const priceChanged = (r) => Number(r.unitPrice) !== r.basePrice;
+
+  // כמו בתעודה: מחיר שהוקלד נכתב למחירון. כישלון כאן אינו מבטל את ההזמנה
+  // שכבר נשמרה — רק נאמר במפורש
+  const savePricesToPriceList = async (changedRows) => {
+    const items = changedRows
+      .filter((r) => r.sku)
+      .map((r) => ({ sku: r.sku, price: Number(r.unitPrice) }));
+    if (!items.length || !customerId) return;
+    try {
+      const res = await CustomerPriceListServices.upsertItems(customerId, { items, applyToGroup: true });
+      notifySuccess(res?.message || "המחיר נשמר במחירון הלקוח");
+    } catch (err) {
+      notifyError(
+        `ההזמנה עודכנה, אבל המחיר לא נשמר במחירון: ${err?.response?.data?.message || err.message}`
+      );
+    }
+  };
+
   const removeRow = (key) => setRows((prev) => prev.filter((r) => r.key !== key));
 
   // מוצר שנבחר מהבורר — המחיר נשלף מהשרת ולא מהקטלוג שבדפדפן, כי המחיר
@@ -228,7 +253,8 @@ const OrderItemsEditor = ({ orderId, order, onSaved, onCancel }) => {
           sku: String(sku),
           name: priced.name,
           quantity: "1",
-          unitPrice: Number(priced.unitPrice) || 0,
+          unitPrice: String(Number(priced.unitPrice) || 0),
+          basePrice: Number(priced.unitPrice) || 0,
           source: priced.source,
         },
       ]);
@@ -261,7 +287,10 @@ const OrderItemsEditor = ({ orderId, order, onSaved, onCancel }) => {
                 id: String(sku) === r.origSku ? r.origId : "",
                 sku: String(sku),
                 name: priced.name,
-                unitPrice: Number(priced.unitPrice) || 0,
+                // החלפת מוצר מוחקת מחיר שהוקלד: מחיר של המוצר הקודם לא
+                // ייכתב למחירון של המוצר החדש
+                unitPrice: String(Number(priced.unitPrice) || 0),
+                basePrice: Number(priced.unitPrice) || 0,
                 source: priced.source,
                 oldName: r.oldName || r.name,
                 remember: r.remember ?? true,
@@ -298,6 +327,12 @@ const OrderItemsEditor = ({ orderId, order, onSaved, onCancel }) => {
       notifyError(`כמות לא תקינה עבור ${invalid.name}`);
       return;
     }
+    const badPrice = rows.find((r) => priceChanged(r) && !(Number(r.unitPrice) > 0));
+    if (badPrice) {
+      notifyError(`מחיר לא תקין עבור ${badPrice.name}`);
+      return;
+    }
+    const pricedRows = rows.filter(priceChanged);
     if (!rows.length) {
       notifyError("לא ניתן להשאיר הזמנה בלי פריטים");
       return;
@@ -310,6 +345,7 @@ const OrderItemsEditor = ({ orderId, order, onSaved, onCancel }) => {
           _id: r.id || undefined,
           sku: r.sku || undefined,
           quantity: Number(r.quantity),
+          ...(priceChanged(r) ? { price: Number(r.unitPrice) } : {}),
         })),
         shippingCost: Number(shippingCost) || 0,
         discount: Number(discount) || 0,
@@ -329,6 +365,7 @@ const OrderItemsEditor = ({ orderId, order, onSaved, onCancel }) => {
         // נקרא כאילו גם החיוב תוקן
         notifyError(`שימו לב: תעודה ${note.number} לא עודכנה — ${NOTE_REASONS[note.reason] || note.reason}`);
       }
+      await savePricesToPriceList(pricedRows);
       // ההזמנה כבר נשמרה; כשל בשמירת ההכרעה אינו מבטל אותה, רק נאמר
       for (const a of aliasesToSave()) {
         try {
@@ -485,9 +522,24 @@ const OrderItemsEditor = ({ orderId, order, onSaved, onCancel }) => {
                       onChange={(e) => setQuantity(row.key, e.target.value)}
                     />
                   </TableCell>
-                  <TableCell className="text-center text-sm">{shekel(row.unitPrice)} ₪</TableCell>
+                  <TableCell className="text-center">
+                    <Input
+                      className="w-24 text-center"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      aria-label={`מחיר ליחידה של ${row.name}`}
+                      value={row.unitPrice}
+                      onChange={(e) => setPrice(row.key, e.target.value)}
+                    />
+                    {priceChanged(row) && (
+                      <span className="block text-xs text-orange-600 whitespace-normal">
+                        היה {shekel(row.basePrice)} ₪ · יישמר גם במחירון
+                      </span>
+                    )}
+                  </TableCell>
                   <TableCell className="text-left text-sm font-semibold">
-                    {shekel((Number(row.quantity) || 0) * row.unitPrice)} ₪
+                    {shekel((Number(row.quantity) || 0) * (Number(row.unitPrice) || 0))} ₪
                   </TableCell>
                   <TableCell className="text-left">
                     <Button
